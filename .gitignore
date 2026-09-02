@@ -41,3 +41,18 @@ captures/
 .idea/gradle.xml
 .idea/deploymentTargetDropDown.xml
 .idea/deviceManager.xml
+
+# Local setup and coding-agent notes (not public documentation)
+/AGENTS.md
+/CLAUDE.md
+/docs/CI.md
+/docs/HANDOFF.md
+/docs/DEVELOPMENT.md
+/scripts/check.ps1
+
+# Signing material stays private
+*.keystore
+*.jks
+*.keystore.base64
+keystore.properties
+signing.properties
