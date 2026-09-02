@@ -6,12 +6,13 @@ import java.time.LocalTime
 data class HourlyConditions(
     val time: LocalDateTime,
     val isDaylight: Boolean,
-    val airTemperatureC: Double,
-    val precipitationProbabilityPercent: Int,
-    val cloudCoverPercent: Int,
-    val windSpeedKmh: Double,
-    val seaTemperatureC: Double,
-    val waveHeightM: Double,
+    val airTemperatureC: Double?,
+    val precipitationProbabilityPercent: Int?,
+    val cloudCoverPercent: Int?,
+    val windSpeedKmh: Double?,
+    val seaTemperatureC: Double?,
+    val waveHeightM: Double?,
+    val precipitationMm: Double? = null,
 )
 
 enum class Rating(val label: String) {
@@ -43,4 +44,5 @@ data class ActivityRecommendation(
     val bestStart: LocalTime,
     val bestEnd: LocalTime,
     val factors: List<FactorResult>,
+    val warnings: List<String> = emptyList(),
 )

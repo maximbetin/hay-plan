@@ -44,5 +44,6 @@ object SampleForecast {
         windSpeedKmh = windSpeedKmh,
         seaTemperatureC = seaTemperatureC,
         waveHeightM = waveHeightM,
+        precipitationMm = 0.0,
     )
 }
