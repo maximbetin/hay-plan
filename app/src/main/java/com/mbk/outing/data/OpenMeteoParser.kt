@@ -29,6 +29,8 @@ object OpenMeteoParser {
             HourlyConditions(
                 time = time,
                 isDaylight = daylight,
+                sunrise = sunrise,
+                sunset = sunset,
                 airTemperatureC = hourly.number("temperature_2m", i),
                 precipitationProbabilityPercent = hourly.number("precipitation_probability", next)
                     ?.takeIf { it in 0.0..100.0 }?.toInt(),

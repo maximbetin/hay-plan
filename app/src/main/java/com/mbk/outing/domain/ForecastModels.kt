@@ -13,6 +13,8 @@ data class HourlyConditions(
     val seaTemperatureC: Double?,
     val waveHeightM: Double?,
     val precipitationMm: Double? = null,
+    val sunrise: LocalDateTime? = null,
+    val sunset: LocalDateTime? = null,
 )
 
 enum class Rating(val label: String) {
@@ -37,12 +39,32 @@ data class FactorResult(
     val points: Int,
 )
 
-data class ActivityRecommendation(
-    val activity: String,
+enum class ActivityType(val label: String) {
+    BEACH("Beach"),
+    HIKING("Hiking"),
+}
+
+data class DayRating(
     val rating: Rating,
     val score: Int,
-    val bestStart: LocalTime,
-    val bestEnd: LocalTime,
+    val assessedHours: Int,
+    val goodHours: Int,
+    val warnings: List<String>,
+)
+
+data class BestWindow(
+    val start: LocalTime,
+    val end: LocalTime,
+    val rating: Rating,
+    val score: Int,
     val factors: List<FactorResult>,
     val warnings: List<String> = emptyList(),
 )
+
+fun ratingFor(score: Int): Rating = when {
+    score >= 80 -> Rating.EXCELLENT
+    score >= 60 -> Rating.VERY_GOOD
+    score >= 40 -> Rating.GOOD
+    score >= 20 -> Rating.FAIR
+    else -> Rating.POOR
+}
