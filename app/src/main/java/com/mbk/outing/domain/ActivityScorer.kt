@@ -31,7 +31,7 @@ object ActivityScorer {
                 points >= maximum * 0.7 -> FactorOutcome.POSITIVE
                 points >= maximum * 0.4 -> FactorOutcome.MIXED
                 else -> FactorOutcome.NEGATIVE
-            }, points)
+            }, points, maximum)
         }
 
         when (activity) {

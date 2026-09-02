@@ -16,11 +16,13 @@ which removes its local data.
 
 - Beach and Hiking outlooks, starting with **Gijón, Asturias**.
 - A full-day rating plus a separate best time window.
+- Numeric scores and an hour-by-hour outlook for both activities.
 - Daylight-only recommendations across the available forecast.
-- Tap a location for the weather factors behind its rating.
+- Tap a day, time window, or hour to inspect its score and weather factors.
+- Choose among Gijón's beaches, with San Lorenzo selected initially.
 - One-hour local caching with manual refresh.
 
-Beach uses San Lorenzo's weather and sea conditions. Hiking uses town-level weather;
+Beach uses the selected beach's weather and sea conditions. Hiking uses town-level weather;
 it does not assess specific routes, terrain, or elevation.
 
 Built with Kotlin and Jetpack Compose. No accounts or backend.

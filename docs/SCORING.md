@@ -1,4 +1,4 @@
-# Scoring rules (v0.2)
+# Scoring rules
 
 These are initial personal-preference heuristics, not scientifically validated
 safety thresholds. Adjust them in `ActivityScorer`; protect changes with tests.
@@ -31,6 +31,16 @@ limiting conditions during some hours; they are not claims that every hour is un
 The rating scale is Poor 0–19, Fair 20–39, Good 40–59, Very Good 60–79,
 Excellent 80–100. Detail views also count hours rated Good or better (score >= 40).
 
+## Inspecting the score
+
+The day headline and every hourly row display the actual internal score out of 100.
+The hourly rows are the exact inputs to the day average; missing expected hours
+remain visible as Unavailable. The best three-hour span is highlighted in the list.
+Tap the day score for average factor-point contributions and the mean points lost
+to condition limits; their difference, rounded, equals the displayed day score.
+Tap an hour for its measured values, awarded points and any applied limits. Tap the
+best window for its summarized conditions. The rule thresholds below are unchanged.
+
 ## Beach (100 points)
 
 One profile for a pleasant beach visit that may include swimming. No separate
@@ -47,7 +57,9 @@ sunbathing/swimming scores or implied protection from UV or currents.
 
 Every weather factor, rainfall amount, wave height and water temperature is
 required. Unknown sea data makes Beach unavailable; it cannot silently become a
-weather-only rating. Gijón uses San Lorenzo's weather and marine coordinates.
+weather-only rating. Gijón defaults to San Lorenzo; selecting another beach uses
+that beach's own weather and marine coordinates. No shelter or local hazard
+adjustment is inferred from the beach name.
 
 ## Hiking (100 points)
 

@@ -37,6 +37,7 @@ data class FactorResult(
     val detail: String,
     val outcome: FactorOutcome,
     val points: Int,
+    val maximumPoints: Int = 0,
 )
 
 enum class ActivityType(val label: String) {
@@ -50,7 +51,13 @@ data class DayRating(
     val assessedHours: Int,
     val goodHours: Int,
     val warnings: List<String>,
+    val factors: List<DayFactor> = emptyList(),
+    val limitationPoints: Double = 0.0,
 )
+
+data class DayFactor(val label: String, val averagePoints: Double, val maximumPoints: Int)
+
+data class HourlyAssessment(val time: LocalDateTime, val evaluation: ConditionsScore?)
 
 data class BestWindow(
     val start: LocalTime,

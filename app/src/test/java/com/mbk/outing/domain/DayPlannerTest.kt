@@ -4,6 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlin.math.roundToInt
 
 class DayPlannerTest {
     private val date = LocalDate.of(2026, 9, 2)
@@ -135,6 +136,42 @@ class DayPlannerTest {
         val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
         assertEquals(outlook.day!!.score, outlook.bestWindow!!.score)
         assertEquals(Rating.EXCELLENT, outlook.bestWindow.rating)
+    }
+
+    @Test fun `visible hourly scores reproduce the displayed day score`() {
+        val hours = (8..19).map { hour(it).copy(windSpeedKmh = if (it < 12) 10.0 else 23.0) }
+        val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
+        val average = outlook.hourly.map { it.evaluation!!.score }.average().roundToInt()
+        assertEquals(outlook.day!!.score, average)
+        assertEquals(12, outlook.hourly.size)
+    }
+
+    @Test fun `missing hours remain visible and unrated instead of disappearing`() {
+        val outlook = DayPlanner.forDate(listOf(hour(10), hour(12), hour(13)), date, morning, ActivityType.BEACH)
+        assertEquals(listOf(10, 11, 12, 13), outlook.hourly.map { it.time.hour })
+        assertNull(outlook.hourly[1].evaluation)
+        assertNull(outlook.day)
+    }
+
+    @Test fun `hourly list excludes night and elapsed hours`() {
+        val hours = (6..22).map { hour(it).copy(isDaylight = it in 8..19) }
+        val outlook = DayPlanner.forDate(hours, date, date.atTime(11, 30), ActivityType.HIKING)
+        assertEquals((12..19).toList(), outlook.hourly.map { it.time.hour })
+    }
+
+    @Test fun `solar bounds retain unavailable edge slots for inspection`() {
+        val hours = (11..13).map { hour(it).copy(sunrise = date.atTime(8, 15), sunset = date.atTime(20, 35)) }
+        val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH)
+        assertEquals((9..19).toList(), outlook.hourly.map { it.time.hour })
+        assertEquals(3, outlook.hourly.count { it.evaluation != null })
+    }
+
+    @Test fun `day factor breakdown reconciles with the capped score`() {
+        val hours = (8..19).map { hour(it).copy(waveHeightM = if (it < 14) 0.3 else 1.4) }
+        val day = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH).day!!
+        assertEquals(100, day.factors.sumOf { it.maximumPoints })
+        assertTrue(day.limitationPoints > 0)
+        assertEquals(day.score, (day.factors.sumOf { it.averagePoints } - day.limitationPoints).roundToInt())
     }
 
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,

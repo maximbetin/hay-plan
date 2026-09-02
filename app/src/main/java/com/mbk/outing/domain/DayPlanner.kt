@@ -12,6 +12,7 @@ data class ActivityOutlook(
     val bestWindow: BestWindow?,
     val dayUnavailableReason: String? = null,
     val windowUnavailableReason: String? = null,
+    val hourly: List<HourlyAssessment> = emptyList(),
 )
 
 object DayPlanner {
@@ -24,47 +25,53 @@ object DayPlanner {
         activity: ActivityType,
     ): ActivityOutlook {
         val dayHours = hours.filter { it.time.toLocalDate() == date }
-        val eligible = dayHours.filter {
-            !it.time.isBefore(now) && it.isDaylight
-        }.distinctBy { it.time }.sortedBy { it.time }
-        val scores = eligible.map { ActivityScorer.score(activity, listOf(it)) }
+        val eligible = dayHours.filter { !it.time.isBefore(now) && it.isDaylight }
+            .distinctBy { it.time }.sortedBy { it.time }
         val sunrise = dayHours.firstNotNullOfOrNull { it.sunrise }
         val sunset = dayHours.firstNotNullOfOrNull { it.sunset }
-        val expectedHours = if (sunrise != null && sunset != null) {
-            val start = ceilHour(maxOf(sunrise, now))
-            val end = sunset.truncatedTo(ChronoUnit.HOURS)
-            Duration.between(start, end).toHours().toInt().coerceAtLeast(0)
-        } else if (eligible.isEmpty()) 0 else
-            Duration.between(eligible.first().time, eligible.last().time).toHours().toInt() + 1
-        // A brief good spell cannot determine the headline. Require complete coverage
-        // of the daylight period; partial marine data may still provide a best window.
-        val day = if (expectedHours > 0 && scores.size == expectedHours && scores.all { it != null }) {
-            val known = scores.filterNotNull()
-            val mean = known.map { it.score }.average().roundToInt()
-            DayRating(ratingFor(mean), mean, known.size, known.count { it.score >= 40 },
-                known.flatMap { it.warnings }.distinct())
+        val start = if (sunrise != null) ceilHour(maxOf(sunrise, now)) else eligible.firstOrNull()?.time
+        val end = sunset?.truncatedTo(ChronoUnit.HOURS) ?: eligible.lastOrNull()?.time?.plusHours(1)
+        val expectedHours = if (start == null || end == null) 0 else
+            Duration.between(start, end).toHours().toInt().coerceIn(0, 24)
+        val byTime = eligible.associateBy { it.time }
+        // Keep missing slots visible rather than presenting an incomplete day as complete.
+        val hourly = (0 until expectedHours).map { index ->
+            val time = requireNotNull(start).plusHours(index.toLong())
+            HourlyAssessment(time, byTime[time]?.let { ActivityScorer.score(activity, listOf(it)) })
+        }
+        val evaluations = hourly.mapNotNull { it.evaluation }
+        val day = if (expectedHours > 0 && evaluations.size == expectedHours) {
+            val mean = evaluations.map { it.score }.average().roundToInt()
+            val factors = evaluations.first().factors.filter { it.maximumPoints > 0 }.map { factor ->
+                DayFactor(factor.label, evaluations.map { hour ->
+                    hour.factors.first { it.label == factor.label }.points
+                }.average(), factor.maximumPoints)
+            }
+            val limits = evaluations.map { it.factors.sumOf { factor -> factor.points } - it.score }.average()
+            DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
+                evaluations.flatMap { it.warnings }.distinct(), factors, limits)
         } else null
 
-        val best = eligible.windowed(WINDOW_HOURS)
-            .filter { window -> window.zipWithNext().all { (a, b) -> a.time.plusHours(1) == b.time } }
-            .mapNotNull { window ->
-                ActivityScorer.score(activity, window)?.let { scored ->
-                    val hourlyMean = window.map {
-                        requireNotNull(ActivityScorer.score(activity, listOf(it))).score
-                    }.average().roundToInt()
-                    // Use the same hourly basis as the day headline. Interval-wide
-                    // limits still prevent a dangerous hour being averaged away.
-                    val windowScore = minOf(hourlyMean, scored.maximumScore)
-                    BestWindow(window.first().time.toLocalTime(), window.last().time.plusHours(1).toLocalTime(),
-                        ratingFor(windowScore), windowScore, scored.factors, scored.warnings)
-                }
-            }.maxByOrNull { it.score }
+        val best = hourly.windowed(WINDOW_HOURS).mapNotNull { window ->
+            if (window.any { it.evaluation == null }) return@mapNotNull null
+            val conditions = window.map { byTime.getValue(it.time) }
+            val summary = ActivityScorer.score(activity, conditions) ?: return@mapNotNull null
+            val hourlyMean = window.map { requireNotNull(it.evaluation).score }.average().roundToInt()
+            val score = minOf(hourlyMean, summary.maximumScore)
+            BestWindow(window.first().time.toLocalTime(), window.last().time.plusHours(1).toLocalTime(),
+                ratingFor(score), score, summary.factors, summary.warnings)
+        }.maxByOrNull { it.score }
+
         return ActivityOutlook(
             activity, day, best,
-            dayUnavailableReason = if (day != null) null else if (expectedHours == 0) "No daylight hours remaining."
-                else "Incomplete ${if (activity == ActivityType.BEACH) "weather or sea" else "weather"} data for the full day.",
-            windowUnavailableReason = if (best != null) null else if (eligible.size < WINDOW_HOURS)
-                "No full three-hour daylight window remaining." else "No complete three-hour forecast window.",
+            dayUnavailableReason = when {
+                day != null -> null
+                dayHours.isEmpty() -> "No forecast for this date."
+                expectedHours == 0 -> "No hours remaining."
+                else -> "Incomplete forecast · ${evaluations.size}/$expectedHours hours rated"
+            },
+            windowUnavailableReason = if (best != null) null else "No complete three-hour window",
+            hourly = hourly,
         )
     }
 

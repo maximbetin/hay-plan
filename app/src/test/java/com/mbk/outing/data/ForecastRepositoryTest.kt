@@ -6,6 +6,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.IOException
+import com.mbk.outing.domain.ActivityType
 
 class ForecastRepositoryTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -22,8 +23,9 @@ class ForecastRepositoryTest {
         val initial = repository.load().single()
         assertEquals(3, calls.size)
         assertEquals(20.0, initial.hiking.hours.first().airTemperatureC!!, 0.001)
-        assertEquals(24.0, initial.beach!!.hours.first().airTemperatureC!!, 0.001)
-        assertEquals(21.0, initial.beach.hours.first().seaTemperatureC!!, 0.001)
+        val initialBeach = requireNotNull(initial.beach)
+        assertEquals(24.0, initialBeach.hours.first().airTemperatureC!!, 0.001)
+        assertEquals(21.0, initialBeach.hours.first().seaTemperatureC!!, 0.001)
         repository.load()
         assertEquals(3, calls.size)
         repository.load(forceRefresh = true)
@@ -33,7 +35,7 @@ class ForecastRepositoryTest {
     @Test fun `inland location requests weather only`() = runBlocking {
         val calls = mutableListOf<String>()
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls += url; response(url) }
-        val result = ForecastRepository(client, listOf(location.copy(mainBeach = null))).load().single()
+        val result = ForecastRepository(client, listOf(location.copy(beaches = emptyList()))).load().single()
         assertEquals(1, calls.size)
         assertNull(result.beach)
         assertTrue(result.hiking.hours.isNotEmpty())
@@ -42,7 +44,7 @@ class ForecastRepositoryTest {
     @Test fun `shared coordinates are deduplicated even on manual refresh`() = runBlocking {
         var calls = 0
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls++; response(url) }
-        val standalone = location.copy(mainBeach = MainBeach("Same point", location.coordinates))
+        val standalone = location.copy(beaches = listOf(BeachLocation("same", "Same point", location.coordinates)))
         ForecastRepository(client, listOf(standalone, standalone.copy(id = "second"))).load(forceRefresh = true)
         assertEquals(2, calls) // One weather URL and one marine URL.
     }
@@ -54,8 +56,9 @@ class ForecastRepositoryTest {
         val result = ForecastRepository(client).load().single()
         assertTrue(result.hiking.errors.isEmpty())
         assertTrue(result.hiking.hours.isNotEmpty())
-        assertTrue(result.beach!!.errors.any { it.contains("Sea") })
-        assertTrue(result.beach.hours.all { it.seaTemperatureC == null && it.waveHeightM == null })
+        val beach = requireNotNull(result.beach)
+        assertTrue(beach.errors.any { it.contains("Sea") })
+        assertTrue(beach.hours.all { it.seaTemperatureC == null && it.waveHeightM == null })
     }
 
     @Test fun `a fresh cache after process recreation requires no requests`() = runBlocking {
@@ -80,6 +83,41 @@ class ForecastRepositoryTest {
         assertTrue(refreshed.hiking.sources.all { it.refreshFailed })
         assertTrue(refreshed.beach!!.sources.all { it.refreshFailed })
         assertTrue(refreshed.hiking.hours.isNotEmpty())
+    }
+
+    @Test fun `additional beaches load on demand and reuse the cache`() = runBlocking {
+        var calls = 0
+        val repository = ForecastRepository(OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
+            calls++; response(url)
+        })
+        repository.load()
+        assertEquals(3, calls) // Catalog size does not increase initial requests.
+        val beach = location.beaches[1]
+        assertTrue(repository.loadBeach(beach).hours.isNotEmpty())
+        assertEquals(5, calls)
+        repository.loadBeach(beach)
+        assertEquals(5, calls)
+    }
+
+    @Test fun `refresh requests the selected beach rather than every beach`() = runBlocking {
+        val calls = mutableListOf<String>()
+        val repository = ForecastRepository(OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
+            calls += url; response(url)
+        })
+        val selected = location.beaches[1]
+        val result = repository.load(true, mapOf(location.id to selected.id)).single()
+        assertEquals(3, calls.size)
+        assertEquals(setOf(selected.id), result.beaches.keys)
+        assertTrue(calls.count { it.contains("latitude=${selected.coordinates.latitude}") } == 2)
+        assertNotNull(result.forActivity(ActivityType.BEACH, selected.id))
+        assertNull(result.forActivity(ActivityType.BEACH, location.mainBeach!!.id))
+    }
+
+    @Test fun `unloaded alternative never displays the main beach forecast`() = runBlocking {
+        val result = ForecastRepository(OpenMeteoClient(ForecastCache(temporary.root, clock), ::response)).load().single()
+        assertNotNull(result.forActivity(ActivityType.BEACH))
+        assertNull(result.forActivity(ActivityType.BEACH, location.beaches[1].id))
+        assertEquals(location.beaches.size, location.beaches.map { it.id }.distinct().size)
     }
 
     private fun response(url: String): String = if (url.contains("marine-api")) marine else {

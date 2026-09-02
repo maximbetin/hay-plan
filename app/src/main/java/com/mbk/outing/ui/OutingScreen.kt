@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -57,8 +56,15 @@ fun OutingApp() {
             }
         }
     }
-    OutingScreen(model.uiState, model::selectDate, model::selectActivity,
-        model::openLocation, model::closeLocation, model::refresh)
+    OutingScreen(
+        state = model.uiState,
+        onDateSelected = model::selectDate,
+        onActivitySelected = model::selectActivity,
+        onLocationSelected = model::openLocation,
+        onBeachSelected = model::selectBeach,
+        onBack = model::closeLocation,
+        onRefresh = model::refresh,
+    )
 }
 
 @Composable
@@ -67,6 +73,7 @@ fun OutingScreen(
     onDateSelected: (LocalDate) -> Unit = {},
     onActivitySelected: (ActivityType) -> Unit = {},
     onLocationSelected: (String) -> Unit = {},
+    onBeachSelected: (String, String) -> Unit = { _, _ -> },
     onBack: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
@@ -77,17 +84,13 @@ fun OutingScreen(
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 if (opened != null) TextButton(onClick = onBack) { Text("‹ Back") }
-                Column(Modifier.weight(1f)) {
-                    Text(opened?.location?.name ?: "Outing",
-                        style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text(opened?.location?.region ?: "Asturias",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                TextButton(onClick = onRefresh, enabled = !state.isLoading) {
+                Text(opened?.location?.name ?: "Outing", modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                TextButton(onClick = onRefresh, enabled = !state.isLoading && state.loadingBeaches.isEmpty()) {
                     Text(if (state.isLoading) "Updating…" else "Refresh")
                 }
             }
-            if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (state.isLoading || state.loadingBeaches.isNotEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {
                     Text(it, Modifier.fillMaxWidth().padding(16.dp))
@@ -95,8 +98,7 @@ fun OutingScreen(
             }
             if (state.dates.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(if (state.isLoading) "Loading your forecast…" else "No forecast available.",
-                        Modifier.padding(24.dp))
+                    Text(if (state.isLoading) "Loading forecast…" else "No forecast available.", Modifier.padding(24.dp))
                 }
             } else {
                 DateStrip(state, onDateSelected)
@@ -113,7 +115,9 @@ fun OutingScreen(
                 }
                 val date = state.selectedDate ?: state.dates.first()
                 val scrollState = rememberLazyListState()
-                LaunchedEffect(date, state.activity, opened?.location?.id) { scrollState.scrollToItem(0) }
+                LaunchedEffect(date, state.activity, opened?.location?.id, state.selectedBeachIds) {
+                    scrollState.scrollToItem(0)
+                }
                 LazyColumn(
                     state = scrollState,
                     modifier = Modifier.weight(1f),
@@ -124,25 +128,45 @@ fun OutingScreen(
                         Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
                             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         if (date.isAfter(state.now.toLocalDate().plusDays(6))) {
-                            Text("Long-range outlook · timings may change",
-                                style = MaterialTheme.typography.bodySmall,
+                            Text("Long-range outlook", style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     if (opened == null) {
                         items(state.forecasts, key = { it.location.id }) { forecast ->
-                            LocationCard(forecast, date, state) { onLocationSelected(forecast.location.id) }
+                            LocationCard(forecast, date, state,
+                                onOpen = { onLocationSelected(forecast.location.id) },
+                                onBeachSelected = { onBeachSelected(forecast.location.id, it) })
                         }
                     } else {
-                        item { LocationDetails(opened, date, state) }
+                        item {
+                            val beachId = state.beachId(opened.location)
+                            val data = opened.forActivity(state.activity, beachId)
+                            val outlook = remember(data, date, state.now, state.activity) {
+                                DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
+                            }
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                if (state.activity == ActivityType.BEACH) {
+                                    BeachSelector(opened.location, beachId, !state.isLoading) {
+                                        onBeachSelected(opened.location.id, it)
+                                    }
+                                }
+                                if (data == null && state.beachLoading(opened.location)) {
+                                    Text("Loading forecast…")
+                                } else if (data == null) {
+                                    Text("No forecast available.")
+                                } else {
+                                    DataNotice(data, state.nowInstant)
+                                    OutlookDetails(outlook, period(date, state), "${date}/${state.activity}/$beachId")
+                                    UpdatedLabel(data)
+                                }
+                            }
+                        }
                     }
                     item {
-                        Text("Daylight only · times in Asturias",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         val uriHandler = LocalUriHandler.current
                         Text("Open-Meteo · CC BY 4.0",
-                            modifier = Modifier.padding(top = 8.dp).clickable { uriHandler.openUri("https://open-meteo.com/") },
+                            modifier = Modifier.clickable { uriHandler.openUri("https://open-meteo.com/") },
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -179,115 +203,54 @@ private fun DateStrip(state: OutingUiState, onDateSelected: (LocalDate) -> Unit)
 }
 
 @Composable
-private fun LocationCard(forecast: LocationForecast, date: LocalDate, state: OutingUiState, onOpen: () -> Unit) {
-    val data = forecast.forActivity(state.activity)
+private fun LocationCard(
+    forecast: LocationForecast,
+    date: LocalDate,
+    state: OutingUiState,
+    onOpen: () -> Unit,
+    onBeachSelected: (String) -> Unit,
+) {
+    val beachId = state.beachId(forecast.location)
+    val data = forecast.forActivity(state.activity, beachId)
     val outlook = remember(data, date, state.now, state.activity) {
         DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
     }
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(forecast.location.name, style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold)
-                    Text(subject(forecast, state.activity), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("›", style = MaterialTheme.typography.headlineMedium)
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(forecast.location.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            if (state.activity == ActivityType.BEACH) {
+                BeachSelector(forecast.location, beachId, !state.isLoading, onBeachSelected)
             }
-            if (data == null) {
-                Text("No beach assigned to this location.")
-            } else {
+            if (data == null && state.beachLoading(forecast.location)) Text("Loading forecast…")
+            else if (data == null) Text("No forecast available.")
+            else {
                 DataNotice(data, state.nowInstant)
-                DaySummary(outlook, period(date, state))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                WindowSummary(outlook)
-                if (outlook.day?.warnings?.isNotEmpty() == true) {
-                    Text("Limiting conditions during part of the day.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                UpdatedLabel(data)
+                DayOverview(outlook, period(date, state))
             }
         }
     }
 }
 
 @Composable
-private fun LocationDetails(forecast: LocationForecast, date: LocalDate, state: OutingUiState) {
-    val data = forecast.forActivity(state.activity)
-    val outlook = remember(data, date, state.now, state.activity) {
-        DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
+private fun BeachSelector(location: OutingLocation, selectedId: String?, enabled: Boolean, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    if (location.beaches.isEmpty()) {
+        Text("No beaches configured.", style = MaterialTheme.typography.bodySmall)
+        return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(subject(forecast, state.activity), style = MaterialTheme.typography.titleMedium)
-        if (data == null) {
-            Text("No beach assigned to this location.")
-        } else {
-            DataNotice(data, state.nowInstant)
-            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DaySummary(outlook, period(date, state))
-                    outlook.day?.let { day ->
-                        Text("${day.goodHours} of ${day.assessedHours} daylight hours rated Good or better.",
-                            style = MaterialTheme.typography.bodyMedium)
-                        Text("The day rating averages every assessed hour—not just the best window.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (day.warnings.isNotEmpty()) {
-                            Text("During part of the day", style = MaterialTheme.typography.labelLarge)
-                            day.warnings.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                        }
-                    }
-                }
-            }
-            Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    WindowSummary(outlook)
-                    outlook.bestWindow?.let { window ->
-                        Text("${window.rating.label} during this window",
-                            color = ratingColor(window.score), fontWeight = FontWeight.SemiBold)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        window.factors.forEach { FactorRow(it) }
-                        window.warnings.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    }
-                }
-            }
-            Text(if (state.activity == ActivityType.BEACH)
-                "A combined beach-day estimate, including swimming conditions. Not a safety assessment: check beach flags and lifeguard advice."
-                else "Town-level weather for a hike or a walk. No route is assumed; elevation, terrain and trail conditions are not assessed.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            data.sources.forEach { source ->
-                Text("${source.label} fetched ${formatInstant(source.fetchedAt)}",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+    Box {
+        TextButton(onClick = { expanded = true }, enabled = enabled) {
+            Text("${location.beach(selectedId)?.name}  ▾", style = MaterialTheme.typography.titleMedium)
         }
-    }
-}
-
-@Composable
-private fun DaySummary(outlook: ActivityOutlook, label: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val day = outlook.day
-        Text(day?.rating?.label ?: "Unavailable", style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = day?.let { ratingColor(it.score) } ?: MaterialTheme.colorScheme.onSurface)
-        if (day == null) Text(outlook.dayUnavailableReason.orEmpty(), style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun WindowSummary(outlook: ActivityOutlook) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Best window", style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val window = outlook.bestWindow
-        if (window == null) Text(outlook.windowUnavailableReason.orEmpty(), style = MaterialTheme.typography.bodySmall)
-        else {
-            Text(formatWindow(window), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            if (outlook.day == null) Text("Based on available hours only.", style = MaterialTheme.typography.bodySmall)
-            if (window.score < 40) Text("Even this window is not recommended.", style = MaterialTheme.typography.bodySmall)
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
+            location.beaches.forEach { beach ->
+                DropdownMenuItem(
+                    text = { Text(beach.name, fontWeight = if (beach.id == selectedId) FontWeight.Bold else FontWeight.Normal) },
+                    onClick = { expanded = false; onSelect(beach.id) },
+                    trailingIcon = if (beach.id == selectedId) { { Text("✓") } } else null,
+                )
+            }
         }
     }
 }
@@ -296,9 +259,9 @@ private fun WindowSummary(outlook: ActivityOutlook) {
 private fun DataNotice(data: ActivityForecastData, now: Instant) {
     val warnings = buildList {
         addAll(data.errors)
-        if (data.sources.any { it.refreshFailed }) add("Refresh failed. Using the saved forecast.")
-        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Saved data is over an hour old or its timestamp cannot be verified.")
-        if (data.sources.any { it.persistenceFailed }) add("Forecast could not be saved on this device.")
+        if (data.sources.any { it.refreshFailed }) add("Refresh failed · saved forecast")
+        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Forecast may be outdated")
+        if (data.sources.any { it.persistenceFailed }) add("Couldn't save forecast")
     }
     warnings.forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
 }
@@ -306,34 +269,9 @@ private fun DataNotice(data: ActivityForecastData, now: Instant) {
 @Composable
 private fun UpdatedLabel(data: ActivityForecastData) {
     data.sources.minOfOrNull { it.fetchedAt }?.let {
-        Text("Forecast: ${formatInstant(it)} · 1 h cache",
+        Text("Updated ${it.atZone(LocationCatalog.zone).format(DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.ENGLISH))}",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-@Composable
-private fun FactorRow(factor: FactorResult) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(when (factor.outcome) {
-            FactorOutcome.POSITIVE -> "✓"
-            FactorOutcome.MIXED -> "~"
-            FactorOutcome.NEGATIVE -> "!"
-        }, color = when (factor.outcome) {
-            FactorOutcome.POSITIVE -> ratingColor(90)
-            FactorOutcome.MIXED -> ratingColor(50)
-            FactorOutcome.NEGATIVE -> ratingColor(10)
-        })
-        Column(Modifier.weight(1f)) {
-            Text(factor.label)
-            Text(factor.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Text(factor.value, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-private fun subject(forecast: LocationForecast, activity: ActivityType) = when (activity) {
-    ActivityType.BEACH -> "Beach · ${forecast.location.mainBeach?.name ?: "Not configured"}"
-    ActivityType.HIKING -> "Hiking · town and surrounding area"
 }
 
 private fun period(date: LocalDate, state: OutingUiState) =
@@ -345,30 +283,16 @@ private fun dayLabel(date: LocalDate, today: LocalDate) = when (date) {
     else -> date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))
 }
 
-private fun formatWindow(window: BestWindow): String {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm")
-    return "${window.start.format(formatter)}–${window.end.format(formatter)}"
-}
-
-private fun formatInstant(instant: Instant): String =
-    instant.atZone(LocationCatalog.zone).format(DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.ENGLISH))
-
-private fun ratingColor(score: Int) = when {
-    score >= 80 -> Color(0xFF087A63)
-    score >= 60 -> Color(0xFF39734B)
-    score >= 40 -> Color(0xFF8A6500)
-    else -> Color(0xFFA34235)
-}
-
 @Preview(showBackground = true, widthDp = 390, heightDp = 850)
 @Composable
 private fun OutingScreenPreview() {
     val hours = SampleForecast.tomorrow()
     val date = hours.first().time.toLocalDate()
+    val location = LocationCatalog.locations.first()
     val data = ActivityForecastData(hours)
     OutingTheme {
         OutingScreen(OutingUiState(
-            forecasts = listOf(LocationForecast(LocationCatalog.locations.first(), data, data)),
+            forecasts = listOf(LocationForecast(location, data, mapOf(location.mainBeach!!.id to data))),
             dates = listOf(date), selectedDate = date, isLoading = false,
         ))
     }
