@@ -62,9 +62,9 @@ jobs:
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           # Ignore yes's SIGPIPE, but still fail if sdkmanager itself fails.
           set +o pipefail
-          yes | "$sdkmanager" --licenses > /dev/null
+          yes 2>/dev/null | "$sdkmanager" --licenses > /dev/null
           set -o pipefail
-          "$sdkmanager" --install 'platforms;android-37' 'build-tools;36.0.0'
+          "$sdkmanager" --install 'platforms;android-37.0' 'build-tools;36.0.0'
 
       # Optional: a standard Android debug keystore enables in-place test updates.
       # Never give PR code access to the saved signing key.
