@@ -78,9 +78,12 @@ jobs:
           if [[ -n "$KEYSTORE_BASE64" ]]; then
             umask 077
             mkdir -p "$HOME/.android"
-            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
-            echo 'mode=Saved test signing key' >> "$GITHUB_OUTPUT"
             echo 'restored=true' >> "$GITHUB_OUTPUT"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+            keytool -list -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey > /dev/null
+            echo "OUTING_DEBUG_KEYSTORE=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+            echo 'mode=Saved test signing key' >> "$GITHUB_OUTPUT"
           else
             echo 'mode=Temporary debug key (updating may require uninstalling)' >> "$GITHUB_OUTPUT"
           fi
@@ -88,6 +91,20 @@ jobs:
       - name: Run tests, lint, and build
         shell: bash
         run: bash ./gradlew --no-daemon --console=plain testDebugUnitTest lintDebug assembleDebug
+
+      - name: Verify APK uses the saved test key
+        if: steps.signing.outputs.restored == 'true'
+        shell: bash
+        run: |
+          expected=$(keytool -exportcert -keystore "$OUTING_DEBUG_KEYSTORE" \
+            -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
+          actual=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
+            app/build/outputs/apk/debug/app-debug.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [[ "$actual" != "$expected" ]]; then
+            echo 'APK signing certificate does not match the saved test key.' >&2
+            exit 1
+          fi
+          echo 'APK signing certificate matches the saved test key.'
 
       - name: Name the downloadable APK
         id: package
