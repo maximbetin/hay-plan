@@ -36,10 +36,14 @@ Excellent 80–100. Detail views also count hours rated Good or better (score >=
 The day headline and every hourly row display the actual internal score out of 100.
 The hourly rows are the exact inputs to the day average; missing expected hours
 remain visible as Unavailable. The best three-hour span is highlighted in the list.
-Tap the day score for average factor-point contributions and the mean points lost
-to condition limits; their difference, rounded, equals the displayed day score.
+Tap Score details for daylight weather ranges, maximum wind/rain chance and total
+rainfall, then expand the score calculation for average factor-point contributions
+and mean points lost to condition limits; their difference, rounded, equals the
+displayed day score. Summaries use the same expected daylight slots; a missing
+value in any slot leaves that field Unknown instead of summarizing a partial set.
 Tap an hour for its measured values, awarded points and any applied limits. Tap the
-best window for its summarized conditions. The rule thresholds below are unchanged.
+Best 3 hours for its summarized conditions. Both summary actions open the same
+explanation on the home and location screens. The rule thresholds below are unchanged.
 
 ## Beach (100 points)
 

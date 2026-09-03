@@ -157,8 +157,9 @@ fun OutingScreen(
                                     Text("No forecast available.")
                                 } else {
                                     DataNotice(data, state.nowInstant)
-                                    OutlookDetails(outlook, period(date, state), "${date}/${state.activity}/$beachId")
                                     UpdatedLabel(data)
+                                    OutlookDetails(outlook, data.hours, period(date, state),
+                                        "${date}/${state.activity}/$beachId", date == state.now.toLocalDate())
                                 }
                             }
                         }
@@ -215,7 +216,7 @@ private fun LocationCard(
     val outlook = remember(data, date, state.now, state.activity) {
         DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
     }
-    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(forecast.location.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -226,8 +227,11 @@ private fun LocationCard(
             else if (data == null) Text("No forecast available.")
             else {
                 DataNotice(data, state.nowInstant)
-                DayOverview(outlook, period(date, state))
+                UpdatedLabel(data)
+                OutlookDetails(outlook, data.hours, period(date, state),
+                    "${date}/${state.activity}/$beachId", date == state.now.toLocalDate(), showHourly = false)
             }
+            TextButton(onClick = onOpen) { Text("Hourly forecast ›") }
         }
     }
 }
