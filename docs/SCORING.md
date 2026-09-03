@@ -44,17 +44,10 @@ Excellent 80–100. Detail views also count hours rated Good or better (score >=
 The day headline and every hourly row display the actual internal score out of 100.
 The hourly rows are the exact inputs to the day average; missing expected hours
 remain visible as Unavailable. The best three-hour span is highlighted in the list.
-Choose a date (for example Thu 03/09) and activity to compare every town. Tap a
-town card for its hourly results; the card and detail use the same calculated
-outlook and best window. Back retains the date/activity and returns to the list.
-Tap Score details for daylight weather ranges, maximum wind/rain chance and total
-rainfall, then expand the calculation explanation. Each hourly detail shows its
+Cards and details use the same calculated outlook and best window. Each hourly detail shows its
 actual raw points, available maximum, normalized score and any reductions.
-Summaries use the same expected daylight slots; a missing
+Day summaries use the same expected daylight slots; a missing
 value in any slot leaves that field Unknown instead of summarizing a partial set.
-Tap an hour for its measured values, awarded points and any applied limits. Tap the
-Best 3 hours for its summarized conditions. Every explanation keeps its town,
-activity, coastal reference (where relevant), and date visible.
 
 ## Beach (available points scaled to 100)
 
@@ -78,16 +71,13 @@ and known wave height adds up to 20. The available maximum is therefore 65, 80,
 Missing data is not treated as zero waves or warm water. If sea data fails or
 ends earlier than weather data, the remaining weather-only estimates are labelled.
 
-Each town has one weather point. Coastal towns also have one named marine
-reference: San Lorenzo for Gijón, and nearby Salinas in Castrillón for Avilés.
-Oviedo uses weather only; no marine request is made inland. The UI names Salinas'
-municipality rather than implying it lies inside Avilés. No beach catalog, pool
-catalog, or shelter adjustment is inferred.
+Each town has one weather point and, where applicable, one named marine reference.
+Inland towns make no marine request. No beach-specific shelter adjustment is inferred.
 
 ## Hiking (100 points)
 
-General outdoor/hiking/walking weather around Gijón or Oviedo; not a route-specific forecast.
-No trail catalog is needed. Cloudiness is not inherently bad for this activity.
+General walking/hiking weather around the selected town, not a route-specific forecast.
+Cloudiness is not inherently bad for this activity.
 
 | Factor | Points |
 | --- | --- |

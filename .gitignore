@@ -1,56 +1,33 @@
-# Compiled class file
+# Local tooling and generated output
+/.gradle/
+/.kotlin/
+/.idea/
+**/build/
+/out/
+/captures/
+/.externalNativeBuild/
+/.cxx/
+*.iml
+local.properties
 *.class
-
-# Log file
 *.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-!gradle/wrapper/gradle-wrapper.jar
-*.war
-*.nar
-*.ear
+*.hprof
+*.apk
+*.aab
 *.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+*.jar
+!/gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*
 replay_pid*
 
-# Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
-.kotlin/
-
-# Android / Gradle
-.gradle/
-build/
-**/build/
-local.properties
-captures/
-.externalNativeBuild/
-.cxx/
-
-# Android Studio machine-specific files
-.idea/caches/
-.idea/gradle.xml
-.idea/deploymentTargetDropDown.xml
-.idea/deviceManager.xml
-
-# Local setup and coding-agent notes (not public documentation)
+# Private setup and agent notes
 /AGENTS.md
 /CLAUDE.md
-/docs/CI.md
-/docs/HANDOFF.md
 /docs/DEVELOPMENT.md
+/docs/HANDOFF.md
 /scripts/check.ps1
 
-# Signing material stays private
+# Signing material
 *.keystore
 *.jks
 *.keystore.base64

@@ -1,40 +1,28 @@
 # Outing
 
-A small native Android app for choosing a good day for the **beach** or a **hike**.
+A small native Android app for planning a beach visit or a walk around town.
 
 ## Download
 
-**[Download the latest Android APK](https://github.com/maximbetin/outing/releases/latest/download/outing-debug.apk)**
+**[Download the latest APK](https://github.com/maximbetin/outing/releases/latest/download/outing-debug.apk)**
+· [All releases](https://github.com/maximbetin/outing/releases)
 
-[All releases](https://github.com/maximbetin/outing/releases)
+Requires Android 8.0 or newer. This is a personal test build, not a Play Store release.
+For new-build notifications in GitHub Mobile, watch this repository with **Releases** enabled.
+Older builds signed with another key require uninstalling first, which removes local app data.
 
-To receive new-build alerts in GitHub Mobile, watch this repository with the
-**Releases** option enabled.
+## Use
 
-Requires Android 8.0 or newer. This is an early test build, not a Play Store release.
-Updating from v0.3.0 requires a one-time uninstall because CI signing was corrected.
-Uninstalling removes the app's local data.
+1. Choose a date and **Beach** or **Hiking** to compare Gijón, Oviedo, and Avilés.
+2. Each town shows its daylight rating and a separate best three-hour window.
+3. Tap a town for hourly results, then an hour for its weather values and score explanation.
+4. Use **Refresh** to bypass the one-hour forecast cache.
 
-## Features
-
-- Beach and Hiking outlooks for **Gijón**, **Oviedo**, and **Avilés**.
-- Choose a date and activity to compare all towns, then tap a card for hourly details.
-- A full-day rating plus a separately rated best three-hour window.
-- Weather summaries, numeric scores, and an hour-by-hour outlook for both activities.
-- Daylight-only recommendations across the available forecast.
-- Open Score details for weather conditions and an expandable score explanation.
-- Tap Best 3 hours or an individual hour to inspect its forecast.
-- One named coastal reference where relevant: San Lorenzo for Gijón and nearby
-  Salinas (Castrillón) for Avilés. No beach selector.
-- One-hour local caching with manual refresh.
-
-Beach uses town weather plus available sea data for coastal locations. Inland it
-is a weather-only estimate for outdoor leisure, not a pool or river conditions forecast.
-Ratings clearly indicate the data used. Hiking uses town-level weather; it does
-not assess specific routes, terrain, or elevation.
+Beach uses town weather plus available sea data: San Lorenzo for Gijón and nearby
+Salinas (Castrillón) for Avilés. Oviedo is a weather-only estimate for outdoor leisure,
+not a pool or river forecast. Hiking uses town weather, not route or elevation conditions.
+See [Scoring rules](docs/SCORING.md) for how the ratings work.
 
 Built with Kotlin and Jetpack Compose. No accounts or backend.
-
-Weather data: [Open-Meteo](https://open-meteo.com/) · CC BY 4.0.
-
-Ratings estimate suitability, not safety. Check beach flags and local conditions.
+Weather: [Open-Meteo](https://open-meteo.com/) · CC BY 4.0.
+Ratings estimate comfort, not safety; check local warnings and conditions.
