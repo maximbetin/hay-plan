@@ -18,7 +18,7 @@ class ForecastPresentationTest {
     @Test fun `summary uses ranges maxima and total rain from assessed hours`() {
         val result = summary(listOf(hour(8), hour(9).copy(airTemperatureC = 26.0,
             windSpeedKmh = 21.0, precipitationProbabilityPercent = 30), hour(10)))!!
-        assertEquals("Air 24.0–26.0°C · Rain chance 30% max · Wind 21.0 km/h max", result.headline)
+        assertEquals("Air 24.0–26.0°C · Rain chance 30% max\nWind 21.0 km/h max", result.headline)
         assertEquals("0.6 mm total", result.values.first { it.label == "Rainfall" }.value)
         assertEquals(6, result.values.size)
     }
@@ -45,6 +45,15 @@ class ForecastPresentationTest {
         val result = summary((8..10).map(::hour), ActivityType.HIKING)!!
         assertEquals(4, result.values.size)
         assertFalse(result.values.any { it.label == "Waves" || it.label == "Water temperature" })
+    }
+
+    @Test fun `inland Beach summary omits marine fields rather than showing fake values`() {
+        val hours = (8..10).map { hour(it).copy(seaTemperatureC = null, waveHeightM = null) }
+        val outlook = DayPlanner.forDate(hours, date, date.atStartOfDay(), ActivityType.BEACH)
+        val result = dayWeatherSummary(outlook, hours, coastal = false)!!
+        assertEquals(4, result.values.size)
+        assertFalse(result.values.any { it.label == "Waves" || it.label == "Water temperature" })
+        assertNotNull(outlook.day)
     }
 
     @Test fun `invalid values remain unknown`() {

@@ -3,7 +3,6 @@ name: Android APK
 on:
   push:
     branches: [main]
-    tags: ['v*']
     paths:
       - 'app/**'
       - 'gradle/**'
@@ -37,6 +36,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       apk-name: ${{ steps.package.outputs.name }}
+      version-name: ${{ steps.package.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,31 +66,31 @@ jobs:
           set -o pipefail
           "$sdkmanager" --install 'platforms;android-37.0' 'build-tools;36.0.0'
 
-      # Optional: a standard Android debug keystore enables in-place test updates.
+      # Main releases must use the saved key so every APK remains update-compatible.
       # Never give PR code access to the saved signing key.
-      - name: Restore optional test signing key
+      - name: Restore saved test signing key
         id: signing
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
         run: |
-          if [[ -n "$KEYSTORE_BASE64" ]]; then
-            umask 077
-            mkdir -p "$HOME/.android"
-            echo 'restored=true' >> "$GITHUB_OUTPUT"
-            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
-            keytool -list -keystore "$HOME/.android/debug.keystore" \
-              -storepass android -alias androiddebugkey > /dev/null
-            echo "OUTING_DEBUG_KEYSTORE=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
-            echo 'mode=Saved test signing key' >> "$GITHUB_OUTPUT"
-          else
-            echo 'mode=Temporary debug key (updating may require uninstalling)' >> "$GITHUB_OUTPUT"
+          if [[ -z "$KEYSTORE_BASE64" ]]; then
+            echo 'ANDROID_DEBUG_KEYSTORE_BASE64 is required for main builds.' >&2
+            exit 1
           fi
+          umask 077
+          mkdir -p "$HOME/.android"
+          echo 'restored=true' >> "$GITHUB_OUTPUT"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+          keytool -list -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey > /dev/null
+          echo "OUTING_DEBUG_KEYSTORE=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+          echo 'mode=Saved test signing key' >> "$GITHUB_OUTPUT"
 
       - name: Run tests, lint, and build
         shell: bash
-        run: bash ./gradlew --no-daemon --console=plain testDebugUnitTest lintDebug assembleDebug
+        run: bash ./gradlew --no-daemon --console=plain -PoutingBuildNumber="$GITHUB_RUN_NUMBER" testDebugUnitTest lintDebug assembleDebug
 
       - name: Verify APK uses the saved test key
         if: steps.signing.outputs.restored == 'true'
@@ -110,11 +110,13 @@ jobs:
         id: package
         shell: bash
         run: |
-          name="outing-debug-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:7}.apk"
+          version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/debug/output-metadata.json)
+          name="outing-${version}-${GITHUB_SHA:0:7}.apk"
           mkdir -p "$RUNNER_TEMP/outing-apk"
           cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/outing-apk/$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "path=$RUNNER_TEMP/outing-apk/$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Upload downloadable APK
         id: apk
@@ -155,9 +157,9 @@ jobs:
         run: rm -f -- "$HOME/.android/debug.keystore"
 
   release:
-    name: Attach APK to version release
+    name: Publish automatic APK release
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -169,18 +171,31 @@ jobs:
           name: ${{ needs.build.outputs.apk-name }}
           path: apk
 
-      - name: Publish personal test release
+      - name: Publish installable APK and retain three automatic releases
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          APK_NAME: ${{ needs.build.outputs.apk-name }}
+          VERSION_NAME: ${{ needs.build.outputs.version-name }}
         run: |
-          cp apk/*.apk outing-debug.apk
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" outing-debug.apk --clobber
+          tag="auto-${GITHUB_RUN_NUMBER}"
+          cp "apk/$APK_NAME" outing-debug.apk
+          notes="Automatically built and verified from main at ${GITHUB_SHA:0:7}. Personal test APK, not a Play Store release."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" outing-debug.apk --clobber
+            gh release edit "$tag" --latest --title "Outing $VERSION_NAME" --notes "$notes"
           else
-            gh release create "$RELEASE_TAG" outing-debug.apk \
-              --verify-tag --prerelease --title "Outing $RELEASE_TAG" \
-              --notes 'Android test build. Download outing-debug.apk below. This is a debug-signed APK, not a Play Store release. Updating an APK signed with another key may require uninstalling the previous app, which removes its local data.'
+            gh release create "$tag" outing-debug.apk --target "$GITHUB_SHA" --latest \
+              --title "Outing $VERSION_NAME" --notes "$notes"
           fi
+          mapfile -t old_tags < <(gh release list --limit 100 --json tagName --jq '.[].tagName' |
+            grep '^auto-[0-9][0-9]*$' | sort -Vr | tail -n +4 || true)
+          for old_tag in "${old_tags[@]}"; do
+            gh release delete "$old_tag" --cleanup-tag --yes
+          done
+
+          {
+            echo '## Outing released'
+            printf '\n[Download the latest APK](https://github.com/%s/releases/latest/download/outing-debug.apk)\n' "$GITHUB_REPOSITORY"
+          } >> "$GITHUB_STEP_SUMMARY"

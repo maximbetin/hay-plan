@@ -45,17 +45,27 @@ enum class ActivityType(val label: String) {
     HIKING("Hiking"),
 }
 
+enum class MarineCoverage(val label: String) {
+    NONE("Weather only"),
+    WATER("Weather + water temperature"),
+    WAVES("Weather + waves"),
+    FULL("Weather + sea"),
+    MIXED("Sea data varies by hour");
+
+    companion object {
+        fun combine(values: Iterable<MarineCoverage>): MarineCoverage =
+            values.toSet().let { if (it.isEmpty()) NONE else it.singleOrNull() ?: MIXED }
+    }
+}
+
 data class DayRating(
     val rating: Rating,
     val score: Int,
     val assessedHours: Int,
     val goodHours: Int,
     val warnings: List<String>,
-    val factors: List<DayFactor> = emptyList(),
-    val limitationPoints: Double = 0.0,
+    val marineCoverage: MarineCoverage = MarineCoverage.NONE,
 )
-
-data class DayFactor(val label: String, val averagePoints: Double, val maximumPoints: Int)
 
 data class HourlyAssessment(val time: LocalDateTime, val evaluation: ConditionsScore?)
 
@@ -66,6 +76,7 @@ data class BestWindow(
     val score: Int,
     val factors: List<FactorResult>,
     val warnings: List<String> = emptyList(),
+    val marineCoverage: MarineCoverage = MarineCoverage.NONE,
 )
 
 fun ratingFor(score: Int): Rating = when {

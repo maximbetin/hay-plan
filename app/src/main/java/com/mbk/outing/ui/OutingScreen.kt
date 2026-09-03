@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,15 +57,8 @@ fun OutingApp() {
             }
         }
     }
-    OutingScreen(
-        state = model.uiState,
-        onDateSelected = model::selectDate,
-        onActivitySelected = model::selectActivity,
-        onLocationSelected = model::openLocation,
-        onBeachSelected = model::selectBeach,
-        onBack = model::closeLocation,
-        onRefresh = model::refresh,
-    )
+    OutingScreen(model.uiState, model::selectDate, model::selectActivity,
+        model::openLocation, model::closeLocation, model::refresh)
 }
 
 @Composable
@@ -73,103 +67,83 @@ fun OutingScreen(
     onDateSelected: (LocalDate) -> Unit = {},
     onActivitySelected: (ActivityType) -> Unit = {},
     onLocationSelected: (String) -> Unit = {},
-    onBeachSelected: (String, String) -> Unit = { _, _ -> },
     onBack: () -> Unit = {},
     onRefresh: () -> Unit = {},
 ) {
-    val opened = state.forecasts.find { it.location.id == state.openedLocationId }
+    val opened = state.opened
+    val date = state.selectedDate ?: state.now.toLocalDate()
+    val remaining = date == state.now.toLocalDate()
+    val period = if (remaining) "Remaining daylight" else "Daylight overall"
+    // Cards and details share these exact objects, including the selected best window.
+    val outlooks = remember(state.forecasts, date, state.now, state.activity) {
+        state.forecasts.associate { forecast ->
+            forecast.location.id to DayPlanner.forDate(
+                forecast.forActivity(state.activity).hours, date, state.now, state.activity)
+        }
+    }
+    val overviewScroll = rememberLazyListState()
+    val detailScroll = rememberLazyListState()
+    LaunchedEffect(date, state.activity) { overviewScroll.scrollToItem(0); detailScroll.scrollToItem(0) }
+    LaunchedEffect(opened?.location?.id) { detailScroll.scrollToItem(0) }
     BackHandler(enabled = opened != null, onBack = onBack)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp),
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 if (opened != null) TextButton(onClick = onBack) { Text("‹ Back") }
-                Text(opened?.location?.name ?: "Outing", modifier = Modifier.weight(1f),
+                Text(opened?.location?.name ?: "Outing", Modifier.weight(1f),
                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                TextButton(onClick = onRefresh, enabled = !state.isLoading && state.loadingBeaches.isEmpty()) {
+                TextButton(onClick = onRefresh, enabled = !state.isLoading) {
                     Text(if (state.isLoading) "Updating…" else "Refresh")
                 }
             }
-            if (state.isLoading || state.loadingBeaches.isNotEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+            DateStrip(state, onDateSelected)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActivityType.entries.forEach { activity ->
+                    FilterChip(selected = state.activity == activity,
+                        onClick = { onActivitySelected(activity) },
+                        label = { Text(activity.label, Modifier.padding(vertical = 5.dp)) },
+                        modifier = Modifier.weight(1f))
+                }
+            }
+            if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let {
                 Surface(color = MaterialTheme.colorScheme.errorContainer) {
                     Text(it, Modifier.fillMaxWidth().padding(16.dp))
                 }
             }
-            if (state.dates.isEmpty()) {
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(if (state.isLoading) "Loading forecast…" else "No forecast available.", Modifier.padding(24.dp))
+            LazyColumn(state = if (opened == null) overviewScroll else detailScroll,
+                modifier = Modifier.weight(1f), contentPadding = PaddingValues(18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (date.isAfter(state.now.toLocalDate().plusDays(6))) item {
+                    Text("Long-range outlook", style = MaterialTheme.typography.bodySmall)
                 }
-            } else {
-                DateStrip(state, onDateSelected)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ActivityType.entries.forEach { activity ->
-                        FilterChip(
-                            selected = state.activity == activity,
-                            onClick = { onActivitySelected(activity) },
-                            label = { Text(activity.label, Modifier.padding(vertical = 5.dp)) },
-                            modifier = Modifier.weight(1f),
-                        )
+                if (state.forecasts.isEmpty()) item {
+                    Text(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh.")
+                }
+                if (opened == null) {
+                    items(state.forecasts, key = { it.location.id }) { forecast ->
+                        TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
+                            period, state.nowInstant) { onLocationSelected(forecast.location.id) }
                     }
-                }
-                val date = state.selectedDate ?: state.dates.first()
-                val scrollState = rememberLazyListState()
-                LaunchedEffect(date, state.activity, opened?.location?.id, state.selectedBeachIds) {
-                    scrollState.scrollToItem(0)
-                }
-                LazyColumn(
-                    state = scrollState,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
+                } else {
                     item {
-                        Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        if (date.isAfter(state.now.toLocalDate().plusDays(6))) {
-                            Text("Long-range outlook", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    if (opened == null) {
-                        items(state.forecasts, key = { it.location.id }) { forecast ->
-                            LocationCard(forecast, date, state,
-                                onOpen = { onLocationSelected(forecast.location.id) },
-                                onBeachSelected = { onBeachSelected(forecast.location.id, it) })
-                        }
-                    } else {
-                        item {
-                            val beachId = state.beachId(opened.location)
-                            val data = opened.forActivity(state.activity, beachId)
-                            val outlook = remember(data, date, state.now, state.activity) {
-                                DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
-                            }
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                if (state.activity == ActivityType.BEACH) {
-                                    BeachSelector(opened.location, beachId, !state.isLoading) {
-                                        onBeachSelected(opened.location.id, it)
-                                    }
-                                }
-                                if (data == null && state.beachLoading(opened.location)) {
-                                    Text("Loading forecast…")
-                                } else if (data == null) {
-                                    Text("No forecast available.")
-                                } else {
-                                    DataNotice(data, state.nowInstant)
-                                    UpdatedLabel(data)
-                                    OutlookDetails(outlook, data.hours, period(date, state),
-                                        "${date}/${state.activity}/$beachId", date == state.now.toLocalDate())
-                                }
-                            }
-                        }
+                        if (state.activity == ActivityType.BEACH) CoastalReferenceLabel(opened.location)
+                        UpdatedLabel(opened.forActivity(state.activity))
+                        DataNotice(opened.forActivity(state.activity), state.nowInstant)
                     }
                     item {
-                        val uriHandler = LocalUriHandler.current
-                        Text("Open-Meteo · CC BY 4.0",
-                            modifier = Modifier.clickable { uriHandler.openUri("https://open-meteo.com/") },
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        OutlookDetails(outlooks.getValue(opened.location.id), opened.forActivity(state.activity).hours,
+                            period, "${opened.location.id}/$date/${state.activity}", remaining,
+                            forecastContextLabel(opened.location, state.activity, date), opened.location.coast != null)
                     }
+                }
+                item {
+                    val uriHandler = LocalUriHandler.current
+                    Text("Open-Meteo · CC BY 4.0",
+                        Modifier.clickable { uriHandler.openUri("https://open-meteo.com/") },
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -178,84 +152,59 @@ fun OutingScreen(
 
 @Composable
 private fun DateStrip(state: OutingUiState, onDateSelected: (LocalDate) -> Unit) {
-    val scrollState = rememberLazyListState()
+    val scroll = rememberLazyListState()
     LaunchedEffect(state.selectedDate) {
         val index = state.dates.indexOf(state.selectedDate)
-        if (index >= 0 && scrollState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-            scrollState.animateScrollToItem(index)
-        }
+        if (index >= 0 && scroll.layoutInfo.visibleItemsInfo.none { it.index == index }) scroll.animateScrollToItem(index)
     }
-    LazyRow(state = scrollState, contentPadding = PaddingValues(horizontal = 18.dp),
+    LazyRow(state = scroll, contentPadding = PaddingValues(horizontal = 18.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.dates, key = { it.toString() }) { date ->
-            FilterChip(
-                selected = date == state.selectedDate,
-                onClick = { onDateSelected(date) },
-                label = {
-                    Column(Modifier.padding(vertical = 6.dp)) {
-                        Text(dayLabel(date, state.now.toLocalDate()), fontWeight = FontWeight.SemiBold)
-                        Text(date.format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)),
-                            style = MaterialTheme.typography.labelMedium)
-                    }
-                },
-            )
+            FilterChip(selected = date == state.selectedDate, onClick = { onDateSelected(date) },
+                label = { Text(formatDate(date), Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.SemiBold) })
         }
     }
 }
 
 @Composable
-private fun LocationCard(
-    forecast: LocationForecast,
-    date: LocalDate,
-    state: OutingUiState,
-    onOpen: () -> Unit,
-    onBeachSelected: (String) -> Unit,
-) {
-    val beachId = state.beachId(forecast.location)
-    val data = forecast.forActivity(state.activity, beachId)
-    val outlook = remember(data, date, state.now, state.activity) {
-        DayPlanner.forDate(data?.hours.orEmpty(), date, state.now, state.activity)
-    }
-    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activity: ActivityType,
+                     period: String, now: Instant, onOpen: () -> Unit) {
+    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(forecast.location.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            if (state.activity == ActivityType.BEACH) {
-                BeachSelector(forecast.location, beachId, !state.isLoading, onBeachSelected)
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(forecast.location.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold)
+                Text("Hourly ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
-            if (data == null && state.beachLoading(forecast.location)) Text("Loading forecast…")
-            else if (data == null) Text("No forecast available.")
+            if (activity == ActivityType.BEACH) CoastalReferenceLabel(forecast.location)
+            Text(period, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            RatingValue(outlook.day?.rating, outlook.day?.score)
+            if (outlook.day == null) Text(outlook.dayUnavailableReason.orEmpty(), style = MaterialTheme.typography.bodySmall)
+            if (activity == ActivityType.BEACH) Text(outlook.marineCoverage.label,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val window = outlook.bestWindow
+            if (window == null) Text(outlook.windowUnavailableReason.orEmpty(), style = MaterialTheme.typography.bodySmall)
             else {
-                DataNotice(data, state.nowInstant)
-                UpdatedLabel(data)
-                OutlookDetails(outlook, data.hours, period(date, state),
-                    "${date}/${state.activity}/$beachId", date == state.now.toLocalDate(), showHourly = false)
+                Text("Best 3 hours · ${timeRange(window.start, window.end)}",
+                    style = MaterialTheme.typography.titleMedium)
+                Text("${window.rating.label} · ${window.score}/100" +
+                    if (activity == ActivityType.BEACH && window.marineCoverage != outlook.marineCoverage)
+                        " · ${window.marineCoverage.label}" else "", style = MaterialTheme.typography.bodyMedium)
+                if (window.score < 40) Text("Not recommended", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error)
             }
-            TextButton(onClick = onOpen) { Text("Hourly forecast ›") }
+            DataNotice(forecast.forActivity(activity), now)
+            UpdatedLabel(forecast.forActivity(activity))
         }
     }
 }
 
 @Composable
-private fun BeachSelector(location: OutingLocation, selectedId: String?, enabled: Boolean, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    if (location.beaches.isEmpty()) {
-        Text("No beaches configured.", style = MaterialTheme.typography.bodySmall)
-        return
-    }
-    Box {
-        TextButton(onClick = { expanded = true }, enabled = enabled) {
-            Text("${location.beach(selectedId)?.name}  ▾", style = MaterialTheme.typography.titleMedium)
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.heightIn(max = 360.dp)) {
-            location.beaches.forEach { beach ->
-                DropdownMenuItem(
-                    text = { Text(beach.name, fontWeight = if (beach.id == selectedId) FontWeight.Bold else FontWeight.Normal) },
-                    onClick = { expanded = false; onSelect(beach.id) },
-                    trailingIcon = if (beach.id == selectedId) { { Text("✓") } } else null,
-                )
-            }
-        }
+private fun CoastalReferenceLabel(location: OutingLocation) {
+    location.coast?.let {
+        Text("Sea reference: ${it.name}", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -273,31 +222,22 @@ private fun DataNotice(data: ActivityForecastData, now: Instant) {
 @Composable
 private fun UpdatedLabel(data: ActivityForecastData) {
     data.sources.minOfOrNull { it.fetchedAt }?.let {
-        Text("Updated ${it.atZone(LocationCatalog.zone).format(DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.ENGLISH))}",
+        Text("Updated ${it.atZone(LocationCatalog.zone).format(DateTimeFormatter.ofPattern("dd/MM HH:mm", Locale.ENGLISH))}",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-}
-
-private fun period(date: LocalDate, state: OutingUiState) =
-    if (date == state.now.toLocalDate()) "Rest of today" else "Day overall"
-
-private fun dayLabel(date: LocalDate, today: LocalDate) = when (date) {
-    today -> "Today"
-    today.plusDays(1) -> "Tomorrow"
-    else -> date.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH))
 }
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 850)
 @Composable
 private fun OutingScreenPreview() {
-    val hours = SampleForecast.tomorrow()
-    val date = hours.first().time.toLocalDate()
-    val location = LocationCatalog.locations.first()
-    val data = ActivityForecastData(hours)
+    val date = LocalDate.of(2026, 9, 3)
+    val data = ActivityForecastData(SampleForecast.forDate(date))
+    val forecasts = LocationCatalog.locations.map { location ->
+        val weather = data.copy(hours = data.hours.map { it.copy(seaTemperatureC = null, waveHeightM = null) })
+        LocationForecast(location, weather, if (location.coast != null) data else weather)
+    }
     OutingTheme {
-        OutingScreen(OutingUiState(
-            forecasts = listOf(LocationForecast(location, data, mapOf(location.mainBeach!!.id to data))),
-            dates = listOf(date), selectedDate = date, isLoading = false,
-        ))
+        OutingScreen(OutingUiState(forecasts = forecasts, dates = listOf(date), selectedDate = date,
+            now = date.atStartOfDay(), isLoading = false))
     }
 }

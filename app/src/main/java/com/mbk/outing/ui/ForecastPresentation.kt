@@ -3,13 +3,24 @@ package com.mbk.outing.ui
 import com.mbk.outing.domain.ActivityOutlook
 import com.mbk.outing.domain.ActivityType
 import com.mbk.outing.domain.HourlyConditions
+import com.mbk.outing.data.OutingLocation
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal data class WeatherValue(val label: String, val value: String)
 internal data class DayWeatherSummary(val headline: String, val values: List<WeatherValue>)
 
+internal fun formatDate(date: LocalDate): String = date.format(DateTimeFormatter.ofPattern("EEE dd/MM", Locale.ENGLISH))
+
+internal fun forecastContextLabel(location: OutingLocation, activity: ActivityType, date: LocalDate): String {
+    val place = listOfNotNull(location.name, activity.label,
+        if (activity == ActivityType.BEACH) location.coast?.name else null).joinToString(" · ")
+    return "$place\n${formatDate(date)}"
+}
+
 /** Describe exactly the daylight slots being assessed, never just their known subset. */
-internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyConditions>): DayWeatherSummary? {
+internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyConditions>, coastal: Boolean = true): DayWeatherSummary? {
     if (outlook.hourly.isEmpty()) return null
     val byTime = hours.associateBy { it.time }
     val slots = outlook.hourly.map { byTime[it.time] }
@@ -35,13 +46,13 @@ internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyCondi
         add(WeatherValue("Wind", wind))
         add(WeatherValue("Rain chance", chance))
         add(WeatherValue("Rainfall", rain))
-        if (outlook.activity == ActivityType.BEACH) {
+        if (outlook.activity == ActivityType.BEACH && coastal) {
             add(WeatherValue("Water temperature", range(values { it.seaTemperatureC })))
             add(WeatherValue("Waves", values { it.waveHeightM?.takeIf { v -> v >= 0 } }
                 ?.let { "${number(it.max())} m max" } ?: "Unknown"))
         }
     }
-    return DayWeatherSummary("Air $air · Rain chance $chance · Wind $wind", details)
+    return DayWeatherSummary("Air $air · Rain chance $chance\nWind $wind", details)
 }
 
 internal fun daylightAverageLabel(count: Int, remainingToday: Boolean): String {

@@ -5,8 +5,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 object SampleForecast {
-    fun tomorrow(): List<HourlyConditions> {
-        val date = LocalDate.now().plusDays(1)
+    fun forDate(date: LocalDate): List<HourlyConditions> {
         return listOf(
             hour(date, 7, false, 18.0, 5, 12, 7.0, 20.0, 0.2),
             hour(date, 8, true, 18.5, 5, 15, 7.0, 20.0, 0.2),

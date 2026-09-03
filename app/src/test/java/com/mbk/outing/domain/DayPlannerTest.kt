@@ -23,11 +23,13 @@ class DayPlannerTest {
         assertEquals(3, outlook.day.goodHours)
     }
 
-    @Test fun `missing marine hours leave day unavailable but preserve a known window`() {
+    @Test fun `missing marine hours use available inputs and expose mixed coverage`() {
         val hours = (8..19).map { hour(it).copy(waveHeightM = if (it >= 14) null else 0.3) }
         val beach = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH)
         val hiking = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
-        assertNull(beach.day)
+        assertNotNull(beach.day)
+        assertEquals(MarineCoverage.MIXED, beach.day!!.marineCoverage)
+        assertEquals(beach.hourly.map { it.evaluation!!.score }.average().roundToInt(), beach.day.score)
         assertNotNull(beach.bestWindow)
         assertNotNull(hiking.day)
     }
@@ -166,12 +168,12 @@ class DayPlannerTest {
         assertEquals(3, outlook.hourly.count { it.evaluation != null })
     }
 
-    @Test fun `day factor breakdown reconciles with the capped score`() {
+    @Test fun `day averages capped hourly scores rather than uncapped raw points`() {
         val hours = (8..19).map { hour(it).copy(waveHeightM = if (it < 14) 0.3 else 1.4) }
-        val day = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH).day!!
-        assertEquals(100, day.factors.sumOf { it.maximumPoints })
-        assertTrue(day.limitationPoints > 0)
-        assertEquals(day.score, (day.factors.sumOf { it.averagePoints } - day.limitationPoints).roundToInt())
+        val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH)
+        val scores = outlook.hourly.map { it.evaluation!! }
+        assertTrue(scores.any { it.score < it.pointsBeforeLimits })
+        assertEquals(outlook.day!!.score, scores.map { it.score }.average().roundToInt())
     }
 
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,

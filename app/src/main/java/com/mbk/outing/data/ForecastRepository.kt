@@ -7,50 +7,32 @@ import kotlinx.coroutines.coroutineScope
 
 class ForecastRepository(
     private val client: OpenMeteoClient,
-    private val locations: List<OutingLocation> = LocationCatalog.locations,
+    val locations: List<OutingLocation> = LocationCatalog.locations,
 ) {
-    suspend fun load(
-        forceRefresh: Boolean = false,
-        selectedBeachIds: Map<String, String> = emptyMap(),
-    ): List<LocationForecast> = coroutineScope {
-        val selected = locations.associate { it.id to it.beach(selectedBeachIds[it.id]) }
-        // Deduplicate coordinates across locations, including force refresh.
-        val weatherPoints = locations.flatMap { listOfNotNull(it.coordinates, selected[it.id]?.coordinates) }.distinct()
-        val seaPoints = selected.values.mapNotNull { it?.coordinates }.distinct()
-        val weather = weatherPoints.associateWith { point ->
+    suspend fun load(forceRefresh: Boolean = false): List<LocationForecast> = coroutineScope {
+        // One weather point per town, plus sea data only for configured coastal references.
+        val weather = locations.map { it.coordinates }.distinct().associateWith { point ->
             async { attempt { client.weather(point, forceRefresh) } }
         }
-        val marine = seaPoints.associateWith { point ->
+        val marine = locations.mapNotNull { it.coast?.coordinates }.distinct().associateWith { point ->
             async { attempt { client.marine(point, forceRefresh) } }
         }
         locations.map { location ->
             async {
-                val city = weather.getValue(location.coordinates).await().getOrNull()
-                val hiking = weatherData(city)
-                val beach = selected[location.id]?.let { mainBeach ->
-                    val air = weather.getValue(mainBeach.coordinates).await().getOrNull()
-                    val sea = marine.getValue(mainBeach.coordinates).await().getOrNull()
-                    mainBeach.id to beachData(air, sea)
-                }
-                LocationForecast(location, hiking, if (beach == null) emptyMap() else mapOf(beach))
+                val city = weather.getValue(location.coordinates).await()
+                val base = weatherData(city)
+                val beach = location.coast?.let { coast ->
+                    val sea = marine.getValue(coast.coordinates).await()
+                    base.copy(
+                        hours = if (sea != null) OpenMeteoParser.withMarine(base.hours, sea.body) else base.hours,
+                        sources = base.sources + listOfNotNull(sea?.status("Sea")),
+                        errors = base.errors + if (sea == null)
+                            listOf("Sea forecast unavailable · using weather only") else emptyList(),
+                    )
+                } ?: base
+                LocationForecast(location, base, beach)
             }
         }.awaitAll()
-    }
-
-    /** Only a newly selected/expired beach needs these two requests. Cache hits use neither. */
-    suspend fun loadBeach(beach: BeachLocation): ActivityForecastData = coroutineScope {
-        val air = async { attempt { client.weather(beach.coordinates, false) } }
-        val sea = async { attempt { client.marine(beach.coordinates, false) } }
-        beachData(air.await().getOrNull(), sea.await().getOrNull())
-    }
-
-    private fun beachData(air: CachedForecast?, sea: CachedForecast?): ActivityForecastData {
-        val base = weatherData(air)
-        return base.copy(
-            hours = if (sea != null) OpenMeteoParser.withMarine(base.hours, sea.body) else base.hours,
-            sources = base.sources + listOfNotNull(sea?.status("Sea")),
-            errors = base.errors + if (sea == null) listOf("Sea forecast unavailable.") else emptyList(),
-        )
     }
 
     private fun weatherData(data: CachedForecast?): ActivityForecastData =
@@ -60,11 +42,11 @@ class ForecastRepository(
     private fun CachedForecast.status(label: String) =
         ForecastSourceStatus(label, fetchedAt, refreshFailed, persistenceFailed)
 
-    private suspend fun <T> attempt(block: suspend () -> T): Result<T> = try {
-        Result.success(block())
+    private suspend fun <T> attempt(block: suspend () -> T): T? = try {
+        block()
     } catch (cancelled: CancellationException) {
         throw cancelled
-    } catch (error: Exception) {
-        Result.failure(error)
+    } catch (_: Exception) {
+        null
     }
 }

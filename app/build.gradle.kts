@@ -8,11 +8,12 @@ android {
     compileSdk = 37
 
     defaultConfig {
+        val automaticBuild = providers.gradleProperty("outingBuildNumber").orNull?.toIntOrNull()
         applicationId = "com.mbk.outing"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = automaticBuild ?: 7
+        versionName = automaticBuild?.let { "0.6.0-build.$it" } ?: "0.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

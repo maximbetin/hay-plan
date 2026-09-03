@@ -8,7 +8,11 @@ data class ConditionsScore(
     val factors: List<FactorResult>,
     val warnings: List<String>,
     val maximumScore: Int,
-)
+    val marineCoverage: MarineCoverage = MarineCoverage.NONE,
+) {
+    val availablePoints: Int get() = factors.sumOf { it.maximumPoints }
+    val pointsBeforeLimits: Int get() = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
+}
 
 /** Pure Kotlin rules. Score one hour for a day assessment, or a complete window. */
 object ActivityScorer {
@@ -42,20 +46,26 @@ object ActivityScorer {
                     air > 28 && air < 32 -> 12
                     else -> 5
                 }, 20)
-                val water = hours.map { requireNotNull(it.seaTemperatureC) }.average()
-                factor("Water", celsius(water), "Average", when {
-                    water >= 20 -> 15
-                    water >= 18 -> 10
-                    water >= 16 -> 5
-                    else -> 0
-                }, 15)
-                val waves = hours.maxOf { requireNotNull(it.waveHeightM) }
-                factor("Waves", String.format(Locale.US, "%.2f m", waves), "Highest", when {
-                    waves <= 0.5 -> 20
-                    waves <= 0.8 -> 14
-                    waves <= 1.2 -> 6
-                    else -> 0
-                }, 20)
+                val water = hours.mapNotNull { it.seaTemperatureC?.takeIf(Double::isFinite) }
+                if (water.size == hours.size) {
+                    val average = water.average()
+                    factor("Water", celsius(average), "Average", when {
+                        average >= 20 -> 15
+                        average >= 18 -> 10
+                        average >= 16 -> 5
+                        else -> 0
+                    }, 15)
+                }
+                val waves = hours.mapNotNull { it.waveHeightM?.takeIf { v -> v.isFinite() && v >= 0 } }
+                if (waves.size == hours.size) {
+                    val highest = waves.max()
+                    factor("Waves", String.format(Locale.US, "%.2f m", highest), "Highest", when {
+                        highest <= 0.5 -> 20
+                        highest <= 0.8 -> 14
+                        highest <= 1.2 -> 6
+                        else -> 0
+                    }, 20)
+                }
                 val clouds = hours.map { requireNotNull(it.cloudCoverPercent) }.average().roundToInt()
                 factor("Cloud cover", "$clouds%", "Average", when {
                     clouds <= 20 -> 10
@@ -65,9 +75,10 @@ object ActivityScorer {
                 }, 10)
                 factor("Wind", "${decimal(wind)} km/h", "Highest", windPoints(wind, 15), 15)
                 factor("Rain chance", "$rainChance%", "Highest", rainPoints(rainChance, 20), 20)
-                if (waves > 1.2) limit(19, "Rough waves: rating limited to Poor.")
-                else if (waves > 0.8) limit(59, "Choppy waves: rating limited to Good.")
-                if (hours.any { requireNotNull(it.seaTemperatureC) < 16 }) {
+                // Known limiting conditions still apply even when other hours lack sea values.
+                if (waves.any { it > 1.2 }) limit(19, "Rough waves: rating limited to Poor.")
+                else if (waves.any { it > 0.8 }) limit(59, "Choppy waves: rating limited to Good.")
+                if (water.any { it < 16 }) {
                     limit(39, "Cold water: rating limited to Fair.")
                 }
             }
@@ -98,7 +109,19 @@ object ActivityScorer {
         if (hours.any { requireNotNull(it.airTemperatureC) >= 35 }) {
             limit(39, "High heat: rating limited to Fair.")
         }
-        return ConditionsScore(minOf(factors.sumOf { it.points }, maximumScore), factors, warnings, maximumScore)
+        val availablePoints = factors.sumOf { it.maximumPoints }
+        val normalized = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
+        val coverage = if (activity == ActivityType.HIKING) MarineCoverage.NONE else MarineCoverage.combine(hours.map {
+            val water = it.seaTemperatureC?.isFinite() == true
+            val waves = it.waveHeightM?.let { v -> v.isFinite() && v >= 0 } == true
+            when {
+                water && waves -> MarineCoverage.FULL
+                water -> MarineCoverage.WATER
+                waves -> MarineCoverage.WAVES
+                else -> MarineCoverage.NONE
+            }
+        })
+        return ConditionsScore(minOf(normalized, maximumScore), factors, warnings, maximumScore, coverage)
     }
 
     private fun complete(h: HourlyConditions, activity: ActivityType): Boolean {
@@ -106,10 +129,7 @@ object ActivityScorer {
         fun Double?.nonNegative() = this != null && isFinite() && this >= 0
         val weather = h.airTemperatureC.finite() && h.windSpeedKmh.nonNegative() &&
             h.precipitationMm.nonNegative() && h.precipitationProbabilityPercent?.let { it in 0..100 } == true
-        return weather && (activity == ActivityType.HIKING || (
-            h.seaTemperatureC.finite() && h.waveHeightM.nonNegative() &&
-                h.cloudCoverPercent?.let { it in 0..100 } == true
-            ))
+        return weather && (activity == ActivityType.HIKING || h.cloudCoverPercent?.let { it in 0..100 } == true)
     }
 
     private fun windPoints(wind: Double, maximum: Int): Int = when {

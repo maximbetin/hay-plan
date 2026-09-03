@@ -13,7 +13,9 @@ data class ActivityOutlook(
     val dayUnavailableReason: String? = null,
     val windowUnavailableReason: String? = null,
     val hourly: List<HourlyAssessment> = emptyList(),
-)
+) {
+    val marineCoverage: MarineCoverage get() = MarineCoverage.combine(hourly.mapNotNull { it.evaluation?.marineCoverage })
+}
 
 object DayPlanner {
     const val WINDOW_HOURS = 3
@@ -42,14 +44,8 @@ object DayPlanner {
         val evaluations = hourly.mapNotNull { it.evaluation }
         val day = if (expectedHours > 0 && evaluations.size == expectedHours) {
             val mean = evaluations.map { it.score }.average().roundToInt()
-            val factors = evaluations.first().factors.filter { it.maximumPoints > 0 }.map { factor ->
-                DayFactor(factor.label, evaluations.map { hour ->
-                    hour.factors.first { it.label == factor.label }.points
-                }.average(), factor.maximumPoints)
-            }
-            val limits = evaluations.map { it.factors.sumOf { factor -> factor.points } - it.score }.average()
             DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
-                evaluations.flatMap { it.warnings }.distinct(), factors, limits)
+                evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }))
         } else null
 
         val best = hourly.windowed(WINDOW_HOURS).mapNotNull { window ->
@@ -59,7 +55,8 @@ object DayPlanner {
             val hourlyMean = window.map { requireNotNull(it.evaluation).score }.average().roundToInt()
             val score = minOf(hourlyMean, summary.maximumScore)
             BestWindow(window.first().time.toLocalTime(), window.last().time.plusHours(1).toLocalTime(),
-                ratingFor(score), score, summary.factors, summary.warnings)
+                ratingFor(score), score, summary.factors, summary.warnings,
+                MarineCoverage.combine(window.map { requireNotNull(it.evaluation).marineCoverage }))
         }.maxByOrNull { it.score }
 
         return ActivityOutlook(

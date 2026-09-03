@@ -7,20 +7,28 @@ safety thresholds. Adjust them in `ActivityScorer`; protect changes with tests.
 
 1. Select the date in Europe/Madrid. Keep only complete daylight hours, entirely
    inside sunrise/sunset. Today also excludes already-started hours.
-2. Score every eligible hour independently, applying the limits below.
+2. Score every eligible hour independently. Divide earned points by the available
+   factor maximum, multiply by 100, round to the nearest integer, then apply limits.
 3. The **day score** is the arithmetic mean of those capped hourly scores,
    rounded to the nearest integer. It is NOT the maximum window score.
-4. Every expected daylight hour must have that activity's required inputs.
+4. Every expected daylight hour must have that activity's required weather inputs.
    Sunrise/sunset bounds also detect truncated forecast edges. Missing values or
    gaps mean no full-day rating; the app must not average only the known good hours.
 5. Independently evaluate contiguous three-hour windows. Choose the highest score;
    tied windows choose the earliest. Partial days may still have a complete window.
 
+Sea temperature and wave height are optional, independently: absent, invalid or
+inapplicable values earn no points and add nothing to the available maximum.
+The UI distinguishes Weather only, Weather + sea, partial sea data, and coverage
+that varies by hour. These labels describe inputs, not forecast confidence.
+
 Window ratings use the same mean of capped hourly scores as day ratings, with
 interval-wide limits applied afterwards. This keeps the two ratings comparable.
 For the window's displayed factors, temperatures/clouds are averages, wind/waves/
-rain chance are maxima, and rainfall is summed. Apply the limits to these
-aggregates too. Cold-water/freezing/high-heat limits inspect individual hours so
+rain chance are maxima, and rainfall is summed. A sea summary value is shown only
+when present throughout the window; known limiting sea conditions still apply
+even if other hours lack sea data. Apply limits to the aggregates too.
+Cold-water/freezing/high-heat limits inspect individual hours so
 an uncomfortable extreme cannot disappear into the average. Factor values are
 window summaries; points are assigned per hour, not to those displayed averages.
 
@@ -36,19 +44,23 @@ Excellent 80–100. Detail views also count hours rated Good or better (score >=
 The day headline and every hourly row display the actual internal score out of 100.
 The hourly rows are the exact inputs to the day average; missing expected hours
 remain visible as Unavailable. The best three-hour span is highlighted in the list.
+Choose a date (for example Thu 03/09) and activity to compare every town. Tap a
+town card for its hourly results; the card and detail use the same calculated
+outlook and best window. Back retains the date/activity and returns to the list.
 Tap Score details for daylight weather ranges, maximum wind/rain chance and total
-rainfall, then expand the score calculation for average factor-point contributions
-and mean points lost to condition limits; their difference, rounded, equals the
-displayed day score. Summaries use the same expected daylight slots; a missing
+rainfall, then expand the calculation explanation. Each hourly detail shows its
+actual raw points, available maximum, normalized score and any reductions.
+Summaries use the same expected daylight slots; a missing
 value in any slot leaves that field Unknown instead of summarizing a partial set.
 Tap an hour for its measured values, awarded points and any applied limits. Tap the
-Best 3 hours for its summarized conditions. Both summary actions open the same
-explanation on the home and location screens. The rule thresholds below are unchanged.
+Best 3 hours for its summarized conditions. Every explanation keeps its town,
+activity, coastal reference (where relevant), and date visible.
 
-## Beach (100 points)
+## Beach (available points scaled to 100)
 
-One profile for a pleasant beach visit that may include swimming. No separate
-sunbathing/swimming scores or implied protection from UV or currents.
+One warm-weather leisure profile, also usable inland for an outdoor pool or
+riverside visit. It does not assess pool temperatures, river conditions or swimming
+safety. The name Beach is a compact activity label, not a claim that every town has a beach.
 
 | Factor | Points |
 | --- | --- |
@@ -59,15 +71,22 @@ sunbathing/swimming scores or implied protection from UV or currents.
 | Wind | Maximum 15 points, using the shared wind rule |
 | Rain probability | Maximum 20 points, using the shared rain rule |
 
-Every weather factor, rainfall amount, wave height and water temperature is
-required. Unknown sea data makes Beach unavailable; it cannot silently become a
-weather-only rating. Gijón defaults to San Lorenzo; selecting another beach uses
-that beach's own weather and marine coordinates. No shelter or local hazard
-adjustment is inferred from the beach name.
+Air temperature, cloud cover, wind, rain probability and rainfall are required.
+Weather contributes up to 65 raw points; known water temperature adds up to 15,
+and known wave height adds up to 20. The available maximum is therefore 65, 80,
+85 or 100. For example, 59/65 becomes 91/100 before condition limits.
+Missing data is not treated as zero waves or warm water. If sea data fails or
+ends earlier than weather data, the remaining weather-only estimates are labelled.
+
+Each town has one weather point. Coastal towns also have one named marine
+reference: San Lorenzo for Gijón, and nearby Salinas in Castrillón for Avilés.
+Oviedo uses weather only; no marine request is made inland. The UI names Salinas'
+municipality rather than implying it lies inside Avilés. No beach catalog, pool
+catalog, or shelter adjustment is inferred.
 
 ## Hiking (100 points)
 
-General outdoor/hiking/walking weather around a town; not a route-specific forecast.
+General outdoor/hiking/walking weather around Gijón or Oviedo; not a route-specific forecast.
 No trail catalog is needed. Cloudiness is not inherently bad for this activity.
 
 | Factor | Points |
