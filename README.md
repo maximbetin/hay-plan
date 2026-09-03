@@ -4,13 +4,13 @@ A small native Android app for choosing a good day for the **beach** or a **hike
 
 ## Download
 
-**[Download the Android APK](https://github.com/maximbetin/outing/releases/download/v0.2.0/outing-debug.apk)**
+**[Download the Android APK — v0.3.0](https://github.com/maximbetin/outing/releases/download/v0.3.0/outing-debug.apk)**
 
 [All releases](https://github.com/maximbetin/outing/releases)
 
 Requires Android 8.0 or newer. This is an early test build, not a Play Store release.
-Updates signed with a different key may require uninstalling the previous version,
-which removes its local data.
+Updating from v0.2.0 requires a one-time uninstall because the signing key changed.
+Uninstalling removes the app's local data.
 
 ## Features
 
