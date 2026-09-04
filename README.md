@@ -1,14 +1,14 @@
-# Outing
+# Hay Plan
 
 A small native Android app for planning a beach visit or a walk around town.
 
 ## Download
 
-**[Download the latest APK](https://github.com/maximbetin/outing/releases/latest/download/outing.apk)**
-In GitHub Mobile, open this repository → Releases → Latest → **outing.apk**.
+**[Download the latest APK](https://github.com/maximbetin/hay-plan/releases/latest/download/hay-plan.apk)**
+In GitHub Mobile, open this repository → Releases → Latest → **hay-plan.apk**.
 Open the downloaded file and allow installation from that app when Android asks.
 
-Requires Android 8.0 or newer. New releases update the installed app.
+Requires Android 8.0 or newer. The first Hay Plan install is separate from earlier app versions; subsequent Hay Plan releases update it normally.
 For new-build notifications in GitHub Mobile, watch this repository with **Releases** enabled.
 Older builds signed with another key require uninstalling first, which removes local app data.
 

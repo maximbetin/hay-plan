@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "com.mbk.outing"
+    namespace = "com.mbk.hayplan"
     compileSdk = 37
 
     defaultConfig {
-        val automaticBuild = providers.gradleProperty("outingBuildNumber").orNull?.toIntOrNull()
-        applicationId = "com.mbk.outing"
+        val automaticBuild = providers.gradleProperty("hayPlanBuildNumber").orNull?.toIntOrNull()
+        applicationId = "com.mbk.hayplan"
         minSdk = 26
         targetSdk = 37
         versionCode = automaticBuild ?: 11
@@ -18,7 +18,7 @@ android {
 
     // CI supplies the restored test key explicitly; local builds keep their normal debug key.
     signingConfigs.getByName("debug") {
-        System.getenv("OUTING_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
+        System.getenv("HAY_PLAN_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
     }
 
     buildTypes {

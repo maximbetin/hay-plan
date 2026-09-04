@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sun, hillside and water: one simple mark for both kinds of outing. -->
+<!-- A relaxed walking figure and a warm sun, kept inside the adaptive icon safe area. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M66,28a7,7 0,1 0,0 14a7,7 0,1 0,0 -14" />
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M29,63L44,43Q46,40 48,43L61,60Q69,54 79,62L79,68Q68,61 56,68Q43,75 29,67Z" />
-    <path android:fillColor="#00000000" android:strokeColor="#FFFFFF"
-        android:strokeWidth="4" android:strokeLineCap="round"
-        android:pathData="M34,76Q45,81 56,75Q66,70 74,75" />
+    <path android:fillColor="#F5C56E"
+        android:pathData="M71,30a7,7 0,1 0,0 14a7,7 0,1 0,0 -14" />
+    <path android:fillColor="#FFF7E8"
+        android:pathData="M50,31a5.5,5.5 0,1 0,0 11a5.5,5.5 0,1 0,0 -11" />
+    <path android:fillColor="#00000000" android:strokeColor="#FFF7E8"
+        android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M48,49L44,61M47,50L39,57L32,55M49,49L57,56L65,51M44,61L37,75M44,61L55,66L60,75" />
 </vector>
