@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +82,8 @@ fun OutingScreen(
                 forecast.forActivity(state.activity).hours, date, state.now, state.activity)
         }
     }
+    val ranked = remember(state.forecasts, outlooks) { rankLocations(state.forecasts, outlooks) }
+    var showAll by rememberSaveable(date, state.activity) { mutableStateOf(false) }
     val overviewScroll = rememberLazyListState()
     val detailScroll = rememberLazyListState()
     LaunchedEffect(date, state.activity) { overviewScroll.scrollToItem(0); detailScroll.scrollToItem(0) }
@@ -123,9 +126,19 @@ fun OutingScreen(
                     Text(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh.")
                 }
                 if (opened == null) {
-                    items(state.forecasts, key = { it.location.id }) { forecast ->
+                    if (ranked.isNotEmpty()) item {
+                        Text(if (showAll) "All towns · highest daylight score first"
+                            else "Top ${minOf(5, ranked.size)} · highest daylight score first",
+                            style = MaterialTheme.typography.labelLarge)
+                    }
+                    items(if (showAll) ranked else ranked.take(5), key = { it.location.id }) { forecast ->
                         TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
                             period, state.nowInstant) { onLocationSelected(forecast.location.id) }
+                    }
+                    if (ranked.size > 5) item {
+                        TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (showAll) "Show top 5" else "Show all ${ranked.size} towns")
+                        }
                     }
                 } else {
                     item {

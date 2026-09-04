@@ -12,8 +12,8 @@ android {
         applicationId = "com.mbk.outing"
         minSdk = 26
         targetSdk = 37
-        versionCode = automaticBuild ?: 7
-        versionName = automaticBuild?.let { "0.6.0-build.$it" } ?: "0.6.0"
+        versionCode = automaticBuild ?: 11
+        versionName = automaticBuild?.let { "0.7.0.$it" } ?: "0.7.0"
     }
 
     // CI supplies the restored test key explicitly; local builds keep their normal debug key.
@@ -24,6 +24,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Preserve the installed app's certificate while shipping a non-debuggable APK.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

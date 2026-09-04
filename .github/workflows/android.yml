@@ -90,7 +90,7 @@ jobs:
 
       - name: Run tests, lint, and build
         shell: bash
-        run: bash ./gradlew --no-daemon --console=plain -PoutingBuildNumber="$GITHUB_RUN_NUMBER" testDebugUnitTest lintDebug assembleDebug
+        run: bash ./gradlew --no-daemon --console=plain -PoutingBuildNumber="$GITHUB_RUN_NUMBER" testDebugUnitTest lintRelease assembleRelease
 
       - name: Verify APK uses the saved test key
         if: steps.signing.outputs.restored == 'true'
@@ -99,7 +99,7 @@ jobs:
           expected=$(keytool -exportcert -keystore "$OUTING_DEBUG_KEYSTORE" \
             -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
           actual=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
-            app/build/outputs/apk/debug/app-debug.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+            app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           if [[ "$actual" != "$expected" ]]; then
             echo 'APK signing certificate does not match the saved test key.' >&2
             exit 1
@@ -110,10 +110,10 @@ jobs:
         id: package
         shell: bash
         run: |
-          version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/debug/output-metadata.json)
+          version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
           name="outing-${version}-${GITHUB_SHA:0:7}.apk"
           mkdir -p "$RUNNER_TEMP/outing-apk"
-          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/outing-apk/$name"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/outing-apk/$name"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "path=$RUNNER_TEMP/outing-apk/$name" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -137,7 +137,7 @@ jobs:
             echo '## Outing APK ready'
             printf '\n[Download the APK](%s)\n\n' "$APK_URL"
             printf 'Signing: %s\n\n' "$SIGNING_MODE"
-            echo 'Personal test build, not a Play Store release. Build artifacts are kept for 30 days.'
+            echo 'Build artifacts are kept for 30 days. Phone downloads are available from the latest GitHub release.'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test and lint reports
@@ -180,13 +180,13 @@ jobs:
           VERSION_NAME: ${{ needs.build.outputs.version-name }}
         run: |
           tag="auto-${GITHUB_RUN_NUMBER}"
-          cp "apk/$APK_NAME" outing-debug.apk
-          notes="Automatically built and verified from main at ${GITHUB_SHA:0:7}. Personal test APK, not a Play Store release."
+          cp "apk/$APK_NAME" outing.apk
+          notes="Automatically built and verified from main at ${GITHUB_SHA:0:7}. Download outing.apk below and open it on your Android phone to install or update Outing."
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" outing-debug.apk --clobber
-            gh release edit "$tag" --latest --title "Outing $VERSION_NAME" --notes "$notes"
+            gh release upload "$tag" outing.apk --clobber
+            gh release edit "$tag" --prerelease=false --latest --title "Outing $VERSION_NAME" --notes "$notes"
           else
-            gh release create "$tag" outing-debug.apk --target "$GITHUB_SHA" --latest \
+            gh release create "$tag" outing.apk --target "$GITHUB_SHA" --prerelease=false --latest \
               --title "Outing $VERSION_NAME" --notes "$notes"
           fi
           mapfile -t old_tags < <(gh release list --limit 100 --json tagName --jq '.[].tagName' |
@@ -197,5 +197,5 @@ jobs:
 
           {
             echo '## Outing released'
-            printf '\n[Download the latest APK](https://github.com/%s/releases/latest/download/outing-debug.apk)\n' "$GITHUB_REPOSITORY"
+            printf '\n[Download the latest APK](https://github.com/%s/releases/latest/download/outing.apk)\n' "$GITHUB_REPOSITORY"
           } >> "$GITHUB_STEP_SUMMARY"
