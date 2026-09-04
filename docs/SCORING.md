@@ -41,10 +41,12 @@ Excellent 80–100. Detail views also count hours rated Good or better (score >=
 
 ## Inspecting the score
 
-Towns are ordered by the selected activity's day score, highest first. Ties use
-the stable town identifier. Unavailable days go last, even if they have a valid
-three-hour window. The overview shows five towns initially; Show all reveals the
-full ordered list, including inland towns. Changing date or activity resets to five.
+Locations are ordered by the selected activity's day score, highest first. Ties use
+the stable identifier. Unavailable days go last, even if they have a valid
+three-hour window. Beach initially shows the five highest coastal locations; Show all
+keeps the coastal ranking first and places ranked inland estimates in a separate section.
+Hiking ranks all locations together. Changing date or activity resets an overview to five;
+activity changes within details keep the selected location open.
 
 The day headline and every hourly row display the actual internal score out of 100.
 The hourly rows are the exact inputs to the day average; missing expected hours

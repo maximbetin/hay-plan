@@ -32,7 +32,7 @@ data class HayPlanUiState(
         if (forecasts.any { it.location.id == id }) copy(openedLocationId = id) else this
 
     fun selectActivity(selected: ActivityType): HayPlanUiState =
-        copy(activity = selected, openedLocationId = null)
+        copy(activity = selected)
 
     fun atTime(instant: Instant): HayPlanUiState {
         val localNow = LocalDateTime.ofInstant(instant, LocationCatalog.zone)

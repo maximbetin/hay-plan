@@ -74,4 +74,26 @@ class ForecastPresentationTest {
         assertEquals("Average of 12 daylight hours", daylightAverageLabel(12, false))
         assertEquals("Average of 1 remaining daylight hour", daylightAverageLabel(1, true))
     }
+
+    @Test fun `card conditions are compact and inland Beach is explicit`() {
+        val result = summary((8..10).map(::hour))!!
+        assertEquals("Air 24.0°C · Rain 10% · Wind 12.0 km/h",
+            cardConditions(result, ActivityType.BEACH, coastal = false))
+        assertEquals("Air 24.0°C · Water 20.0°C · Waves 0.5 m",
+            cardConditions(result, ActivityType.BEACH, coastal = true))
+        assertEquals("Inland estimate · no beach", beachCoverageLabel(false, MarineCoverage.NONE))
+        assertEquals(MarineCoverage.FULL.label, beachCoverageLabel(true, MarineCoverage.FULL))
+    }
+
+    @Test fun `Spanish presentation covers dates activities ratings coverage and warnings`() {
+        val strings = UiStrings(AppLanguage.SPANISH)
+        assertEquals("Hoy · 03/09", formatDate(date, date, AppLanguage.SPANISH))
+        assertEquals("Mañana · 04/09", formatDate(date.plusDays(1), date, AppLanguage.SPANISH))
+        assertEquals("Senderismo", strings.activity(ActivityType.HIKING))
+        assertEquals("Excelente", strings.rating(Rating.EXCELLENT))
+        assertEquals("Tiempo y mar", strings.coverage(MarineCoverage.FULL))
+        assertEquals("Viento fuerte: valoración limitada a Mala.",
+            strings("Strong wind: rating limited to Poor."))
+        assertEquals("28.2 km/h máx.", strings("28.2 km/h max"))
+    }
 }

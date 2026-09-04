@@ -39,12 +39,22 @@ class LocationSelectionTest {
         assertEquals(date, state.selectedDate)
     }
 
-    @Test fun `activity change returns to all towns and preserves selected date`() {
+    @Test fun `activity change keeps an opened location and preserves selected date`() {
         val state = HayPlanUiState(forecasts = listOf(forecast(oviedo)), selectedDate = date)
             .openLocation("oviedo").selectActivity(ActivityType.HIKING)
-        assertNull(state.opened)
+        assertEquals(oviedo, state.opened!!.location)
         assertEquals(ActivityType.HIKING, state.activity)
         assertEquals(date, state.selectedDate)
+    }
+
+    @Test fun `after sunset prompt applies only to today with completed forecast data`() {
+        val data = forecast(oviedo)
+        val finished = DayPlanner.forDate(data.weather.hours, date, date.atTime(13, 0), ActivityType.BEACH)
+        assertTrue(daylightHasEnded(date, date.atTime(13, 0), listOf(finished)))
+        assertFalse(daylightHasEnded(date.plusDays(1), date.atTime(13, 0), listOf(finished)))
+        assertFalse(daylightHasEnded(date, date.atTime(13, 0), emptyList()))
+        val missing = DayPlanner.forDate(emptyList(), date, date.atTime(13, 0), ActivityType.BEACH)
+        assertFalse(daylightHasEnded(date, date.atTime(13, 0), listOf(missing)))
     }
 
     @Test fun `back retains filters and already loaded data`() {

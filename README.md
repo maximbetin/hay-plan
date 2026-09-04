@@ -14,10 +14,11 @@ Older builds signed with another key require uninstalling first, which removes l
 
 ## Use
 
-1. Choose a date and **Beach** or **Hiking** to see the top five locations ranked by daylight score. Tap **Show all** for the full ordered list.
-2. Each town shows its daylight rating and a separate best three-hour window. Unavailable days appear last.
-3. Tap a town for hourly results, then an hour for its weather values and score explanation.
+1. Choose a date and **Beach** or **Hiking** to see the top five locations ranked by daylight score. Beach ranks coastal locations first and keeps inland alternatives under **Show all**; after sunset, use **View tomorrow**.
+2. Each card shows its rating, essential conditions, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
+3. Tap a location for hourly results and score explanations. Date and activity changes keep that location open.
 4. Use **Refresh** to bypass the one-hour forecast cache.
+5. Open **Settings** to switch between English and Spanish. The choice is saved on the phone.
 
 Locations: Gijón, Oviedo, Avilés, Luanco, Llanes, Ribadesella, Candás, Luarca,
 Cangas de Onís, Salinas, Cudillero, Tapia de Casariego, Villaviciosa, Somiedo, and Redes.
