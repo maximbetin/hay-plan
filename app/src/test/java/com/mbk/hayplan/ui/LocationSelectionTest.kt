@@ -8,6 +8,15 @@ import java.time.Instant
 import java.time.LocalDate
 
 class LocationSelectionTest {
+    @Test fun `regional location context identifies the actual weather town for both activities`() {
+        val location = HayPlanLocation("region", "Region", "Asturias", Coordinates(43.2, -5.3),
+            weatherReference = "Reference town")
+        ActivityType.entries.forEach { activity ->
+            assertTrue(forecastContextLabel(location, activity, LocalDate.of(2026, 9, 4))
+                .contains("Region · Reference town · ${activity.label}"))
+        }
+    }
+
     private val gijon = LocationCatalog.locations.first { it.id == "gijon" }
     private val oviedo = LocationCatalog.locations.first { it.id == "oviedo" }
     private val date = LocalDate.of(2026, 9, 3)

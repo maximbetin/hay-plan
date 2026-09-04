@@ -127,7 +127,7 @@ fun HayPlanScreen(
                 }
                 if (opened == null) {
                     if (ranked.isNotEmpty()) item {
-                        Text(if (showAll) "All towns · highest daylight score first"
+                        Text(if (showAll) "All locations · highest daylight score first"
                             else "Top ${minOf(5, ranked.size)} · highest daylight score first",
                             style = MaterialTheme.typography.labelLarge)
                     }
@@ -137,11 +137,12 @@ fun HayPlanScreen(
                     }
                     if (ranked.size > 5) item {
                         TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (showAll) "Show top 5" else "Show all ${ranked.size} towns")
+                            Text(if (showAll) "Show top 5" else "Show all ${ranked.size} locations")
                         }
                     }
                 } else {
                     item {
+                        WeatherReferenceLabel(opened.location)
                         if (state.activity == ActivityType.BEACH) CoastalReferenceLabel(opened.location)
                         UpdatedLabel(opened.forActivity(state.activity))
                         DataNotice(opened.forActivity(state.activity), state.nowInstant)
@@ -190,6 +191,7 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     fontWeight = FontWeight.Bold)
                 Text("Hourly ›", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
+            WeatherReferenceLabel(forecast.location)
             if (activity == ActivityType.BEACH) CoastalReferenceLabel(forecast.location)
             Text(period, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             RatingValue(outlook.day?.rating, outlook.day?.score)
@@ -210,6 +212,14 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             DataNotice(forecast.forActivity(activity), now)
             UpdatedLabel(forecast.forActivity(activity))
         }
+    }
+}
+
+@Composable
+private fun WeatherReferenceLabel(location: HayPlanLocation) {
+    location.weatherReference?.let {
+        Text("Weather reference: $it", style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

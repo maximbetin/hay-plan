@@ -14,6 +14,7 @@ data class HayPlanLocation(
     val region: String,
     val coordinates: Coordinates,
     val coast: CoastalReference? = null,
+    val weatherReference: String? = null,
 )
 
 object LocationCatalog {
@@ -80,6 +81,47 @@ object LocationCatalog {
             id = "cangas-de-onis", name = "Cangas de Onís", region = "Asturias",
             coordinates = Coordinates(43.3514, -5.12916),
             // Inland: weather only, as for Oviedo; no river or lake conditions inferred.
+        ),
+        HayPlanLocation(
+            id = "salinas", name = "Salinas", region = "Asturias",
+            coordinates = Coordinates(43.57669, -5.95575),
+            // Same beach point as Avilés so the marine request/cache is shared.
+            // https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-salinas
+            coast = CoastalReference("Salinas (Castrillón)", Coordinates(43.578125397, -5.96411084)),
+        ),
+        HayPlanLocation(
+            id = "cudillero", name = "Cudillero", region = "Asturias",
+            coordinates = Coordinates(43.56217, -6.14589),
+            // Representative beach in the municipality, not in the harbour itself.
+            // https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-la-concha-de-artedo
+            coast = CoastalReference("Concha de Artedo", Coordinates(43.56453, -6.18882)),
+        ),
+        HayPlanLocation(
+            id = "tapia-de-casariego", name = "Tapia de Casariego", region = "Asturias",
+            coordinates = Coordinates(43.57019, -6.94383),
+            // https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-anguileiro
+            coast = CoastalReference("Anguileiro", Coordinates(43.566243, -6.949220)),
+        ),
+        HayPlanLocation(
+            id = "villaviciosa", name = "Villaviciosa", region = "Asturias",
+            coordinates = Coordinates(43.48126, -5.43574),
+            // Beach at the estuary mouth; weather remains the town's weather.
+            // https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-rodiles
+            coast = CoastalReference("Rodiles", Coordinates(43.533404, -5.379658)),
+        ),
+        HayPlanLocation(
+            id = "somiedo", name = "Somiedo", region = "Asturias",
+            coordinates = Coordinates(43.0929, -6.25629),
+            // Park visitor centre is in Pola de Somiedo; no whole-park/mountain forecast.
+            // https://www.turismoasturias.es/es/descubre/donde-ir/municipios/somiedo
+            weatherReference = "Pola de Somiedo",
+        ),
+        HayPlanLocation(
+            id = "redes", name = "Redes", region = "Asturias",
+            coordinates = Coordinates(43.1831, -5.34476),
+            // Campo de Caso is the visitor-centre town for Redes, not a coastal location.
+            // https://www.turismoasturias.es/es/-/blogs/las-10-mejores-cosas-que-ver-y-hacer-en-el-parque-natural-de-redes
+            weatherReference = "Campo de Caso",
         ),
     )
 }

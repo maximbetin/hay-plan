@@ -14,7 +14,7 @@ internal data class DayWeatherSummary(val headline: String, val values: List<Wea
 internal fun formatDate(date: LocalDate): String = date.format(DateTimeFormatter.ofPattern("EEE dd/MM", Locale.ENGLISH))
 
 internal fun forecastContextLabel(location: HayPlanLocation, activity: ActivityType, date: LocalDate): String {
-    val place = listOfNotNull(location.name, activity.label,
+    val place = listOfNotNull(location.name, location.weatherReference, activity.label,
         if (activity == ActivityType.BEACH) location.coast?.name else null).joinToString(" · ")
     return "$place\n${formatDate(date)}"
 }

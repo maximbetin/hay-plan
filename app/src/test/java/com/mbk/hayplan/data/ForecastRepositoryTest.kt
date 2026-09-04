@@ -92,9 +92,15 @@ class ForecastRepositoryTest {
         })
         val forecasts = repository.load()
         assertEquals(LocationCatalog.locations.map { it.id }, forecasts.map { it.location.id })
-        val expected = LocationCatalog.locations.size + LocationCatalog.locations.count { it.coast != null }
+        val weatherPoints = LocationCatalog.locations.map { it.coordinates }.distinct().size
+        val marinePoints = LocationCatalog.locations.mapNotNull { it.coast?.coordinates }.distinct().size
+        val expected = weatherPoints + marinePoints
         assertEquals(expected, calls.size)
-        assertEquals(LocationCatalog.locations.count { it.coast != null }, calls.count { it.contains("marine-api") })
+        assertEquals(marinePoints, calls.count { it.contains("marine-api") })
+        forecasts.filter { it.location.coast == null }.forEach {
+            assertSame(it.weather, it.beach)
+            assertTrue(it.beach.hours.all { hour -> hour.seaTemperatureC == null && hour.waveHeightM == null })
+        }
         repository.load(true)
         assertEquals(expected * 2, calls.size)
     }
