@@ -1,33 +1,23 @@
-name: Android APK
+name: Build Hay Plan APK
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'app/**'
-      - 'gradle/**'
-      - '*.gradle.kts'
-      - 'gradle.properties'
-      - 'gradlew*'
-      - '.github/workflows/android.yml'
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   pull_request:
     branches: [main]
-    paths:
-      - 'app/**'
-      - 'gradle/**'
-      - '*.gradle.kts'
-      - 'gradle.properties'
-      - 'gradlew*'
-      - '.github/workflows/android.yml'
-  workflow_dispatch:
-
-# PR builds cannot publish releases or modify repository contents.
-permissions:
-  contents: read
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
 
 concurrency:
   group: android-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -35,8 +25,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
-      apk-name: ${{ steps.package.outputs.name }}
-      version-name: ${{ steps.package.outputs.version }}
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      version: ${{ steps.package.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Set up Gradle and validate wrapper
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
@@ -60,17 +50,15 @@ jobs:
         shell: bash
         run: |
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          # Ignore yes's SIGPIPE, but still fail if sdkmanager itself fails.
           set +o pipefail
           yes 2>/dev/null | "$sdkmanager" --licenses > /dev/null
           set -o pipefail
           "$sdkmanager" --install 'platforms;android-37.0' 'build-tools;36.0.0'
 
-      # Main releases must use the saved key so every APK remains update-compatible.
-      # Never give PR code access to the saved signing key.
-      - name: Restore saved test signing key
-        id: signing
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      # Main builds use the same private key so each APK updates the installed app.
+      # Pull requests build with the runner's temporary key and cannot publish.
+      - name: Restore signing key
+        if: github.event_name == 'push'
         shell: bash
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
@@ -81,121 +69,83 @@ jobs:
           fi
           umask 077
           mkdir -p "$HOME/.android"
-          echo 'restored=true' >> "$GITHUB_OUTPUT"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
           keytool -list -keystore "$HOME/.android/debug.keystore" \
             -storepass android -alias androiddebugkey > /dev/null
           echo "HAY_PLAN_DEBUG_KEYSTORE=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
-          echo 'mode=Saved test signing key' >> "$GITHUB_OUTPUT"
 
-      - name: Run tests, lint, and build
+      - name: Test, lint, and build release APK
         shell: bash
         run: bash ./gradlew --no-daemon --console=plain -PhayPlanBuildNumber="$GITHUB_RUN_NUMBER" testDebugUnitTest lintRelease assembleRelease
 
-      - name: Verify APK uses the saved test key
-        if: steps.signing.outputs.restored == 'true'
+      - name: Verify signing and prepare download
+        if: github.event_name == 'push'
+        id: package
         shell: bash
         run: |
           expected=$(keytool -exportcert -keystore "$HAY_PLAN_DEBUG_KEYSTORE" \
             -storepass android -alias androiddebugkey | sha256sum | cut -d ' ' -f 1)
           actual=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs \
             app/build/outputs/apk/release/app-release.apk | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          if [[ "$actual" != "$expected" ]]; then
-            echo 'APK signing certificate does not match the saved test key.' >&2
-            exit 1
-          fi
-          echo 'APK signing certificate matches the saved test key.'
-
-      - name: Name the downloadable APK
-        id: package
-        shell: bash
-        run: |
+          [[ "$actual" == "$expected" ]] || { echo 'APK signing certificate does not match.' >&2; exit 1; }
           version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
-          name="hay-plan-${version}-${GITHUB_SHA:0:7}.apk"
-          mkdir -p "$RUNNER_TEMP/hay-plan-apk"
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/hay-plan-apk/$name"
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "path=$RUNNER_TEMP/hay-plan-apk/$name" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/release/app-release.apk hay-plan.apk
+          echo "artifact_name=hay-plan-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Upload downloadable APK
-        id: apk
+      - name: Pass APK to publishing job
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          path: ${{ steps.package.outputs.path }}
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: hay-plan.apk
           archive: false
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
 
-      - name: Add download link to build summary
-        shell: bash
-        env:
-          APK_URL: ${{ steps.apk.outputs.artifact-url }}
-          SIGNING_MODE: ${{ steps.signing.outputs.mode || 'Temporary debug key' }}
-        run: |
-          {
-            echo '## Hay Plan APK ready'
-            printf '\n[Download the APK](%s)\n\n' "$APK_URL"
-            printf 'Signing: %s\n\n' "$SIGNING_MODE"
-            echo 'Build artifacts are kept for 30 days. Phone downloads are available from the latest GitHub release.'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload test and lint reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-${{ github.run_number }}-${{ github.run_attempt }}
-          path: |
-            app/build/reports/
-            app/build/test-results/
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Remove restored signing key
-        if: always() && steps.signing.outputs.restored == 'true'
+      - name: Remove signing key
+        if: always() && github.event_name == 'push'
         shell: bash
         run: rm -f -- "$HOME/.android/debug.keystore"
 
-  release:
-    name: Publish automatic APK release
+  publish:
+    name: Publish APK
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write
     steps:
-      - name: Download this run's APK
+      - name: Download verified APK
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ needs.build.outputs.apk-name }}
+          name: ${{ needs.build.outputs.artifact_name }}
           path: apk
 
-      - name: Publish installable APK and retain three automatic releases
+      - name: Publish latest APK
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          APK_NAME: ${{ needs.build.outputs.apk-name }}
-          VERSION_NAME: ${{ needs.build.outputs.version-name }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
           tag="auto-${GITHUB_RUN_NUMBER}"
-          cp "apk/$APK_NAME" hay-plan.apk
-          notes="Automatically built and verified from main at ${GITHUB_SHA:0:7}. Download hay-plan.apk below and open it on your Android phone to install or update Hay Plan."
+          notes="Built and verified from main at ${GITHUB_SHA:0:7}. Download hay-plan.apk below and open it on Android to install or update Hay Plan."
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" hay-plan.apk --clobber
-            gh release edit "$tag" --prerelease=false --latest --title "Hay Plan $VERSION_NAME" --notes "$notes"
+            gh release upload "$tag" apk/hay-plan.apk --clobber
+            gh release edit "$tag" --prerelease=false --latest --title "Hay Plan $VERSION" --notes "$notes"
           else
-            gh release create "$tag" hay-plan.apk --target "$GITHUB_SHA" --prerelease=false --latest \
-              --title "Hay Plan $VERSION_NAME" --notes "$notes"
+            gh release create "$tag" apk/hay-plan.apk --target "$GITHUB_SHA" --prerelease=false --latest \
+              --title "Hay Plan $VERSION" --notes "$notes"
           fi
           mapfile -t old_tags < <(gh release list --limit 100 --json tagName --jq '.[].tagName' |
             grep '^auto-[0-9][0-9]*$' | sort -Vr | tail -n +4 || true)
           for old_tag in "${old_tags[@]}"; do
             gh release delete "$old_tag" --cleanup-tag --yes
           done
-
           {
-            echo '## Hay Plan released'
-            printf '\n[Download the latest APK](https://github.com/%s/releases/latest/download/hay-plan.apk)\n' "$GITHUB_REPOSITORY"
+            echo '## Hay Plan APK ready'
+            printf '\n**Version:** %s\n\n' "$VERSION"
+            printf '[Download hay-plan.apk](https://github.com/%s/releases/latest/download/hay-plan.apk)\n' "$GITHUB_REPOSITORY"
           } >> "$GITHUB_STEP_SUMMARY"
