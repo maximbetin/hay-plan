@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
-      artifact_name: ${{ steps.package.outputs.artifact_name }}
       version: ${{ steps.package.outputs.version }}
     steps:
       - name: Check out source
@@ -90,14 +89,12 @@ jobs:
           [[ "$actual" == "$expected" ]] || { echo 'APK signing certificate does not match.' >&2; exit 1; }
           version=$(jq -r '.elements[0].versionName' app/build/outputs/apk/release/output-metadata.json)
           cp app/build/outputs/apk/release/app-release.apk hay-plan.apk
-          echo "artifact_name=hay-plan-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Pass APK to publishing job
         if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ steps.package.outputs.artifact_name }}
           path: hay-plan.apk
           archive: false
           if-no-files-found: error
@@ -120,7 +117,7 @@ jobs:
       - name: Download verified APK
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ needs.build.outputs.artifact_name }}
+          name: hay-plan.apk
           path: apk
 
       - name: Publish latest APK
