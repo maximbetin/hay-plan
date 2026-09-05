@@ -1,9 +1,11 @@
 package com.mbk.hayplan.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -57,6 +59,10 @@ internal fun DayOverview(
                 ?: outlook.dayUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             summary?.let { Text(strings(it.headline), style = MaterialTheme.typography.bodyMedium) }
+            outlook.day?.takeIf { it.score < 80 }?.warnings?.firstOrNull()?.let {
+                Text(strings(it), style = MaterialTheme.typography.bodySmall,
+                    color = ratingColor(outlook.day.score))
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
@@ -72,7 +78,7 @@ internal fun DayOverview(
                 else {
                     Text(timeRange(window.start, window.end), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text("${strings.rating(window.rating)} · ${window.score}/100", style = MaterialTheme.typography.bodyMedium,
-                        color = ratingColor(window.score))
+                        color = ratingColor(window.score), fontWeight = FontWeight.SemiBold)
                     if (outlook.activity == ActivityType.BEACH && coastal && window.marineCoverage != outlook.marineCoverage)
                         Text(beachCoverageLabel(true, window.marineCoverage, strings.language), style = MaterialTheme.typography.bodySmall)
                     if (window.score < 40) Text(strings("Not recommended"), style = MaterialTheme.typography.bodySmall,
@@ -146,6 +152,7 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
     val time = hour.time.toLocalTime()
     val isBest = best != null && !time.isBefore(best.start) && time.isBefore(best.end)
     val score = hour.evaluation?.score
+    val scoreColor = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
     Surface(onClick = onClick, shape = RoundedCornerShape(16.dp),
         color = if (isBest) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -153,14 +160,15 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(time.format(TIME), style = MaterialTheme.typography.titleMedium)
                 Column(Modifier.weight(1f)) {
-                    Text(score?.let { strings.rating(ratingFor(it)) } ?: strings("Unavailable"), style = MaterialTheme.typography.bodyMedium)
+                    Text(score?.let { strings.rating(ratingFor(it)) } ?: strings("Unavailable"),
+                        style = MaterialTheme.typography.bodyMedium, color = scoreColor)
                     if (showCoverage) hour.evaluation?.let {
                         Text(strings.coverage(it.marineCoverage), style = MaterialTheme.typography.labelSmall)
                     }
                     if (best?.start == time) Text(strings("Best 3 hours"), style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                Text(score?.let { "$it/100" } ?: "—", fontWeight = FontWeight.SemiBold)
+                Text(score?.let { "$it/100" } ?: "—", fontWeight = FontWeight.SemiBold, color = scoreColor)
                 Text("›", Modifier.clearAndSetSemantics { })
             }
             if (score != null) LinearProgressIndicator(
@@ -259,17 +267,19 @@ private fun SuitabilityNote(activity: ActivityType, coastal: Boolean) {
 @Composable
 private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
     val strings = LocalUiStrings.current
+    val color = factorColor(factor.outcome)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(color, CircleShape).clearAndSetSemantics { })
         Column(Modifier.weight(1f)) {
             Text(strings(factor.label))
             if (!showPoints) Text(strings(factor.detail), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Column(horizontalAlignment = Alignment.End) {
-            Text(factor.value, fontWeight = FontWeight.SemiBold)
+            Text(strings(factor.value), fontWeight = FontWeight.SemiBold, color = color)
             if (showPoints && factor.maximumPoints > 0) Text(strings("${factor.points}/${factor.maximumPoints} points"),
-                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                style = MaterialTheme.typography.labelMedium, color = color)
         }
     }
 }
@@ -277,13 +287,17 @@ private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
 @Composable
 internal fun RatingValue(rating: Rating?, score: Int?) {
     val strings = LocalUiStrings.current
+    val color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(rating?.let(strings::rating) ?: strings("Unavailable"), Modifier.weight(1f),
             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-            color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface)
-        Text(score?.let { "$it/100" } ?: "—", style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold)
+            color = color)
+        Surface(shape = RoundedCornerShape(999.dp),
+            color = score?.let(::ratingContainerColor) ?: MaterialTheme.colorScheme.surfaceVariant) {
+            Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
+        }
     }
 }
 
@@ -300,5 +314,20 @@ internal fun ratingColor(score: Int) = when {
     score >= 80 -> Color(0xFF087A63)
     score >= 60 -> Color(0xFF39734B)
     score >= 40 -> Color(0xFF8A6500)
+    score >= 20 -> Color(0xFFA85D16)
     else -> Color(0xFFA34235)
+}
+
+internal fun ratingContainerColor(score: Int) = when {
+    score >= 80 -> Color(0xFFD7F3EC)
+    score >= 60 -> Color(0xFFE0F0E2)
+    score >= 40 -> Color(0xFFFFF0C2)
+    score >= 20 -> Color(0xFFFCE4CA)
+    else -> Color(0xFFF9DDD8)
+}
+
+internal fun factorColor(outcome: FactorOutcome) = when (outcome) {
+    FactorOutcome.POSITIVE -> Color(0xFF087A63)
+    FactorOutcome.MIXED -> Color(0xFF8A6500)
+    FactorOutcome.NEGATIVE -> Color(0xFFA34235)
 }

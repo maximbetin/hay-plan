@@ -1,6 +1,7 @@
 package com.mbk.hayplan.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -123,12 +124,19 @@ fun HayPlanScreen(
                 }
             }
             DateStrip(state, onDateSelected)
+            Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ActivityType.entries.forEach { activity ->
                     FilterChip(selected = state.activity == activity,
                         onClick = { onActivitySelected(activity) },
                         label = { Text(strings.activity(activity), Modifier.padding(vertical = 5.dp)) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = if (activity == ActivityType.BEACH)
+                                MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = if (activity == ActivityType.BEACH)
+                                MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
                         modifier = Modifier.weight(1f))
                 }
             }
@@ -249,7 +257,11 @@ private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit
         items(state.dates, key = { it.toString() }) { date ->
             FilterChip(selected = date == state.selectedDate, onClick = { onDateSelected(date) },
                 label = { Text(formatDate(date, state.now.toLocalDate(), strings.language),
-                    Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.SemiBold) })
+                    Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.SemiBold) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                ))
         }
     }
 }
@@ -263,7 +275,9 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
         dayWeatherSummary(outlook, data.hours, forecast.location.coast != null)
     }
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = outlook.day?.score?.let { BorderStroke(1.dp, ratingColor(it).copy(alpha = 0.20f)) },
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -274,9 +288,13 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             CardReferenceLabel(forecast.location, activity, outlook)
             CompactRatingValue(outlook.day?.rating, outlook.day?.score)
             if (outlook.day == null) Text(strings(outlook.dayUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall)
+            outlook.day?.takeIf { it.score < 60 }?.warnings?.firstOrNull()?.let {
+                Text(strings(it), style = MaterialTheme.typography.bodySmall, color = ratingColor(outlook.day.score),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             cardConditions(summary, activity, forecast.location.coast != null)?.let {
                 Text(strings(it), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
             }
             val window = outlook.bestWindow
@@ -286,7 +304,8 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     Text(strings("Best 3 hours"), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${timeRange(window.start, window.end)} · ${window.score}/100",
-                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                        color = ratingColor(window.score))
                 }
                 if (window.score < 40) Text(strings("Not recommended"), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error)
@@ -299,12 +318,16 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
 @Composable
 private fun CompactRatingValue(rating: Rating?, score: Int?) {
     val strings = LocalUiStrings.current
+    val color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(rating?.let(strings::rating) ?: strings("Unavailable"), Modifier.weight(1f),
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-            color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface)
-        Text(score?.let { "$it/100" } ?: "—", style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold)
+            color = color)
+        Surface(shape = RoundedCornerShape(999.dp),
+            color = score?.let(::ratingContainerColor) ?: MaterialTheme.colorScheme.surfaceVariant) {
+            Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color)
+        }
     }
 }
 
@@ -346,13 +369,16 @@ private fun CoastalReferenceLabel(location: HayPlanLocation) {
 @Composable
 private fun DataNotice(data: ActivityForecastData, now: Instant) {
     val strings = LocalUiStrings.current
-    val warnings = buildList {
-        addAll(data.errors)
-        if (data.sources.any { it.refreshFailed }) add("Refresh failed · saved forecast")
-        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Forecast may be outdated")
-        if (data.sources.any { it.persistenceFailed }) add("Couldn't save forecast")
+    val warnings = buildList<Pair<String, Boolean>> {
+        addAll(data.errors.map { it to true })
+        if (data.sources.any { it.refreshFailed }) add("Refresh failed · saved forecast" to false)
+        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Forecast may be outdated" to false)
+        if (data.sources.any { it.persistenceFailed }) add("Couldn't save forecast" to false)
     }
-    warnings.forEach { Text(strings(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+    warnings.forEach { (message, error) ->
+        Text(strings(message), style = MaterialTheme.typography.bodySmall,
+            color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary)
+    }
 }
 
 @Composable

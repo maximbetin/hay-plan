@@ -100,4 +100,12 @@ class ForecastPresentationTest {
         assertEquals("Sensación 20°C · Prob. lluvia 10% máx.\nRachas 18 km/h máx. · Nubes 90% media",
             strings("Feels 20°C · Rain chance 10% max\nGusts 18 km/h max · Clouds 90% avg"))
     }
+
+    @Test fun `semantic colors distinguish every rating band and factor outcome`() {
+        val ratingColors = listOf(0, 20, 40, 60, 80).map(::ratingColor)
+        val containers = listOf(0, 20, 40, 60, 80).map(::ratingContainerColor)
+        assertEquals(5, ratingColors.distinct().size)
+        assertEquals(5, containers.distinct().size)
+        assertEquals(3, FactorOutcome.entries.map(::factorColor).distinct().size)
+    }
 }
