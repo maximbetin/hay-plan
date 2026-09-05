@@ -84,10 +84,15 @@ class DayPlannerTest {
         }
     }
 
-    @Test fun `hiking ignores sea and cloud conditions`() {
-        val data = hour(10).copy(waveHeightM = null, seaTemperatureC = null, cloudCoverPercent = null)
+    @Test fun `hiking ignores sea but scores cloud conditions`() {
+        val data = hour(10).copy(waveHeightM = null, seaTemperatureC = null)
         assertEquals(100, ActivityScorer.score(ActivityType.HIKING, listOf(data))!!.score)
-        assertNull(ActivityScorer.score(ActivityType.BEACH, listOf(data)))
+        val overcast = ActivityScorer.score(ActivityType.HIKING,
+            listOf(data.copy(cloudCoverPercent = 100, weatherCode = 3)))!!
+        assertEquals(79, overcast.score)
+        assertEquals(0, overcast.factors.first { it.label == "Cloud cover" }.points)
+        assertTrue(overcast.warnings.any { it.contains("Overcast") })
+        assertNull(ActivityScorer.score(ActivityType.HIKING, listOf(data.copy(cloudCoverPercent = null))))
     }
 
     @Test fun `rough seas cannot be offset by pleasant weather`() {
@@ -114,10 +119,36 @@ class DayPlannerTest {
         assertEquals(Rating.POOR, ratingFor(score.score))
     }
 
+    @Test fun `light rain reduces points before it becomes a hard limit`() {
+        val dry = ActivityScorer.score(ActivityType.HIKING, listOf(hour(10)))!!
+        val damp = ActivityScorer.score(ActivityType.HIKING,
+            listOf(hour(10).copy(precipitationMm = 0.2)))!!
+        assertTrue(damp.score < dry.score)
+        assertEquals(10, damp.factors.first { it.label == "Rainfall" }.points)
+        assertEquals(100, damp.maximumScore)
+    }
+
+    @Test fun `gusts severe weather visibility and UV cannot average into excellent`() {
+        val gusty = ActivityScorer.score(ActivityType.HIKING,
+            listOf(hour(10).copy(windGustsKmh = 55.0)))!!
+        assertTrue(gusty.score <= 39)
+        val storm = ActivityScorer.score(ActivityType.HIKING,
+            listOf(hour(10).copy(weatherCode = 95)))!!
+        assertEquals(Rating.POOR, ratingFor(storm.score))
+        val fog = ActivityScorer.score(ActivityType.HIKING,
+            listOf(hour(10).copy(weatherCode = 45, visibilityM = 700.0)))!!
+        assertTrue(fog.score <= 39)
+        val uv = ActivityScorer.score(ActivityType.HIKING,
+            listOf(hour(10).copy(uvIndex = 9.0)))!!
+        assertEquals(79, uv.score)
+    }
+
     @Test fun `non finite and missing weather are unavailable for both activities`() {
         ActivityType.entries.forEach { activity ->
             assertNull(ActivityScorer.score(activity, listOf(hour(10).copy(airTemperatureC = Double.NaN))))
             assertNull(ActivityScorer.score(activity, listOf(hour(10).copy(precipitationMm = null))))
+            assertNull(ActivityScorer.score(activity, listOf(hour(10).copy(windGustsKmh = null))))
+            assertNull(ActivityScorer.score(activity, listOf(hour(10).copy(visibilityM = null))))
         }
     }
 
@@ -178,5 +209,7 @@ class DayPlannerTest {
 
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,
         airTemperatureC = 24.0, precipitationProbabilityPercent = 5, cloudCoverPercent = 15,
-        windSpeedKmh = 10.0, seaTemperatureC = 21.0, waveHeightM = 0.3, precipitationMm = 0.0)
+        windSpeedKmh = 10.0, seaTemperatureC = 21.0, waveHeightM = 0.3, precipitationMm = 0.0,
+        apparentTemperatureC = 21.0, relativeHumidityPercent = 60, visibilityM = 20_000.0,
+        weatherCode = 1, windGustsKmh = 18.0, uvIndex = 4.0)
 }

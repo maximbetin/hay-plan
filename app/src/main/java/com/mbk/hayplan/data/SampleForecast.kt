@@ -44,5 +44,11 @@ object SampleForecast {
         seaTemperatureC = seaTemperatureC,
         waveHeightM = waveHeightM,
         precipitationMm = 0.0,
+        apparentTemperatureC = airTemperatureC - 0.5,
+        relativeHumidityPercent = 65,
+        visibilityM = 20_000.0,
+        weatherCode = if (cloudCoverPercent > 80) 3 else if (cloudCoverPercent > 30) 2 else 1,
+        windGustsKmh = windSpeedKmh + 8,
+        uvIndex = if (isDaylight) 4.0 else 0.0,
     )
 }

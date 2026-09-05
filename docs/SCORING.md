@@ -56,67 +56,93 @@ actual raw points, available maximum, normalized score and any reductions.
 Day summaries use the same expected daylight slots; a missing
 value in any slot leaves that field Unknown instead of summarizing a partial set.
 
-## Beach (available points scaled to 100)
+## Scoring philosophy
 
-One warm-weather leisure profile, also usable inland for an outdoor pool or
-riverside visit. It does not assess pool temperatures, river conditions or swimming
-safety. The name Beach is a compact activity label, not a claim that every town has a beach.
+The score describes how inviting the weather is for the selected activity, not merely
+whether going outside is possible. A perfect score therefore requires every weighted
+factor to be in its best band. Ordinary compromises lose points, while a condition that
+should rule out an Excellent label applies a rating limit after the weighted calculation.
 
-| Factor | Points |
-| --- | --- |
-| Air temperature | 22–28°C: 20; 18–<22: 14; >28–<32: 12; otherwise: 5 |
-| Water temperature | >=20°C: 15; 18–<20: 10; 16–<18: 5; <16: 0 |
-| Wave height | <=0.5 m: 20; >0.5–0.8: 14; >0.8–1.2: 6; >1.2: 0 |
-| Cloud cover | <=20%: 10; >20–45: 7; >45–70: 3; >70: 0 |
-| Wind | Maximum 15 points, using the shared wind rule |
-| Rain probability | Maximum 20 points, using the shared rain rule |
+All non-marine inputs are required: air and apparent temperature, humidity, cloud cover,
+sustained wind, gusts, rain probability, rainfall amount, visibility, UV index and WMO
+weather code. Missing or invalid values make that hour unavailable rather than silently
+assuming favorable weather.
 
-Air temperature, cloud cover, wind, rain probability and rainfall are required.
-Weather contributes up to 65 raw points; known water temperature adds up to 15,
-and known wave height adds up to 20. The available maximum is therefore 65, 80,
-85 or 100. For example, 59/65 becomes 91/100 before condition limits.
-Missing data is not treated as zero waves or warm water. If sea data fails or
-ends earlier than weather data, the remaining weather-only estimates are labelled.
+## Beach (weather maximum 70; optional marine maximum 30)
 
-Each town has one weather point and, where applicable, one named marine reference.
-Inland towns make no marine request. No beach-specific shelter adjustment is inferred.
+One combined swimming/sunbathing profile, also usable inland as an explicitly labelled
+weather-only outdoor-leisure estimate. It does not assess flags, currents, water quality,
+pool temperature or river conditions.
+
+| Factor | Maximum | Best band and reductions |
+| --- | ---: | --- |
+| Apparent temperature | 15 | 22–27°C: 15; 19–<22 or >27–30: 12; 16–<19 or >30–33: 7; 12–<16 or >33–<35: 3; otherwise 0 |
+| Water temperature, when known | 12 | >=21°C: 12; 19–<21: 9; 17–<19: 5; otherwise 0 |
+| Wave height, when known | 18 | <=0.4 m: 18; >0.4–0.7: 13; >0.7–1.0: 7; >1.0–1.2: 3; otherwise 0 |
+| Cloud cover | 10 | <=20%: 10; >20–45: 7; >45–70: 4; >70–90: 2; >90: 0 |
+| Sustained wind | 8 | Shared wind bands below |
+| Wind gusts | 7 | Shared gust bands below |
+| Rain probability | 10 | Shared probability bands below |
+| Rainfall amount | 10 | Shared rainfall bands below |
+| Relative humidity | 5 | Shared humidity bands below |
+| Visibility | 5 | Shared visibility bands below |
+
+The weather-only maximum is 70. Known water and waves independently add 12 and 18
+available points. Each hour is normalized against only the available maximum, so missing
+marine data is not invented as calm or warm; coverage remains clearly labelled.
 
 ## Hiking (100 points)
 
-General walking/hiking weather around the selected town, not a route-specific forecast.
-Cloudiness is not inherently bad for this activity.
+General outdoor walking/hiking weather for the town and nearby area. This intentionally
+covers a stroll, an informal local route or an ordinary nearby hike without pretending to
+model every path. It is not an exact trail, altitude or mountain forecast.
 
-| Factor | Points |
-| --- | --- |
-| Air temperature | 15–24°C: 40; 10–<15: 30; >24–<29: 28; 5–<10 or 29–<32: 15; otherwise: 0 |
-| Wind | Maximum 25 points, using the shared wind rule |
-| Rain probability | Maximum 35 points, using the shared rain rule |
+| Factor | Maximum | Best band and reductions |
+| --- | ---: | --- |
+| Apparent temperature | 25 | 16–22°C: 25; 13–<16 or >22–25: 22; 10–<13 or >25–28: 17; 5–<10 or >28–31: 10; 0–<5 or >31–<35: 4; otherwise 0 |
+| Rain probability | 15 | Shared probability bands below |
+| Rainfall amount | 15 | Shared rainfall bands below |
+| Sustained wind | 10 | Shared wind bands below |
+| Wind gusts | 10 | Shared gust bands below |
+| Cloud cover | 15 | <=20%: 15; >20–45: 12; >45–70: 8; >70–90: 4; >90: 0 |
+| Relative humidity | 5 | Shared humidity bands below |
+| Visibility | 5 | Shared visibility bands below |
 
-Air temperature, wind, rain probability and rainfall amount are required.
-Marine variables and cloud cover are not required and do not affect the score.
+Marine conditions do not affect Hiking. Cloudiness now affects the comfort score, and an
+overcast WMO condition cannot be labelled Excellent even if every other input is ideal.
 
-## Shared point rules and limits
+## Shared point bands and rating limits
 
-- Wind: <=15 km/h earns all points; >15–25 earns 60%; >25–35 earns 20%; >35 earns 0.
-- Rain probability: <=10% earns all points; >10–30 earns 60%; >30–50 earns 25%;
-  >50 earns 0. Fractional points round to the nearest integer.
-- Rain amount is displayed separately and acts through limits, not bonus points.
-- Wind >35 km/h: score capped at 19 (Poor).
-- Rain >=3 mm in the scored interval: capped at 19. Otherwise rain >=1 mm or
-  probability >50%: capped at 39 (Fair).
-- Any air temperature >=35°C: capped at 39.
-- Beach waves >1.2 m: capped at 19; otherwise >0.8 m: capped at 59 (Good).
-- Any Beach water temperature <16°C: capped at 39.
-- Any Hiking air temperature <0°C: capped at 39.
+- Sustained wind: <=10 km/h earns 100% of its points; >10–15 earns 80%; >15–22
+  earns 50%; >22–30 earns 20%; >30–35 earns 10%; above 35 earns 0.
+- Gusts: <=20 km/h earns 100%; >20–30 earns 80%; >30–40 earns 50%; >40–50
+  earns 20%; >50–60 earns 10%; above 60 earns 0.
+- Rain probability: <=5% earns 100%; >5–15 earns 80%; >15–30 earns 55%;
+  >30–50 earns 25%; above 50 earns 0.
+- Rainfall: exactly 0 mm earns 100%; >0–0.1 earns 90%; >0.1–0.3 earns 65%;
+  >0.3–<1 earns 30%; 1–<3 earns 10%; >=3 earns 0.
+- Humidity: 35–70% earns 100%; 25–<35 or >70–80 earns 80%; 20–<25 or
+  >80–90 earns 40%; more extreme values earn 20%.
+- Visibility: >=10 km earns 100%; 5–<10 earns 80%; 3–<5 earns 50%; 1–<3
+  earns 20%; below 1 km earns 0.
 
-Limits cannot improve a score. When several apply, the lowest cap wins.
+Limits prevent a hazardous or clearly compromised hour/window from being averaged into
+an implausibly high label. Among them: thunderstorms, freezing or severe precipitation,
+wind above 35 km/h or gusts above 60 km/h cap at Poor; fog, moderate precipitation,
+rain >=1 mm, very low visibility or gusts above 50 km/h cap at Fair; lighter rain,
+reduced visibility, cold/hot apparent temperature or gusts above 40 km/h cap at Good.
+Overcast conditions and very high UV cap at Very Good. Extreme UV caps at Good.
+The existing marine limits remain: waves >1.2 m cap Beach at Poor, waves >0.8 m cap
+at Good, and water below 16°C caps at Fair. Limits cannot improve a score; the lowest
+applicable cap wins.
 
 ## API alignment and limitations
 
 Weather and marine series are joined by timestamp, never by array position.
-Open-Meteo precipitation describes the preceding hour: the value timestamped
-12:00 belongs to the app's 11:00–12:00 interval. Missing/non-finite values stay
-unknown. Never extrapolate marine variables into later dates.
+Open-Meteo precipitation and gusts describe the preceding hour: values timestamped
+12:00 belong to the app's 11:00–12:00 interval. Instantaneous values such as apparent
+temperature, cloud cover, humidity, visibility and UV remain on their stated timestamp.
+Missing/non-finite values stay unknown. Never extrapolate marine variables into later dates.
 
 Ratings estimate comfort, not safety. Beach flags, local shelter, tides, rip
 currents, UV, lightning warnings, elevation differences, trail surfaces and route

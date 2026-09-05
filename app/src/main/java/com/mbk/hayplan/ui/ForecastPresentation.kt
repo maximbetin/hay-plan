@@ -57,24 +57,41 @@ internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyCondi
         return if (low == high) "$low°C" else "$low–$high°C"
     }
     val air = range(values { it.airTemperatureC })
+    val feels = range(values { it.apparentTemperatureC })
     val wind = values { it.windSpeedKmh?.takeIf { v -> v >= 0 } }
+        ?.let { "${number(it.max())} km/h max" } ?: "Unknown"
+    val gusts = values { it.windGustsKmh?.takeIf { v -> v >= 0 } }
         ?.let { "${number(it.max())} km/h max" } ?: "Unknown"
     val chance = values { it.precipitationProbabilityPercent?.takeIf { v -> v in 0..100 }?.toDouble() }
         ?.let { "${it.max().toInt()}% max" } ?: "Unknown"
     val rain = values { it.precipitationMm?.takeIf { v -> v >= 0 } }
         ?.let { "${number(it.sum())} mm total" } ?: "Unknown"
+    val clouds = values { it.cloudCoverPercent?.takeIf { v -> v in 0..100 }?.toDouble() }
+        ?.let { "${it.average().toInt()}% avg" } ?: "Unknown"
+    val humidity = values { it.relativeHumidityPercent?.takeIf { v -> v in 0..100 }?.toDouble() }
+        ?.let { "${it.average().toInt()}% avg" } ?: "Unknown"
+    val visibility = values { it.visibilityM?.takeIf { v -> v >= 0 } }
+        ?.let { "${number(it.min() / 1_000)} km min" } ?: "Unknown"
+    val uv = values { it.uvIndex?.takeIf { v -> v >= 0 } }
+        ?.let { "${number(it.max())} max" } ?: "Unknown"
     val details = buildList {
         add(WeatherValue("Air temperature", air))
+        add(WeatherValue("Feels like", feels))
         add(WeatherValue("Wind", wind))
+        add(WeatherValue("Wind gusts", gusts))
         add(WeatherValue("Rain chance", chance))
         add(WeatherValue("Rainfall", rain))
+        add(WeatherValue("Cloud cover", clouds))
+        add(WeatherValue("Humidity", humidity))
+        add(WeatherValue("Visibility", visibility))
+        add(WeatherValue("UV index", uv))
         if (outlook.activity == ActivityType.BEACH && coastal) {
             add(WeatherValue("Water temperature", range(values { it.seaTemperatureC })))
             add(WeatherValue("Waves", values { it.waveHeightM?.takeIf { v -> v >= 0 } }
                 ?.let { "${number(it.max())} m max" } ?: "Unknown"))
         }
     }
-    return DayWeatherSummary("Air $air · Rain chance $chance\nWind $wind", details)
+    return DayWeatherSummary("Feels $feels · Rain chance $chance\nGusts $gusts · Clouds $clouds", details)
 }
 
 internal fun daylightAverageLabel(count: Int, remainingToday: Boolean): String {
@@ -85,11 +102,14 @@ internal fun daylightAverageLabel(count: Int, remainingToday: Boolean): String {
 
 internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType, coastal: Boolean): String? {
     if (summary == null) return null
-    fun value(label: String) = summary.values.first { it.label == label }.value.removeSuffix(" max")
+    fun value(label: String) = summary.values.first { it.label == label }.value
+        .removeSuffix(" max").removeSuffix(" avg")
     return if (activity == ActivityType.BEACH && coastal) {
-        "Air ${value("Air temperature")} · Water ${value("Water temperature")} · Waves ${value("Waves")}"
+        "Feels ${value("Feels like")} · Water ${value("Water temperature")} · Waves ${value("Waves")}\n" +
+            "Rain ${value("Rain chance")} · Gusts ${value("Wind gusts")} · Clouds ${value("Cloud cover")}"
     } else {
-        "Air ${value("Air temperature")} · Rain ${value("Rain chance")} · Wind ${value("Wind")}"
+        "Feels ${value("Feels like")} · Rain ${value("Rain chance")} · Gusts ${value("Wind gusts")}\n" +
+            "Clouds ${value("Cloud cover")} · UV ${value("UV index")}"
     }
 }
 

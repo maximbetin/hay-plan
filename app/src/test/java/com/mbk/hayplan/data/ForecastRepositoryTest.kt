@@ -22,6 +22,9 @@ class ForecastRepositoryTest {
         assertEquals(20.0, initial.weather.hours.first().airTemperatureC!!, 0.001)
         assertEquals(20.0, initial.beach.hours.first().airTemperatureC!!, 0.001)
         assertEquals(21.0, initial.beach.hours.first().seaTemperatureC!!, 0.001)
+        val weatherUrl = calls.single { !it.contains("marine-api") }
+        listOf("apparent_temperature", "relative_humidity_2m", "visibility", "weather_code",
+            "wind_gusts_10m", "uv_index").forEach { assertTrue(weatherUrl.contains(it)) }
         assertTrue(calls.single { it.contains("marine-api") }.contains("latitude=${location.coast!!.coordinates.latitude}"))
         repository.load()
         assertEquals(2, calls.size)
@@ -109,8 +112,11 @@ class ForecastRepositoryTest {
     private val weather = """
         {"daily":{"time":["2026-09-02"],"sunrise":["2026-09-02T08:00"],"sunset":["2026-09-02T20:00"]},
          "hourly":{"time":["2026-09-02T09:00","2026-09-02T10:00","2026-09-02T11:00","2026-09-02T12:00"],
-         "temperature_2m":[20,20,20,20],"precipitation_probability":[5,5,5,5],"precipitation":[0,0,0,0],
-         "cloud_cover":[10,10,10,10],"wind_speed_10m":[10,10,10,10]}}
+         "temperature_2m":[20,20,20,20],"apparent_temperature":[19,19,19,19],
+         "relative_humidity_2m":[60,60,60,60],"precipitation_probability":[5,5,5,5],
+         "precipitation":[0,0,0,0],"cloud_cover":[10,10,10,10],
+         "visibility":[20000,20000,20000,20000],"weather_code":[1,1,1,1],
+         "wind_speed_10m":[10,10,10,10],"wind_gusts_10m":[18,18,18,18],"uv_index":[4,4,4,4]}}
     """.trimIndent()
     private val marine = """
         {"hourly":{"time":["2026-09-02T09:00","2026-09-02T10:00","2026-09-02T11:00","2026-09-02T12:00"],

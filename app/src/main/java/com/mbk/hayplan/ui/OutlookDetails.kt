@@ -184,7 +184,7 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
         it.values.forEach { value ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(strings(value.label), Modifier.weight(1f))
-                Text(value.value, fontWeight = FontWeight.Medium)
+                Text(strings(value.value), fontWeight = FontWeight.Medium)
             }
         }
     }
@@ -250,7 +250,7 @@ private fun SuitabilityNote(activity: ActivityType, coastal: Boolean) {
     val strings = LocalUiStrings.current
     Text(strings("Personal weather-suitability score, not forecast confidence or safety."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(strings(if (activity == ActivityType.HIKING) "Town weather, not trail or elevation conditions."
+    Text(strings(if (activity == ActivityType.HIKING) "Town and nearby-area weather, not exact trail or elevation conditions."
         else if (coastal) "Only available sea data is used. Local shelter, beach flags and currents are not assessed."
         else "Weather for outdoor leisure; pool temperatures and river conditions are not assessed."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

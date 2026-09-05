@@ -8,7 +8,9 @@ import kotlin.math.roundToInt
 class OptionalMarineScoringTest {
     private val date = LocalDate.of(2026, 9, 3)
     private fun hour(time: Int = 10) = HourlyConditions(date.atTime(time, 0), true,
-        24.0, 5, 15, 10.0, null, null, 0.0)
+        24.0, 5, 15, 10.0, null, null, 0.0,
+        apparentTemperatureC = 23.0, relativeHumidityPercent = 60, visibilityM = 20_000.0,
+        weatherCode = 1, windGustsKmh = 18.0, uvIndex = 4.0)
     private fun score(data: HourlyConditions) = ActivityScorer.score(ActivityType.BEACH, listOf(data))!!
 
     @Test fun `optional marine factors change coverage and available points without freezing preferences`() {

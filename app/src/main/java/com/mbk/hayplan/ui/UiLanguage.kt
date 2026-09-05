@@ -49,12 +49,21 @@ internal class UiStrings(val language: AppLanguage) {
             english.contains(" available points × 100 ") -> english.replace("available points", "puntos disponibles")
                 .replace("(rounded)", "(redondeado)")
             english.endsWith(" points") -> english.replace(" points", " puntos")
-            english.endsWith(" max") -> english.replace(" max", " máx.")
             english.startsWith("Air ") -> english.replaceFirst("Air", "Aire")
                 .replace(" · Rain chance ", " · Prob. lluvia ").replace(" · Rain ", " · Lluvia ")
                 .replace(" · Wind ", " · Viento ").replace("\nWind ", "\nViento ")
                 .replace(" · Water ", " · Agua ").replace(" · Waves ", " · Olas ")
                 .replace("Unknown", "Desconocido").replace(" max", " máx.")
+            english.startsWith("Feels ") -> english.replaceFirst("Feels", "Sensación")
+                .replace(" · Rain chance ", " · Prob. lluvia ").replace(" · Rain ", " · Lluvia ")
+                .replace(" · Gusts ", " · Rachas ").replace("\nGusts ", "\nRachas ")
+                .replace(" · Water ", " · Agua ").replace(" · Waves ", " · Olas ")
+                .replace("\nRain ", "\nLluvia ").replace("\nClouds ", "\nNubes ")
+                .replace(" · Clouds ", " · Nubes ").replace(" · UV ", " · UV ")
+                .replace("Unknown", "Desconocido").replace(" max", " máx.").replace(" avg", " media")
+            english.endsWith(" max") -> english.replace(" max", " máx.")
+            english.endsWith(" avg") -> english.replace(" avg", " media")
+            english.endsWith(" min") -> english.replace(" min", " mín.")
             english.startsWith("Incomplete forecast · ") -> english.replace("Incomplete forecast", "Pronóstico incompleto")
                 .replace(" hours rated", " horas valoradas")
             else -> english
@@ -101,10 +110,16 @@ internal class UiStrings(val language: AppLanguage) {
         "Show best three-hour forecast" to "Mostrar el mejor pronóstico de tres horas",
         "No daylight hours remaining or available." to "No quedan horas de luz disponibles.",
         "Daylight conditions" to "Condiciones durante el día", "Air temperature" to "Temperatura del aire",
-        "Wind" to "Viento", "Rain chance" to "Probabilidad de lluvia", "Rainfall" to "Precipitación",
+        "Wind" to "Viento", "Wind gusts" to "Rachas de viento", "Rain chance" to "Probabilidad de lluvia",
+        "Rainfall" to "Precipitación", "Feels like" to "Sensación térmica", "Humidity" to "Humedad",
+        "Visibility" to "Visibilidad", "UV index" to "Índice UV", "Conditions" to "Condiciones",
         "Water temperature" to "Temperatura del agua", "Waves" to "Olas", "Air" to "Aire",
         "Water" to "Agua", "Cloud cover" to "Nubosidad", "Rain" to "Lluvia",
-        "Average" to "Media", "Highest" to "Máximo", "Total" to "Total",
+        "Average" to "Media", "Highest" to "Máximo", "Lowest" to "Mínimo", "Total" to "Total",
+        "Most significant" to "Más significativas", "Clear" to "Despejado", "Mainly clear" to "Mayormente despejado",
+        "Partly cloudy" to "Parcialmente nublado", "Overcast" to "Cubierto", "Fog" to "Niebla",
+        "Drizzle" to "Llovizna", "Rain showers" to "Chubascos", "Snow" to "Nieve",
+        "Snow showers" to "Chubascos de nieve", "Thunderstorm" to "Tormenta", "Mixed conditions" to "Condiciones variables",
         "How is this score calculated? ▾" to "¿Cómo se calcula esta puntuación? ▾",
         "Hide score calculation ▴" to "Ocultar cálculo de puntuación ▴",
         "The day score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation." to
@@ -114,7 +129,8 @@ internal class UiStrings(val language: AppLanguage) {
         "Forecast data is incomplete for this hour." to "Los datos del pronóstico están incompletos para esta hora.",
         "Personal weather-suitability score, not forecast confidence or safety." to
             "Puntuación personal de idoneidad meteorológica; no indica confianza ni seguridad.",
-        "Town weather, not trail or elevation conditions." to "Tiempo de la localidad, no de rutas ni de altitud.",
+        "Town and nearby-area weather, not exact trail or elevation conditions." to
+            "Tiempo de la localidad y alrededores, no de una ruta o altitud concretas.",
         "Only available sea data is used. Local shelter, beach flags and currents are not assessed." to
             "Solo se usan los datos marítimos disponibles. No se evalúan el abrigo local, las banderas ni las corrientes.",
         "Weather for outdoor leisure; pool temperatures and river conditions are not assessed." to
@@ -136,6 +152,25 @@ internal class UiStrings(val language: AppLanguage) {
         "Rainfall: rating limited to Poor." to "Lluvia: valoración limitada a Mala.",
         "Rain: rating limited to Fair." to "Lluvia: valoración limitada a Regular.",
         "High heat: rating limited to Fair." to "Calor intenso: valoración limitada a Regular.",
+        "Severe gusts: rating limited to Poor." to "Rachas severas: valoración limitada a Mala.",
+        "Strong gusts: rating limited to Fair." to "Rachas fuertes: valoración limitada a Regular.",
+        "Gusty conditions: rating limited to Good." to "Rachas moderadas: valoración limitada a Buena.",
+        "Possible rain: rating limited to Good." to "Posible lluvia: valoración limitada a Buena.",
+        "Cold conditions: rating limited to Good." to "Frío: valoración limitada a Buena.",
+        "Hot conditions: rating limited to Good." to "Calor: valoración limitada a Buena.",
+        "Overcast skies: rating limited to Very Good." to "Cielo cubierto: valoración limitada a Muy buena.",
+        "Very low visibility: rating limited to Fair." to "Visibilidad muy baja: valoración limitada a Regular.",
+        "Low visibility: rating limited to Good." to "Visibilidad baja: valoración limitada a Buena.",
+        "Extreme UV: rating limited to Good; protection is essential." to
+            "UV extremo: valoración limitada a Buena; la protección es esencial.",
+        "Very high UV: rating limited to Very Good; use protection." to
+            "UV muy alto: valoración limitada a Muy buena; usa protección.",
+        "Thunderstorm: rating limited to Poor." to "Tormenta: valoración limitada a Mala.",
+        "Freezing precipitation: rating limited to Poor." to "Precipitación helada: valoración limitada a Mala.",
+        "Severe precipitation: rating limited to Poor." to "Precipitación intensa: valoración limitada a Mala.",
+        "Fog: rating limited to Fair." to "Niebla: valoración limitada a Regular.",
+        "Moderate precipitation: rating limited to Fair." to "Precipitación moderada: valoración limitada a Regular.",
+        "Light precipitation: rating limited to Good." to "Precipitación ligera: valoración limitada a Buena.",
     )
 }
 

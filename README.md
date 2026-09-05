@@ -32,7 +32,9 @@ and [Rodiles](https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-r
 Oviedo, Cangas de Onís, Somiedo, and Redes use labelled weather-only estimates for
 outdoor leisure, not pool or river forecasts. Somiedo uses **Pola de Somiedo** weather;
 Redes uses **Campo de Caso**. These references are shown on cards and details.
-Hiking uses town weather, not conditions across an entire park, route, or elevation range.
+Hiking uses town and nearby-area weather for walks and ordinary local routes, not an exact
+trail, mountain or elevation forecast. Scores include apparent temperature, rain amount and
+chance, sustained wind and gusts, cloud cover, humidity, visibility, UV and severe weather.
 See [Scoring rules](docs/SCORING.md) for how the ratings work.
 
 Built with Kotlin and Jetpack Compose. No accounts or backend.

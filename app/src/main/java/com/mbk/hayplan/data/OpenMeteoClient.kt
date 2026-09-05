@@ -12,7 +12,9 @@ class OpenMeteoClient(
 ) {
     suspend fun weather(point: Coordinates, forceRefresh: Boolean): CachedForecast {
         val url = "https://api.open-meteo.com/v1/forecast?${coordinates(point)}" +
-            "&hourly=temperature_2m,precipitation_probability,precipitation,cloud_cover,wind_speed_10m" +
+            "&hourly=temperature_2m,apparent_temperature,relative_humidity_2m," +
+            "precipitation_probability,precipitation,cloud_cover,visibility,weather_code," +
+            "wind_speed_10m,wind_gusts_10m,uv_index" +
             "&daily=sunrise,sunset&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm"
         return cache.get(url, forceRefresh, validate = {
             require(OpenMeteoParser.weather(it).isNotEmpty())

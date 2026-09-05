@@ -32,12 +32,20 @@ object OpenMeteoParser {
                 sunrise = sunrise,
                 sunset = sunset,
                 airTemperatureC = hourly.number("temperature_2m", i),
+                apparentTemperatureC = hourly.number("apparent_temperature", i),
+                relativeHumidityPercent = hourly.number("relative_humidity_2m", i)
+                    ?.takeIf { it in 0.0..100.0 }?.toInt(),
                 precipitationProbabilityPercent = hourly.number("precipitation_probability", next)
                     ?.takeIf { it in 0.0..100.0 }?.toInt(),
                 precipitationMm = hourly.number("precipitation", next)?.takeIf { it >= 0 },
                 cloudCoverPercent = hourly.number("cloud_cover", i)
                     ?.takeIf { it in 0.0..100.0 }?.toInt(),
+                visibilityM = hourly.number("visibility", i)?.takeIf { it >= 0 },
+                weatherCode = hourly.number("weather_code", i)?.toInt()?.takeIf { it in 0..99 },
                 windSpeedKmh = hourly.number("wind_speed_10m", i)?.takeIf { it >= 0 },
+                // Like precipitation, gusts are the preceding hour's maximum.
+                windGustsKmh = hourly.number("wind_gusts_10m", next)?.takeIf { it >= 0 },
+                uvIndex = hourly.number("uv_index", i)?.takeIf { it >= 0 },
                 seaTemperatureC = null,
                 waveHeightM = null,
             )

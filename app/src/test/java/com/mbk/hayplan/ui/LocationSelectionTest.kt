@@ -22,7 +22,9 @@ class LocationSelectionTest {
     private val date = LocalDate.of(2026, 9, 3)
     private fun forecast(location: HayPlanLocation, day: LocalDate = date) = LocationForecast(location,
         ActivityForecastData(hours = listOf(HourlyConditions(day.atTime(12, 0), true,
-            20.0, 0, 0, 10.0, null, null, 0.0))))
+            20.0, 0, 0, 10.0, null, null, 0.0,
+            apparentTemperatureC = 20.0, relativeHumidityPercent = 60, visibilityM = 20_000.0,
+            weatherCode = 1, windGustsKmh = 18.0, uvIndex = 4.0))))
 
     @Test fun `initial state is all towns in Beach mode`() {
         val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(oviedo)))

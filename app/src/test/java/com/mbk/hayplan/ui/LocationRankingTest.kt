@@ -11,7 +11,9 @@ class LocationRankingTest {
     private fun forecast(id: String, temperature: Double?) = LocationForecast(
         HayPlanLocation(id, id, "Asturias", Coordinates(43.5, -5.5)),
         ActivityForecastData((10..13).map {
-            HourlyConditions(date.atTime(it, 0), true, temperature, 0, 0, 10.0, null, null, 0.0)
+            HourlyConditions(date.atTime(it, 0), true, temperature, 0, 0, 10.0, null, null, 0.0,
+                apparentTemperatureC = temperature, relativeHumidityPercent = 60, visibilityM = 20_000.0,
+                weatherCode = 1, windGustsKmh = 18.0, uvIndex = 4.0)
         }),
     )
     private fun outlooks(forecasts: List<LocationForecast>, activity: ActivityType) =

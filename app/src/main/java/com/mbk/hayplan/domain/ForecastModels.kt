@@ -15,6 +15,12 @@ data class HourlyConditions(
     val precipitationMm: Double? = null,
     val sunrise: LocalDateTime? = null,
     val sunset: LocalDateTime? = null,
+    val apparentTemperatureC: Double? = null,
+    val relativeHumidityPercent: Int? = null,
+    val visibilityM: Double? = null,
+    val weatherCode: Int? = null,
+    val windGustsKmh: Double? = null,
+    val uvIndex: Double? = null,
 )
 
 enum class Rating(val label: String) {
