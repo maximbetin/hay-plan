@@ -77,10 +77,10 @@ object ActivityScorer {
                 factor("Humidity", "$humidity%", "Average", humidityPoints(humidity, 5), 5)
                 factor("Visibility", visibility(visibility), "Lowest", visibilityPoints(visibility, 5), 5)
                 // Known limiting conditions still apply even when other hours lack sea values.
-                if (waves.any { it > 1.2 }) limit(19, "Rough waves: rating limited to Poor.")
-                else if (waves.any { it > 0.8 }) limit(59, "Choppy waves: rating limited to Good.")
+                if (waves.any { it > 1.2 }) limit(19, "Rough waves.")
+                else if (waves.any { it > 0.8 }) limit(59, "Choppy waves.")
                 if (water.any { it < 16 }) {
-                    limit(39, "Cold water: rating limited to Fair.")
+                    limit(39, "Cold water.")
                 }
             }
             ActivityType.HIKING -> {
@@ -106,28 +106,28 @@ object ActivityScorer {
             else -> FactorOutcome.NEGATIVE
         }, points = 0)
 
-        if (wind > 35) limit(19, "Strong wind: rating limited to Poor.")
-        if (gusts > 60) limit(19, "Severe gusts: rating limited to Poor.")
-        else if (gusts > 50) limit(39, "Strong gusts: rating limited to Fair.")
-        else if (gusts > 40) limit(59, "Gusty conditions: rating limited to Good.")
-        if (rain >= 3) limit(19, "Rainfall: rating limited to Poor.")
-        else if (rain >= 1 || rainChance > 70) limit(39, "Rain: rating limited to Fair.")
-        else if (rain >= 0.3 || rainChance > 50) limit(59, "Possible rain: rating limited to Good.")
+        if (wind > 35) limit(19, "Very strong wind.")
+        if (gusts > 60) limit(19, "Very strong gusts.")
+        else if (gusts > 50) limit(39, "Strong gusts.")
+        else if (gusts > 40) limit(59, "Moderate gusts.")
+        if (rain >= 3) limit(19, "Heavy rain.")
+        else if (rain >= 1 || rainChance > 70) limit(39, "Rain.")
+        else if (rain >= 0.3 || rainChance > 50) limit(59, "Possible rain.")
         if (hours.any { requireNotNull(it.airTemperatureC) < 0 } || feelsLike < 0) {
-            limit(39, "Freezing temperatures: rating limited to Fair.")
+            limit(39, "Freezing temperatures.")
         } else if (feelsLike < 5) {
-            limit(59, "Cold conditions: rating limited to Good.")
+            limit(59, "Cold.")
         }
         if (hours.any { requireNotNull(it.airTemperatureC) >= 35 } || feelsLike >= 35) {
-            limit(39, "High heat: rating limited to Fair.")
+            limit(39, "Extreme heat.")
         } else if (feelsLike >= 32) {
-            limit(59, "Hot conditions: rating limited to Good.")
+            limit(59, "Hot.")
         }
-        if (clouds > 90) limit(79, "Overcast skies: rating limited to Very Good.")
-        if (visibility < 1_000) limit(39, "Very low visibility: rating limited to Fair.")
-        else if (visibility < 3_000) limit(59, "Low visibility: rating limited to Good.")
-        if (uv >= 11) limit(59, "Extreme UV: rating limited to Good; protection is essential.")
-        else if (uv >= 8) limit(79, "Very high UV: rating limited to Very Good; use protection.")
+        if (clouds > 90) limit(89, "Overcast.")
+        if (visibility < 1_000) limit(39, "Very low visibility.")
+        else if (visibility < 3_000) limit(59, "Low visibility.")
+        if (uv >= 11) limit(59, "Extreme UV · Use protection.")
+        else if (uv >= 8) limit(89, "Very high UV · Use protection.")
         weatherLimit(weatherCode)?.let { (maximum, warning) -> limit(maximum, warning) }
         val availablePoints = factors.sumOf { it.maximumPoints }
         val normalized = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
@@ -248,13 +248,13 @@ object ActivityScorer {
     }
 
     private fun weatherLimit(code: Int): Pair<Int, String>? = when (code) {
-        3 -> 79 to "Overcast skies: rating limited to Very Good."
-        95, 96, 99 -> 19 to "Thunderstorm: rating limited to Poor."
-        56, 57, 66, 67 -> 19 to "Freezing precipitation: rating limited to Poor."
-        65, 75, 82, 86 -> 19 to "Severe precipitation: rating limited to Poor."
-        45, 48 -> 39 to "Fog: rating limited to Fair."
-        63, 73, 81, 85 -> 39 to "Moderate precipitation: rating limited to Fair."
-        51, 53, 55, 61, 71, 77, 80 -> 59 to "Light precipitation: rating limited to Good."
+        3 -> 89 to "Overcast."
+        95, 96, 99 -> 19 to "Thunderstorm."
+        56, 57, 66, 67 -> 19 to "Freezing rain."
+        65, 75, 82, 86 -> 19 to "Heavy rain or snow."
+        45, 48 -> 39 to "Fog."
+        63, 73, 81, 85 -> 39 to "Moderate rain or snow."
+        51, 53, 55, 61, 71, 77, 80 -> 59 to "Light rain or snow."
         else -> null
     }
 

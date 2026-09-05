@@ -94,16 +94,18 @@ class ForecastPresentationTest {
         assertEquals("Senderismo", strings.activity(ActivityType.HIKING))
         assertEquals("Excelente", strings.rating(Rating.EXCELLENT))
         assertEquals("Tiempo y mar", strings.coverage(MarineCoverage.FULL))
-        assertEquals("Viento fuerte: valoración limitada a Mala.",
-            strings("Strong wind: rating limited to Poor."))
+        assertEquals("Viento muy fuerte.", strings("Very strong wind."))
         assertEquals("28.2 km/h máx.", strings("28.2 km/h max"))
         assertEquals("Sensación 20°C · Prob. lluvia 10% máx.\nRachas 18 km/h máx. · Nubes 90% media",
             strings("Feels 20°C · Rain chance 10% max\nGusts 18 km/h max · Clouds 90% avg"))
+        assertEquals("Media de 1 hora de luz restante", strings(daylightAverageLabel(1, true)))
+        assertEquals("Mejor franja de 3 horas", strings("Best 3 hours"))
+        assertEquals("Previsión a largo plazo", strings("Long-range outlook"))
     }
 
     @Test fun `semantic colors distinguish every rating band and factor outcome`() {
-        val ratingColors = listOf(0, 20, 40, 60, 80).map(::ratingColor)
-        val containers = listOf(0, 20, 40, 60, 80).map(::ratingContainerColor)
+        val ratingColors = listOf(0, 20, 40, 60, 90).map(::ratingColor)
+        val containers = listOf(0, 20, 40, 60, 90).map(::ratingContainerColor)
         assertEquals(5, ratingColors.distinct().size)
         assertEquals(5, containers.distinct().size)
         assertEquals(3, FactorOutcome.entries.map(::factorColor).distinct().size)

@@ -45,7 +45,8 @@ object DayPlanner {
         val day = if (expectedHours > 0 && evaluations.size == expectedHours) {
             val mean = evaluations.map { it.score }.average().roundToInt()
             DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
-                evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }))
+                evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }),
+                uncappedScore = evaluations.map { it.pointsBeforeLimits }.average().roundToInt())
         } else null
 
         val best = hourly.windowed(WINDOW_HOURS).mapNotNull { window ->

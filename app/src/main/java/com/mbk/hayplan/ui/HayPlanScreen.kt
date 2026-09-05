@@ -16,8 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,6 +27,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.mbk.hayplan.R
 import com.mbk.hayplan.data.*
 import com.mbk.hayplan.domain.*
 import com.mbk.hayplan.ui.theme.HayPlanTheme
@@ -112,12 +112,28 @@ fun HayPlanScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
-                if (opened != null) TextButton(onClick = onBack) { Text("‹ ${strings("Back")}") }
+                if (opened != null) IconButton(onClick = onBack) {
+                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = strings("Back"))
+                }
                 Text(opened?.location?.name ?: "Hay Plan", Modifier.weight(1f),
-                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                IconButton(onClick = { showSettings = true }) {
-                    Text("⚙", Modifier.clearAndSetSemantics { contentDescription = strings("Settings") },
-                        style = MaterialTheme.typography.titleLarge)
+                    style = if (opened == null) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box {
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = strings("Settings"))
+                    }
+                    DropdownMenu(expanded = showSettings, onDismissRequest = { showSettings = false }) {
+                        AppLanguage.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(strings(option.displayName)) },
+                                leadingIcon = { RadioButton(selected = language == option, onClick = null) },
+                                onClick = {
+                                    onLanguageSelected(option)
+                                    showSettings = false
+                                },
+                            )
+                        }
+                    }
                 }
                 TextButton(onClick = onRefresh, enabled = !state.isLoading) {
                     Text(strings(if (state.isLoading) "Updating…" else "Refresh"))
@@ -173,11 +189,11 @@ fun HayPlanScreen(
                         if (ranked.isNotEmpty()) item {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(strings(if (showAll && state.activity != ActivityType.BEACH)
-                                    "All locations · highest daylight score first"
+                                    "All locations"
                                     else if (showAll) "Coastal locations"
                                     else if (state.activity == ActivityType.BEACH)
-                                        "Top ${minOf(5, primaryRanked.size)} coastal locations · highest daylight score first"
-                                    else "Top ${minOf(5, primaryRanked.size)} · highest daylight score first"),
+                                        "Best coastal locations"
+                                    else "Best locations"),
                                     style = MaterialTheme.typography.labelLarge)
                                 UpdatedLabel(state.forecasts.flatMap { it.forActivity(state.activity).sources }
                                     .minOfOrNull { it.fetchedAt })
@@ -222,25 +238,6 @@ fun HayPlanScreen(
                 }
             }
         }
-    }
-    if (showSettings) {
-        AlertDialog(
-            onDismissRequest = { showSettings = false },
-            title = { Text(strings("Settings")) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(strings("Language"), style = MaterialTheme.typography.titleMedium)
-                    AppLanguage.entries.forEach { option ->
-                        Row(Modifier.fillMaxWidth().clickable { onLanguageSelected(option) }.padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = language == option, onClick = { onLanguageSelected(option) })
-                            Text(strings(option.displayName), Modifier.padding(start = 8.dp))
-                        }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { showSettings = false }) { Text(strings("Close")) } },
-        )
     }
 }
 
@@ -307,8 +304,6 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                         color = ratingColor(window.score))
                 }
-                if (window.score < 40) Text(strings("Not recommended"), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error)
             }
             DataNotice(data, now)
         }

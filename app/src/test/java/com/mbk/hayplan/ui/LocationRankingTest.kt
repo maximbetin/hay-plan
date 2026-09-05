@@ -37,6 +37,16 @@ class LocationRankingTest {
         assertEquals(rankLocations(forecasts, outlooks), rankLocations(forecasts.reversed(), outlooks))
     }
 
+    @Test fun `capped score ties retain the safer label but rank by underlying conditions`() {
+        val better = forecast("better", 20.0)
+        val worse = forecast("worse", 20.0)
+        fun capped(uncapped: Int) = ActivityOutlook(ActivityType.BEACH,
+            DayRating(Rating.POOR, 19, 4, 0, emptyList(), uncappedScore = uncapped), null)
+        val outlooks = mapOf("better" to capped(82), "worse" to capped(54))
+        assertEquals(listOf(better, worse), rankLocations(listOf(worse, better), outlooks))
+        assertTrue(outlooks.values.all { it.day!!.score == 19 && it.day.rating == Rating.POOR })
+    }
+
     @Test fun `incomplete day with a window stays below even a poor complete day`() {
         val good = forecast("incomplete", 20.0)
         val incomplete = good.copy(weather = good.weather.copy(hours = good.weather.hours.mapIndexed { i, hour ->

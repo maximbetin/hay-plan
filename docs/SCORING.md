@@ -36,13 +36,15 @@ A 12-hour day with three excellent hours and nine poor hours is a poor/fair day
 with a potentially excellent window, not an excellent day. Day warnings indicate
 limiting conditions during some hours; they are not claims that every hour is unsafe.
 
-The rating scale is Poor 0–19, Fair 20–39, Good 40–59, Very Good 60–79,
-Excellent 80–100. Detail views also count hours rated Good or better (score >= 40).
+The rating scale is Poor 0–19, Fair 20–39, Good 40–59, Very Good 60–89,
+Excellent 90–100. Detail views also count hours rated Good or better (score >= 40).
 
 ## Inspecting the score
 
-Locations are ordered by the selected activity's day score, highest first. Ties use
-the stable identifier. Unavailable days go last, even if they have a valid
+Locations are ordered by the selected activity's day score, highest first. When a
+safety or comfort limit gives several locations the same visible score, their mean
+uncapped conditions score breaks the tie; the stable identifier resolves exact ties.
+Unavailable days go last, even if they have a valid
 three-hour window. Beach initially shows the five highest coastal locations; Show all
 keeps the coastal ranking first and places ranked inland estimates in a separate section.
 Hiking ranks all locations together. Changing date or activity resets an overview to five;
@@ -131,7 +133,7 @@ an implausibly high label. Among them: thunderstorms, freezing or severe precipi
 wind above 35 km/h or gusts above 60 km/h cap at Poor; fog, moderate precipitation,
 rain >=1 mm, very low visibility or gusts above 50 km/h cap at Fair; lighter rain,
 reduced visibility, cold/hot apparent temperature or gusts above 40 km/h cap at Good.
-Overcast conditions and very high UV cap at Very Good. Extreme UV caps at Good.
+Overcast conditions and very high UV cap at 89 (Very Good). Extreme UV caps at Good.
 The existing marine limits remain: waves >1.2 m cap Beach at Poor, waves >0.8 m cap
 at Good, and water below 16°C caps at Fair. Limits cannot improve a score; the lowest
 applicable cap wins.

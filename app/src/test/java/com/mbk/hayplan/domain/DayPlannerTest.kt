@@ -89,7 +89,8 @@ class DayPlannerTest {
         assertEquals(100, ActivityScorer.score(ActivityType.HIKING, listOf(data))!!.score)
         val overcast = ActivityScorer.score(ActivityType.HIKING,
             listOf(data.copy(cloudCoverPercent = 100, weatherCode = 3)))!!
-        assertEquals(79, overcast.score)
+        assertEquals(85, overcast.score)
+        assertEquals(Rating.VERY_GOOD, ratingFor(overcast.score))
         assertEquals(0, overcast.factors.first { it.label == "Cloud cover" }.points)
         assertTrue(overcast.warnings.any { it.contains("Overcast") })
         assertNull(ActivityScorer.score(ActivityType.HIKING, listOf(data.copy(cloudCoverPercent = null))))
@@ -140,7 +141,8 @@ class DayPlannerTest {
         assertTrue(fog.score <= 39)
         val uv = ActivityScorer.score(ActivityType.HIKING,
             listOf(hour(10).copy(uvIndex = 9.0)))!!
-        assertEquals(79, uv.score)
+        assertEquals(89, uv.score)
+        assertEquals(Rating.VERY_GOOD, ratingFor(uv.score))
     }
 
     @Test fun `non finite and missing weather are unavailable for both activities`() {
@@ -154,8 +156,8 @@ class DayPlannerTest {
 
     @Test fun `rating boundaries match documented scale`() {
         listOf(0 to Rating.POOR, 19 to Rating.POOR, 20 to Rating.FAIR, 39 to Rating.FAIR,
-            40 to Rating.GOOD, 59 to Rating.GOOD, 60 to Rating.VERY_GOOD, 79 to Rating.VERY_GOOD,
-            80 to Rating.EXCELLENT, 100 to Rating.EXCELLENT).forEach { (score, expected) ->
+            40 to Rating.GOOD, 59 to Rating.GOOD, 60 to Rating.VERY_GOOD, 89 to Rating.VERY_GOOD,
+            90 to Rating.EXCELLENT, 100 to Rating.EXCELLENT).forEach { (score, expected) ->
             assertEquals(expected, ratingFor(score))
         }
     }
@@ -205,6 +207,8 @@ class DayPlannerTest {
         val scores = outlook.hourly.map { it.evaluation!! }
         assertTrue(scores.any { it.score < it.pointsBeforeLimits })
         assertEquals(outlook.day!!.score, scores.map { it.score }.average().roundToInt())
+        assertEquals(outlook.day.uncappedScore, scores.map { it.pointsBeforeLimits }.average().roundToInt())
+        assertTrue(outlook.day.uncappedScore > outlook.day.score)
     }
 
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,

@@ -71,6 +71,8 @@ data class DayRating(
     val goodHours: Int,
     val warnings: List<String>,
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
+    /** Mean score before safety/comfort caps; used only to order otherwise tied locations. */
+    val uncappedScore: Int = score,
 )
 
 data class HourlyAssessment(val time: LocalDateTime, val evaluation: ConditionsScore?)
@@ -86,7 +88,7 @@ data class BestWindow(
 )
 
 fun ratingFor(score: Int): Rating = when {
-    score >= 80 -> Rating.EXCELLENT
+    score >= 90 -> Rating.EXCELLENT
     score >= 60 -> Rating.VERY_GOOD
     score >= 40 -> Rating.GOOD
     score >= 20 -> Rating.FAIR
