@@ -4,30 +4,41 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class ForecastRepository(
     private val client: OpenMeteoClient,
     val locations: List<HayPlanLocation> = LocationCatalog.locations,
 ) {
     suspend fun load(forceRefresh: Boolean = false): List<LocationForecast> = coroutineScope {
-        // One weather point per town, plus sea data only for configured coastal references.
-        val weather = locations.map { it.coordinates }.distinct().associateWith { point ->
-            async { attempt { client.weather(point, forceRefresh) } }
+        val requestSlots = Semaphore(MAX_PARALLEL_REQUESTS)
+        // Hiking uses the town/reference point; Beach uses the actual coastal reference point.
+        val weatherPoints = (locations.map { it.coordinates } +
+            locations.mapNotNull { it.coast?.coordinates }).distinct()
+        val weather = weatherPoints.associateWith { point ->
+            async { attempt { requestSlots.withPermit { client.weather(point, forceRefresh) } } }
         }
         val marine = locations.mapNotNull { it.coast?.coordinates }.distinct().associateWith { point ->
-            async { attempt { client.marine(point, forceRefresh) } }
+            async { attempt { requestSlots.withPermit { client.marine(point, forceRefresh) } } }
         }
         locations.map { location ->
             async {
                 val city = weather.getValue(location.coordinates).await()
                 val base = weatherData(city)
                 val beach = location.coast?.let { coast ->
+                    val coastalWeather = weather.getValue(coast.coordinates).await()
                     val sea = marine.getValue(coast.coordinates).await()
-                    base.copy(
-                        hours = if (sea != null) OpenMeteoParser.withMarine(base.hours, sea.body) else base.hours,
-                        sources = base.sources + listOfNotNull(sea?.status("Sea")),
-                        errors = base.errors + if (sea == null)
-                            listOf("Sea forecast unavailable · using weather only") else emptyList(),
+                    val beachBase = when {
+                        coastalWeather != null -> weatherData(coastalWeather)
+                        city != null -> base.copy(errors = base.errors + ForecastIssue.BEACH_WEATHER_FALLBACK)
+                        else -> base
+                    }
+                    beachBase.copy(
+                        hours = if (sea != null) OpenMeteoParser.withMarine(beachBase.hours, sea.body) else beachBase.hours,
+                        sources = beachBase.sources + listOfNotNull(sea?.status("Sea")),
+                        errors = beachBase.errors + if (sea == null)
+                            listOf(ForecastIssue.SEA_UNAVAILABLE) else emptyList(),
                     )
                 } ?: base
                 LocationForecast(location, base, beach)
@@ -36,7 +47,7 @@ class ForecastRepository(
     }
 
     private fun weatherData(data: CachedForecast?): ActivityForecastData =
-        if (data == null) ActivityForecastData(errors = listOf("Weather forecast unavailable."))
+        if (data == null) ActivityForecastData(errors = listOf(ForecastIssue.WEATHER_UNAVAILABLE))
         else ActivityForecastData(OpenMeteoParser.weather(data.body), listOf(data.status("Weather")))
 
     private fun CachedForecast.status(label: String) =
@@ -48,5 +59,9 @@ class ForecastRepository(
         throw cancelled
     } catch (_: Exception) {
         null
+    }
+
+    companion object {
+        const val MAX_PARALLEL_REQUESTS = 6
     }
 }

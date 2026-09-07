@@ -15,15 +15,15 @@ Older builds signed with another key require uninstalling first, which removes l
 ## Use
 
 1. Choose a date and **Beach** or **Hiking** to see the top five locations ranked by daylight score. Beach ranks coastal locations first and keeps inland alternatives under **Show all**; after sunset, use **View tomorrow**.
-2. Each card shows its rating, essential conditions, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
+2. Each card shows its rating, essential conditions, important warnings, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
 3. Tap a location for hourly results and score explanations. Date and activity changes keep that location open.
-4. Use **Refresh** to bypass the one-hour forecast cache.
-5. Open **Settings** to switch between English and Spanish. The choice is saved on the phone.
+4. Use **Refresh** to bypass the one-hour forecast cache. If updating fails, saved data is used for at most 12 hours and clearly labelled.
+5. The app follows English or Spanish system language by default. Open **Settings** to override it; the choice is saved on the phone. Light and dark system themes are supported.
 
 Locations: Gijón, Oviedo, Avilés, Luanco, Llanes, Ribadesella, Candás, Luarca,
 Cangas de Onís, Salinas, Cudillero, Tapia de Casariego, Villaviciosa, Somiedo, and Redes.
 
-Beach uses town weather plus available sea data from one named reference:
+Beach uses weather and available sea data from one named coastal reference:
 San Lorenzo (Gijón), Salinas in Castrillón (Avilés and Salinas), Luanco, El Sablón (Llanes),
 Santa Marina (Ribadesella), La Palmera (Candás), Primera y Segunda de Luarca,
 [Concha de Artedo](https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-la-concha-de-artedo) (Cudillero),
@@ -39,4 +39,4 @@ See [Scoring rules](docs/SCORING.md) for how the ratings work.
 
 Built with Kotlin and Jetpack Compose. No accounts or backend.
 Weather: [Open-Meteo](https://open-meteo.com/) · CC BY 4.0.
-Ratings estimate comfort, not safety; check local warnings and conditions.
+Ratings estimate comfort, not safety; severe conditions remain visible even when the overall average is high. Check local warnings and conditions.

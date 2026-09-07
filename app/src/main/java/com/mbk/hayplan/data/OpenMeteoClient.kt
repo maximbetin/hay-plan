@@ -25,7 +25,7 @@ class OpenMeteoClient(
         val url = "https://marine-api.open-meteo.com/v1/marine?${coordinates(point)}" +
             "&hourly=wave_height,sea_surface_temperature&cell_selection=sea&length_unit=metric"
         return cache.get(url, forceRefresh, validate = {
-            OpenMeteoParser.withMarine(emptyList(), it)
+            OpenMeteoParser.validateMarine(it)
         }) { download(url) }
     }
 

@@ -6,19 +6,20 @@ import kotlin.math.roundToInt
 data class ConditionsScore(
     val score: Int,
     val factors: List<FactorResult>,
-    val warnings: List<String>,
+    val warnings: List<ForecastWarning>,
     val maximumScore: Int,
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
 ) {
     val availablePoints: Int get() = factors.sumOf { it.maximumPoints }
     val pointsBeforeLimits: Int get() = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
+    /** Earned points without treating unavailable optional inputs as perfect conditions. */
+    val evidenceScore: Int get() = minOf(factors.sumOf { it.points }, maximumScore)
 }
 
 /** Pure Kotlin rules. Score one hour for a day assessment, or a complete window. */
 object ActivityScorer {
     fun score(activity: ActivityType, hours: List<HourlyConditions>): ConditionsScore? {
         if (hours.isEmpty() || !hours.all(::complete)) return null
-        val air = hours.map { requireNotNull(it.airTemperatureC) }.average()
         val feelsLike = hours.map { requireNotNull(it.apparentTemperatureC) }.average()
         val humidity = hours.map { requireNotNull(it.relativeHumidityPercent) }.average().roundToInt()
         val wind = hours.maxOf { requireNotNull(it.windSpeedKmh) }
@@ -30,10 +31,10 @@ object ActivityScorer {
         val uv = hours.maxOf { requireNotNull(it.uvIndex) }
         val weatherCode = hours.map { requireNotNull(it.weatherCode) }.maxBy(::weatherSeverity)
         val factors = mutableListOf<FactorResult>()
-        val warnings = mutableListOf<String>()
+        val warnings = mutableListOf<ForecastWarning>()
         var maximumScore = 100
 
-        fun limit(maximum: Int, reason: String) {
+        fun limit(maximum: Int, reason: ForecastWarning) {
             maximumScore = minOf(maximumScore, maximum)
             if (reason !in warnings) warnings += reason
         }
@@ -77,10 +78,10 @@ object ActivityScorer {
                 factor("Humidity", "$humidity%", "Average", humidityPoints(humidity, 5), 5)
                 factor("Visibility", visibility(visibility), "Lowest", visibilityPoints(visibility, 5), 5)
                 // Known limiting conditions still apply even when other hours lack sea values.
-                if (waves.any { it > 1.2 }) limit(19, "Rough waves.")
-                else if (waves.any { it > 0.8 }) limit(59, "Choppy waves.")
+                if (waves.any { it > 1.2 }) limit(19, ForecastWarning.ROUGH_WAVES)
+                else if (waves.any { it > 0.8 }) limit(59, ForecastWarning.CHOPPY_WAVES)
                 if (water.any { it < 16 }) {
-                    limit(39, "Cold water.")
+                    limit(39, ForecastWarning.COLD_WATER)
                 }
             }
             ActivityType.HIKING -> {
@@ -106,28 +107,28 @@ object ActivityScorer {
             else -> FactorOutcome.NEGATIVE
         }, points = 0)
 
-        if (wind > 35) limit(19, "Very strong wind.")
-        if (gusts > 60) limit(19, "Very strong gusts.")
-        else if (gusts > 50) limit(39, "Strong gusts.")
-        else if (gusts > 40) limit(59, "Moderate gusts.")
-        if (rain >= 3) limit(19, "Heavy rain.")
-        else if (rain >= 1 || rainChance > 70) limit(39, "Rain.")
-        else if (rain >= 0.3 || rainChance > 50) limit(59, "Possible rain.")
+        if (wind > 35) limit(19, ForecastWarning.VERY_STRONG_WIND)
+        if (gusts > 60) limit(19, ForecastWarning.VERY_STRONG_GUSTS)
+        else if (gusts > 50) limit(39, ForecastWarning.STRONG_GUSTS)
+        else if (gusts > 40) limit(59, ForecastWarning.MODERATE_GUSTS)
+        if (rain >= 3) limit(19, ForecastWarning.HEAVY_RAIN)
+        else if (rain >= 1 || rainChance > 70) limit(39, ForecastWarning.RAIN)
+        else if (rain >= 0.3 || rainChance > 50) limit(59, ForecastWarning.POSSIBLE_RAIN)
         if (hours.any { requireNotNull(it.airTemperatureC) < 0 } || feelsLike < 0) {
-            limit(39, "Freezing temperatures.")
+            limit(39, ForecastWarning.FREEZING_TEMPERATURES)
         } else if (feelsLike < 5) {
-            limit(59, "Cold.")
+            limit(59, ForecastWarning.COLD)
         }
         if (hours.any { requireNotNull(it.airTemperatureC) >= 35 } || feelsLike >= 35) {
-            limit(39, "Extreme heat.")
+            limit(39, ForecastWarning.EXTREME_HEAT)
         } else if (feelsLike >= 32) {
-            limit(59, "Hot.")
+            limit(59, ForecastWarning.HOT)
         }
-        if (clouds > 90) limit(89, "Overcast.")
-        if (visibility < 1_000) limit(39, "Very low visibility.")
-        else if (visibility < 3_000) limit(59, "Low visibility.")
-        if (uv >= 11) limit(59, "Extreme UV · Use protection.")
-        else if (uv >= 8) limit(89, "Very high UV · Use protection.")
+        if (clouds > 90) limit(89, ForecastWarning.OVERCAST)
+        if (visibility < 1_000) limit(39, ForecastWarning.VERY_LOW_VISIBILITY)
+        else if (visibility < 3_000) limit(59, ForecastWarning.LOW_VISIBILITY)
+        if (uv >= 11) limit(59, ForecastWarning.EXTREME_UV)
+        else if (uv >= 8) limit(89, ForecastWarning.VERY_HIGH_UV)
         weatherLimit(weatherCode)?.let { (maximum, warning) -> limit(maximum, warning) }
         val availablePoints = factors.sumOf { it.maximumPoints }
         val normalized = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
@@ -247,14 +248,14 @@ object ActivityScorer {
         else -> 1
     }
 
-    private fun weatherLimit(code: Int): Pair<Int, String>? = when (code) {
-        3 -> 89 to "Overcast."
-        95, 96, 99 -> 19 to "Thunderstorm."
-        56, 57, 66, 67 -> 19 to "Freezing rain."
-        65, 75, 82, 86 -> 19 to "Heavy rain or snow."
-        45, 48 -> 39 to "Fog."
-        63, 73, 81, 85 -> 39 to "Moderate rain or snow."
-        51, 53, 55, 61, 71, 77, 80 -> 59 to "Light rain or snow."
+    private fun weatherLimit(code: Int): Pair<Int, ForecastWarning>? = when (code) {
+        3 -> 89 to ForecastWarning.OVERCAST
+        95, 96, 99 -> 19 to ForecastWarning.THUNDERSTORM
+        56, 57, 66, 67 -> 19 to ForecastWarning.FREEZING_RAIN
+        65, 75, 82, 86 -> 19 to ForecastWarning.HEAVY_RAIN_OR_SNOW
+        45, 48 -> 39 to ForecastWarning.FOG
+        63, 73, 81, 85 -> 39 to ForecastWarning.MODERATE_RAIN_OR_SNOW
+        51, 53, 55, 61, 71, 77, 80 -> 59 to ForecastWarning.LIGHT_RAIN_OR_SNOW
         else -> null
     }
 

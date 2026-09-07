@@ -2,7 +2,6 @@ package com.mbk.hayplan.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -27,6 +26,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.core.content.edit
 import com.mbk.hayplan.R
 import com.mbk.hayplan.data.*
 import com.mbk.hayplan.domain.*
@@ -43,7 +43,10 @@ import java.util.Locale
 fun HayPlanApp() {
     val context = LocalContext.current.applicationContext
     val preferences = remember(context) { context.getSharedPreferences("settings", 0) }
-    var language by remember { mutableStateOf(AppLanguage.fromCode(preferences.getString("language", null))) }
+    var language by remember {
+        mutableStateOf(if (preferences.contains("language"))
+            AppLanguage.fromCode(preferences.getString("language", null)) else AppLanguage.fromSystem())
+    }
     val factory = remember(context) {
         viewModelFactory {
             initializer {
@@ -66,7 +69,7 @@ fun HayPlanApp() {
     CompositionLocalProvider(LocalUiStrings provides UiStrings(language)) {
         HayPlanScreen(model.uiState, model::selectDate, model::selectActivity,
             model::openLocation, model::closeLocation, model::refresh, language) { selected ->
-            preferences.edit().putString("language", selected.code).apply()
+            preferences.edit { putString("language", selected.code) }
             language = selected
         }
     }
@@ -135,8 +138,9 @@ fun HayPlanScreen(
                         }
                     }
                 }
-                TextButton(onClick = onRefresh, enabled = !state.isLoading) {
-                    Text(strings(if (state.isLoading) "Updating…" else "Refresh"))
+                IconButton(onClick = onRefresh, enabled = !state.isLoading) {
+                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    else Icon(painterResource(R.drawable.ic_refresh), contentDescription = strings("Refresh"))
                 }
             }
             DateStrip(state, onDateSelected)
@@ -165,8 +169,17 @@ fun HayPlanScreen(
             LazyColumn(state = if (opened == null) overviewScroll else detailScroll,
                 modifier = Modifier.weight(1f), contentPadding = PaddingValues(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (date.isAfter(state.now.toLocalDate().plusDays(6))) item {
-                    Text(strings("Long-range outlook"), style = MaterialTheme.typography.bodySmall)
+                forecastConfidenceLabel(date, state.now.toLocalDate())?.let { confidence -> item {
+                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Text(strings(confidence), Modifier.fillMaxWidth().padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } }
+                if (opened == null && state.forecasts.isNotEmpty()) item {
+                    Text(strings("Comfort forecast, not a safety guarantee · check local conditions"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.forecasts.isEmpty()) item {
                     Text(strings(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh."))
@@ -232,9 +245,9 @@ fun HayPlanScreen(
                 }
                 item {
                     val uriHandler = LocalUriHandler.current
-                    Text("Open-Meteo · CC BY 4.0",
-                        Modifier.clickable { uriHandler.openUri("https://open-meteo.com/") },
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                TextButton(onClick = { uriHandler.openUri("https://open-meteo.com/") }) {
+                    Text("Open-Meteo · CC BY 4.0", style = MaterialTheme.typography.bodySmall)
+                }
                 }
             }
         }
@@ -273,7 +286,7 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
     }
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = outlook.day?.score?.let { BorderStroke(1.dp, ratingColor(it).copy(alpha = 0.20f)) },
+        border = outlook.day?.score?.let { BorderStroke(1.dp, currentRatingColor(it).copy(alpha = 0.35f)) },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -284,9 +297,10 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             }
             CardReferenceLabel(forecast.location, activity, outlook)
             CompactRatingValue(outlook.day?.rating, outlook.day?.score)
-            if (outlook.day == null) Text(strings(outlook.dayUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall)
-            outlook.day?.takeIf { it.score < 60 }?.warnings?.firstOrNull()?.let {
-                Text(strings(it), style = MaterialTheme.typography.bodySmall, color = ratingColor(outlook.day.score),
+            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall)
+            outlook.day?.warnings?.let(::primaryWarning)?.let {
+                Text(strings(it), style = MaterialTheme.typography.bodySmall,
+                    color = if (it.priority >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary,
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             cardConditions(summary, activity, forecast.location.coast != null)?.let {
@@ -295,14 +309,14 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     overflow = TextOverflow.Ellipsis)
             }
             val window = outlook.bestWindow
-            if (window == null) Text(strings(outlook.windowUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall)
+            if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason), style = MaterialTheme.typography.bodySmall)
             else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(strings("Best 3 hours"), Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${timeRange(window.start, window.end)} · ${window.score}/100",
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                        color = ratingColor(window.score))
+                        color = currentRatingColor(window.score))
                 }
             }
             DataNotice(data, now)
@@ -313,13 +327,13 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
 @Composable
 private fun CompactRatingValue(rating: Rating?, score: Int?) {
     val strings = LocalUiStrings.current
-    val color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
+    val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(rating?.let(strings::rating) ?: strings("Unavailable"), Modifier.weight(1f),
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
             color = color)
         Surface(shape = RoundedCornerShape(999.dp),
-            color = score?.let(::ratingContainerColor) ?: MaterialTheme.colorScheme.surfaceVariant) {
+            color = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant) {
             Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color)
         }
@@ -365,7 +379,7 @@ private fun CoastalReferenceLabel(location: HayPlanLocation) {
 private fun DataNotice(data: ActivityForecastData, now: Instant) {
     val strings = LocalUiStrings.current
     val warnings = buildList<Pair<String, Boolean>> {
-        addAll(data.errors.map { it to true })
+        addAll(data.errors.map { strings(it) to true })
         if (data.sources.any { it.refreshFailed }) add("Refresh failed · saved forecast" to false)
         if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Forecast may be outdated" to false)
         if (data.sources.any { it.persistenceFailed }) add("Couldn't save forecast" to false)

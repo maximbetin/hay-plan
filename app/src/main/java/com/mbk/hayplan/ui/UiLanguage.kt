@@ -4,6 +4,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import com.mbk.hayplan.domain.ActivityType
 import com.mbk.hayplan.domain.MarineCoverage
 import com.mbk.hayplan.domain.Rating
+import com.mbk.hayplan.domain.ForecastWarning
+import com.mbk.hayplan.domain.DayUnavailableReason
+import com.mbk.hayplan.domain.WindowUnavailableReason
+import com.mbk.hayplan.data.ForecastIssue
 
 enum class AppLanguage(val code: String, val displayName: String) {
     ENGLISH("en", "English"),
@@ -11,14 +15,29 @@ enum class AppLanguage(val code: String, val displayName: String) {
 
     companion object {
         fun fromCode(code: String?) = entries.firstOrNull { it.code == code } ?: ENGLISH
+        fun fromSystem() = if (java.util.Locale.getDefault().language == "es") SPANISH else ENGLISH
     }
 }
 
 internal class UiStrings(val language: AppLanguage) {
+    operator fun invoke(warning: ForecastWarning): String = invoke(warning.message)
+    operator fun invoke(issue: ForecastIssue): String = invoke(issue.message)
+
+    fun dayUnavailable(reason: DayUnavailableReason?): String = when (reason) {
+        null -> ""
+        DayUnavailableReason.NoForecast -> invoke("No forecast for this date.")
+        DayUnavailableReason.NoHoursRemaining -> invoke("No hours remaining.")
+        is DayUnavailableReason.Incomplete -> invoke(
+            "Incomplete forecast · ${reason.ratedHours}/${reason.expectedHours} hours rated")
+    }
+
+    fun windowUnavailable(reason: WindowUnavailableReason?): String = when (reason) {
+        null -> ""
+        WindowUnavailableReason.NO_COMPLETE_WINDOW -> invoke("No complete three-hour window")
+    }
     operator fun invoke(english: String): String {
         if (language == AppLanguage.ENGLISH) return english
-        fixed[english]?.let { return it }
-        return when {
+        val translated = fixed[english] ?: when {
             english.startsWith("Show all ") -> Regex("Show all (\\d+) locations").replace(english) {
                 "Ver las ${it.groupValues[1]} ubicaciones"
             }
@@ -66,6 +85,7 @@ internal class UiStrings(val language: AppLanguage) {
                 .replace(" hours rated", " horas valoradas")
             else -> english
         }
+        return translated.replace(Regex("(?<=\\d)\\.(?=\\d)"), ",")
     }
 
     fun activity(activity: ActivityType) = when (activity) {
@@ -93,6 +113,10 @@ internal class UiStrings(val language: AppLanguage) {
         "Back" to "Atrás", "Refresh" to "Actualizar", "Updating…" to "Actualizando…",
         "Settings" to "Ajustes", "Language" to "Idioma", "Close" to "Cerrar", "English" to "Inglés",
         "Long-range outlook" to "Previsión a largo plazo", "Loading forecasts…" to "Cargando previsiones…",
+        "Long-range outlook · lower confidence" to "Previsión a largo plazo · menor fiabilidad",
+        "Later outlook · forecast may change" to "Previsión posterior · puede cambiar",
+        "Comfort forecast, not a safety guarantee · check local conditions" to
+            "Previsión de comodidad, no garantía de seguridad · consulta las condiciones locales",
         "No forecasts available. Try Refresh." to "No hay previsiones. Pulsa Actualizar.",
         "No daylight remains today" to "Ya no quedan horas de luz",
         "Choose tomorrow to see useful rankings." to "Elige mañana para ver las mejores opciones.",
@@ -138,6 +162,7 @@ internal class UiStrings(val language: AppLanguage) {
         "No forecast for this date." to "No hay previsión para esta fecha.", "No hours remaining." to "No quedan horas de luz.",
         "No complete three-hour window" to "No hay una franja completa de tres horas",
         "Weather forecast unavailable." to "No hay previsión del tiempo.",
+        "Beach weather unavailable · using town weather" to "No hay previsión para la playa · se usa el tiempo de la localidad",
         "Sea forecast unavailable · using weather only" to "No hay datos del mar · se usa solo el tiempo",
         "Refresh failed · saved forecast" to "No se ha podido actualizar · se usa la previsión guardada",
         "Forecast may be outdated" to "La previsión puede no estar actualizada",

@@ -35,15 +35,19 @@ window summaries; points are assigned per hour, not to those displayed averages.
 A 12-hour day with three excellent hours and nine poor hours is a poor/fair day
 with a potentially excellent window, not an excellent day. Day warnings indicate
 limiting conditions during some hours; they are not claims that every hour is unsafe.
+The highest-priority warning remains visible even when the arithmetic day average is
+Very Good or Excellent.
 
 The rating scale is Poor 0–19, Fair 20–39, Good 40–59, Very Good 60–89,
 Excellent 90–100. Detail views also count hours rated Good or better (score >= 40).
 
 ## Inspecting the score
 
-Locations are ordered by the selected activity's day score, highest first. When a
-safety or comfort limit gives several locations the same visible score, their mean
-uncapped conditions score breaks the tie; the stable identifier resolves exact ties.
+Hiking locations are ordered by day score. Beach locations use conservative earned
+points against the full profile for ordering, so unavailable optional sea inputs cannot
+make an otherwise identical forecast rank above known usable sea conditions. The visible
+score still normalizes only the available inputs and its coverage label explains what was
+known. Visible score, mean uncapped conditions and the stable identifier resolve later ties.
 Unavailable days go last, even if they have a valid
 three-hour window. Beach initially shows the five highest coastal locations; Show all
 keeps the coastal ranking first and places ranked inland estimates in a separate section.

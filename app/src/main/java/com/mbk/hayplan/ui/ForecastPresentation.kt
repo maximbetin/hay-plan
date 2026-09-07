@@ -4,6 +4,7 @@ import com.mbk.hayplan.domain.ActivityOutlook
 import com.mbk.hayplan.domain.ActivityType
 import com.mbk.hayplan.domain.HourlyConditions
 import com.mbk.hayplan.domain.MarineCoverage
+import com.mbk.hayplan.domain.DayUnavailableReason
 import com.mbk.hayplan.data.HayPlanLocation
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -113,6 +114,12 @@ internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType,
     }
 }
 
+internal fun forecastConfidenceLabel(date: LocalDate, today: LocalDate): String? = when {
+    date.isAfter(today.plusDays(6)) -> "Long-range outlook · lower confidence"
+    date.isAfter(today.plusDays(2)) -> "Later outlook · forecast may change"
+    else -> null
+}
+
 internal fun beachCoverageLabel(
     coastal: Boolean,
     coverage: MarineCoverage,
@@ -125,6 +132,6 @@ internal fun daylightHasEnded(
     now: LocalDateTime,
     outlooks: Collection<ActivityOutlook>,
 ): Boolean = selectedDate == now.toLocalDate() && outlooks.isNotEmpty() &&
-    outlooks.all { it.hourly.isEmpty() && it.dayUnavailableReason == "No hours remaining." }
+    outlooks.all { it.hourly.isEmpty() && it.dayUnavailableReason == DayUnavailableReason.NoHoursRemaining }
 
 private fun number(value: Double) = String.format(Locale.US, "%.1f", value)

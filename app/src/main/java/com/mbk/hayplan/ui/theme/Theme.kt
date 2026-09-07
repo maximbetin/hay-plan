@@ -2,7 +2,9 @@ package com.mbk.hayplan.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 
 private val HayPlanColors = lightColorScheme(
@@ -30,10 +32,32 @@ private val HayPlanColors = lightColorScheme(
     onErrorContainer = Color(0xFF410002),
 )
 
+private val HayPlanDarkColors = darkColorScheme(
+    primary = Color(0xFF75D8C8),
+    onPrimary = Color(0xFF003731),
+    primaryContainer = Color(0xFF005048),
+    onPrimaryContainer = Color(0xFF95F5E6),
+    secondary = Color(0xFFA9CBE0),
+    onSecondary = Color(0xFF123448),
+    secondaryContainer = Color(0xFF294B60),
+    onSecondaryContainer = Color(0xFFC5E7FC),
+    tertiary = Color(0xFFFFC94A),
+    onTertiary = Color(0xFF422F00),
+    tertiaryContainer = Color(0xFF5F4500),
+    onTertiaryContainer = Color(0xFFFFDEA0),
+    background = Color(0xFF0F1513),
+    surface = Color(0xFF171D1B),
+    surfaceVariant = Color(0xFF25302D),
+    onSurface = Color(0xFFDFE8E4),
+    onSurfaceVariant = Color(0xFFBAC9C4),
+    outline = Color(0xFF84948F),
+    outlineVariant = Color(0xFF3B4945),
+)
+
 @Composable
 fun HayPlanTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = HayPlanColors,
+        colorScheme = if (isSystemInDarkTheme()) HayPlanDarkColors else HayPlanColors,
         content = content,
     )
 }

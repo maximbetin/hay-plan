@@ -6,6 +6,12 @@ import java.time.LocalDateTime
 
 /** Keeps API array layout, null handling, and timestamp alignment out of scoring code. */
 object OpenMeteoParser {
+    fun validateMarine(json: String) {
+        val hourly = JSONObject(json).getJSONObject("hourly")
+        require(hourly.times().isNotEmpty())
+        require(hourly.has("wave_height") || hourly.has("sea_surface_temperature"))
+    }
+
     fun weather(json: String): List<HourlyConditions> {
         val root = JSONObject(json)
         val hourly = root.getJSONObject("hourly")

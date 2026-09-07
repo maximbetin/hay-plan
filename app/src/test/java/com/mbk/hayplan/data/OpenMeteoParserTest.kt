@@ -74,4 +74,16 @@ class OpenMeteoParserTest {
         val hours = OpenMeteoParser.weather("""{"hourly":{"time":["2026-09-02T12:00"]}}""")
         assertFalse(hours.single().isDaylight)
     }
+
+    @Test
+    fun `marine validation rejects empty or variable-free payloads`() {
+        listOf(
+            """{"hourly":{"time":[],'wave_height':[]}}""".replace('\'', '"'),
+            """{"hourly":{"time":["2026-09-02T09:00"]}}""",
+        ).forEach { payload ->
+            assertThrows(IllegalArgumentException::class.java) { OpenMeteoParser.validateMarine(payload) }
+        }
+        OpenMeteoParser.validateMarine(
+            """{"hourly":{"time":["2026-09-02T09:00"],"wave_height":[null]}}""")
+    }
 }

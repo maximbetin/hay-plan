@@ -10,8 +10,8 @@ data class ActivityOutlook(
     val activity: ActivityType,
     val day: DayRating?,
     val bestWindow: BestWindow?,
-    val dayUnavailableReason: String? = null,
-    val windowUnavailableReason: String? = null,
+    val dayUnavailableReason: DayUnavailableReason? = null,
+    val windowUnavailableReason: WindowUnavailableReason? = null,
     val hourly: List<HourlyAssessment> = emptyList(),
 ) {
     val marineCoverage: MarineCoverage get() = MarineCoverage.combine(hourly.mapNotNull { it.evaluation?.marineCoverage })
@@ -46,7 +46,8 @@ object DayPlanner {
             val mean = evaluations.map { it.score }.average().roundToInt()
             DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
                 evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }),
-                uncappedScore = evaluations.map { it.pointsBeforeLimits }.average().roundToInt())
+                uncappedScore = evaluations.map { it.pointsBeforeLimits }.average().roundToInt(),
+                evidenceScore = evaluations.map { it.evidenceScore }.average().roundToInt())
         } else null
 
         val best = hourly.windowed(WINDOW_HOURS).mapNotNull { window ->
@@ -64,11 +65,11 @@ object DayPlanner {
             activity, day, best,
             dayUnavailableReason = when {
                 day != null -> null
-                dayHours.isEmpty() -> "No forecast for this date."
-                expectedHours == 0 -> "No hours remaining."
-                else -> "Incomplete forecast · ${evaluations.size}/$expectedHours hours rated"
+                dayHours.isEmpty() -> DayUnavailableReason.NoForecast
+                expectedHours == 0 -> DayUnavailableReason.NoHoursRemaining
+                else -> DayUnavailableReason.Incomplete(evaluations.size, expectedHours)
             },
-            windowUnavailableReason = if (best != null) null else "No complete three-hour window",
+            windowUnavailableReason = if (best != null) null else WindowUnavailableReason.NO_COMPLETE_WINDOW,
             hourly = hourly,
         )
     }

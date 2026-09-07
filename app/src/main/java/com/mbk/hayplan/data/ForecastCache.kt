@@ -50,7 +50,8 @@ class ForecastCache(private val directory: File, private val clock: Clock = Cloc
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            existing?.copy(refreshFailed = true) ?: throw error
+            existing?.takeIf { isUsableFallback(it.fetchedAt, clock.instant()) }
+                ?.copy(refreshFailed = true) ?: throw error
         }
     }
 
@@ -93,10 +94,16 @@ class ForecastCache(private val directory: File, private val clock: Clock = Cloc
     companion object {
         private const val VERSION = 1
         val TTL: Duration = Duration.ofHours(1)
+        val MAX_STALE_AGE: Duration = Duration.ofHours(12)
 
         fun isFresh(fetchedAt: Instant, now: Instant): Boolean {
             val age = Duration.between(fetchedAt, now)
             return !age.isNegative && age < TTL
+        }
+
+        fun isUsableFallback(fetchedAt: Instant, now: Instant): Boolean {
+            val age = Duration.between(fetchedAt, now)
+            return !age.isNegative && age <= MAX_STALE_AGE
         }
     }
 }

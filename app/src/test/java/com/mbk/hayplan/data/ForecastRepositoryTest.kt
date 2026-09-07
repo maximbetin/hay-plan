@@ -13,23 +13,27 @@ class ForecastRepositoryTest {
     private val clock = MutableClock()
     private val location = LocationCatalog.locations.first { it.id == "gijon" }
 
-    @Test fun `one town weather point and one sea reference are cached until refresh`() = runBlocking {
+    @Test fun `town and beach weather points plus sea reference are cached until refresh`() = runBlocking {
         val calls = mutableListOf<String>()
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls += url; response(url) }
         val repository = ForecastRepository(client, listOf(location))
         val initial = repository.load().single()
-        assertEquals(2, calls.size)
+        assertEquals(3, calls.size)
         assertEquals(20.0, initial.weather.hours.first().airTemperatureC!!, 0.001)
         assertEquals(20.0, initial.beach.hours.first().airTemperatureC!!, 0.001)
         assertEquals(21.0, initial.beach.hours.first().seaTemperatureC!!, 0.001)
-        val weatherUrl = calls.single { !it.contains("marine-api") }
+        val weatherUrl = calls.single { !it.contains("marine-api") &&
+            it.contains("latitude=${location.coordinates.latitude}") }
         listOf("apparent_temperature", "relative_humidity_2m", "visibility", "weather_code",
             "wind_gusts_10m", "uv_index").forEach { assertTrue(weatherUrl.contains(it)) }
-        assertTrue(calls.single { it.contains("marine-api") }.contains("latitude=${location.coast!!.coordinates.latitude}"))
+        val coast = requireNotNull(location.coast)
+        assertTrue(calls.single { it.contains("marine-api") }.contains("latitude=${coast.coordinates.latitude}"))
+        assertTrue(calls.any { !it.contains("marine-api") &&
+            it.contains("latitude=${coast.coordinates.latitude}") })
         repository.load()
-        assertEquals(2, calls.size)
+        assertEquals(3, calls.size)
         repository.load(forceRefresh = true)
-        assertEquals(4, calls.size)
+        assertEquals(6, calls.size)
     }
 
     @Test fun `inland town supports both activities without any marine request or invented sea data`() = runBlocking {
@@ -50,7 +54,7 @@ class ForecastRepositoryTest {
         var calls = 0
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls++; response(url) }
         ForecastRepository(client, listOf(location, location.copy(id = "second"))).load(true)
-        assertEquals(2, calls)
+        assertEquals(3, calls)
     }
 
     @Test fun `marine failure produces an explicit weather only fallback without affecting Hiking`() = runBlocking {
@@ -62,6 +66,33 @@ class ForecastRepositoryTest {
         assertTrue(result.beach.errors.any { it.contains("weather only") })
         assertTrue(result.beach.hours.all { it.seaTemperatureC == null && it.waveHeightM == null })
         assertNotNull(ActivityScorer.score(ActivityType.BEACH, result.beach.hours.take(1)))
+    }
+
+    @Test fun `Beach uses coastal weather while Hiking retains town weather`() = runBlocking {
+        val coastalLatitude = location.coast!!.coordinates.latitude
+        val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
+            when {
+                url.contains("marine-api") -> marine
+                url.contains("latitude=$coastalLatitude") -> weather.replace(
+                    "\"temperature_2m\":[20,20,20,20]", "\"temperature_2m\":[26,26,26,26]")
+                else -> weather
+            }
+        }
+        val result = ForecastRepository(client, listOf(location)).load().single()
+        assertEquals(20.0, result.weather.hours.first().airTemperatureC!!, 0.001)
+        assertEquals(26.0, result.beach.hours.first().airTemperatureC!!, 0.001)
+    }
+
+    @Test fun `failed coastal weather explicitly falls back to usable town weather`() = runBlocking {
+        val coastalLatitude = location.coast!!.coordinates.latitude
+        val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
+            if (!url.contains("marine-api") && url.contains("latitude=$coastalLatitude"))
+                throw IOException("coastal weather offline") else response(url)
+        }
+        val result = ForecastRepository(client, listOf(location)).load().single()
+        assertEquals(result.weather.hours, result.beach.hours.map { it.copy(
+            seaTemperatureC = null, waveHeightM = null) })
+        assertTrue(ForecastIssue.BEACH_WEATHER_FALLBACK in result.beach.errors)
     }
 
     @Test fun `fresh disk cache survives process recreation`() = runBlocking {
@@ -88,14 +119,15 @@ class ForecastRepositoryTest {
         }
     }
 
-    @Test fun `catalog dispatches one weather request per town plus one per coastal reference`() = runBlocking {
+    @Test fun `catalog dispatches weather for towns and beaches plus marine for coastal references`() = runBlocking {
         val calls = mutableListOf<String>()
         val repository = ForecastRepository(OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
             calls += url; response(url)
         })
         val forecasts = repository.load()
         assertEquals(LocationCatalog.locations.map { it.id }, forecasts.map { it.location.id })
-        val weatherPoints = LocationCatalog.locations.map { it.coordinates }.distinct().size
+        val weatherPoints = (LocationCatalog.locations.map { it.coordinates } +
+            LocationCatalog.locations.mapNotNull { it.coast?.coordinates }).distinct().size
         val marinePoints = LocationCatalog.locations.mapNotNull { it.coast?.coordinates }.distinct().size
         val expected = weatherPoints + marinePoints
         assertEquals(expected, calls.size)

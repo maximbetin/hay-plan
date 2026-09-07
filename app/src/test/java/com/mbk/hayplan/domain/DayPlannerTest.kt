@@ -211,6 +211,14 @@ class DayPlannerTest {
         assertTrue(outlook.day.uncappedScore > outlook.day.score)
     }
 
+    @Test fun `excellent average retains a prominent thunderstorm warning`() {
+        val hours = (8..19).map { if (it == 19) hour(it).copy(weatherCode = 95) else hour(it) }
+        val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
+        assertEquals(Rating.EXCELLENT, outlook.day!!.rating)
+        assertEquals(ForecastWarning.THUNDERSTORM, primaryWarning(outlook.day.warnings))
+        assertEquals(3, primaryWarning(outlook.day.warnings)!!.priority)
+    }
+
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,
         airTemperatureC = 24.0, precipitationProbabilityPercent = 5, cloudCoverPercent = 15,
         windSpeedKmh = 10.0, seaTemperatureC = 21.0, waveHeightM = 0.3, precipitationMm = 0.0,

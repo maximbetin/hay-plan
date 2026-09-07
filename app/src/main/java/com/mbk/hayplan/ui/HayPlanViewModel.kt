@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.Instant
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -73,13 +74,14 @@ class HayPlanViewModel(
             uiState = uiState.copy(isLoading = true, message = null)
             try {
                 val forecasts = repository.load(forceRefresh)
-                val sources = forecasts.flatMap { it.beach.sources }
-                val failed = forecasts.any { it.beach.errors.isNotEmpty() } || sources.any { it.refreshFailed }
-                nextAutomaticLoad = if (failed) clock.instant().plus(ForecastCache.TTL) else
+                val sources = forecasts.flatMap { it.weather.sources + it.beach.sources }.distinct()
+                val failed = forecasts.any { it.weather.errors.isNotEmpty() || it.beach.errors.isNotEmpty() } ||
+                    sources.any { it.refreshFailed }
+                nextAutomaticLoad = if (failed) clock.instant().plus(RETRY_DELAY) else
                     sources.minOfOrNull { it.fetchedAt.plus(ForecastCache.TTL) }
                         ?: clock.instant().plus(ForecastCache.TTL)
                 uiState = uiState.copy(forecasts = forecasts,
-                    message = if (forecasts.all { it.weather.hours.isEmpty() })
+                    message = if (forecasts.all { it.weather.hours.isEmpty() && it.beach.hours.isEmpty() })
                         "Couldn't load forecasts. Try Refresh." else null)
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -90,5 +92,9 @@ class HayPlanViewModel(
                 uiState = uiState.copy(isLoading = false).atTime(clock.instant())
             }
         }
+    }
+
+    companion object {
+        val RETRY_DELAY: Duration = Duration.ofMinutes(15)
     }
 }

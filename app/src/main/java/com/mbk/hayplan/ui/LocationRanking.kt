@@ -8,7 +8,13 @@ internal fun rankLocations(
     forecasts: List<LocationForecast>,
     outlooks: Map<String, ActivityOutlook>,
 ): List<LocationForecast> = forecasts.sortedWith(
-    compareByDescending<LocationForecast> { outlooks[it.location.id]?.day?.score ?: -1 }
+    compareByDescending<LocationForecast> {
+        val outlook = outlooks[it.location.id]
+        val day = outlook?.day
+        if (outlook?.activity == com.mbk.hayplan.domain.ActivityType.BEACH) day?.evidenceScore ?: -1
+        else day?.score ?: -1
+    }
+        .thenByDescending { outlooks[it.location.id]?.day?.score ?: -1 }
         .thenByDescending { outlooks[it.location.id]?.day?.uncappedScore ?: -1 }
         .thenBy { it.location.id },
 )

@@ -133,10 +133,18 @@ data class ForecastSourceStatus(
     val persistenceFailed: Boolean,
 )
 
+enum class ForecastIssue(val message: String) {
+    WEATHER_UNAVAILABLE("Weather forecast unavailable."),
+    BEACH_WEATHER_FALLBACK("Beach weather unavailable · using town weather"),
+    SEA_UNAVAILABLE("Sea forecast unavailable · using weather only");
+
+    fun contains(text: String): Boolean = message.contains(text)
+}
+
 data class ActivityForecastData(
     val hours: List<HourlyConditions> = emptyList(),
     val sources: List<ForecastSourceStatus> = emptyList(),
-    val errors: List<String> = emptyList(),
+    val errors: List<ForecastIssue> = emptyList(),
 )
 
 data class LocationForecast(

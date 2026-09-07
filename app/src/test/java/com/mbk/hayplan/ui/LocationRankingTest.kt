@@ -59,4 +59,16 @@ class LocationRankingTest {
         assertNotNull(outlooks.getValue("incomplete").bestWindow)
         assertEquals(listOf(poor, incomplete), rankLocations(forecasts, outlooks))
     }
+
+    @Test fun `Beach ranking does not reward missing optional evidence`() {
+        val known = forecast("known", 20.0)
+        val unknown = forecast("unknown", 20.0)
+        fun beach(score: Int, evidence: Int) = ActivityOutlook(ActivityType.BEACH,
+            DayRating(ratingFor(score), score, 4, 4, emptyList(), evidenceScore = evidence), null)
+        val outlooks = mapOf(
+            "known" to beach(score = 82, evidence = 82),
+            "unknown" to beach(score = 100, evidence = 70),
+        )
+        assertEquals(listOf(known, unknown), rankLocations(listOf(unknown, known), outlooks))
+    }
 }

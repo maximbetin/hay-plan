@@ -1,6 +1,7 @@
 package com.mbk.hayplan.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -57,12 +58,13 @@ internal fun DayOverview(
             if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, outlook.marineCoverage, strings.language),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(strings(outlook.day?.let { daylightAverageLabel(it.assessedHours, remainingToday) }
-                ?: outlook.dayUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall,
+                ?: strings.dayUnavailable(outlook.dayUnavailableReason)), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             summary?.let { Text(strings(it.headline), style = MaterialTheme.typography.bodyMedium) }
-            outlook.day?.takeIf { it.score < 90 }?.warnings?.firstOrNull()?.let {
+            outlook.day?.warnings?.let(::primaryWarning)?.let {
                 Text(strings(it), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary)
+                    color = if (it.priority >= 3) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.tertiary)
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -75,11 +77,11 @@ internal fun DayOverview(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(strings("Best 3 hours"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val window = outlook.bestWindow
-                if (window == null) Text(strings(outlook.windowUnavailableReason.orEmpty()), style = MaterialTheme.typography.bodySmall)
+                if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason), style = MaterialTheme.typography.bodySmall)
                 else {
                     Text(timeRange(window.start, window.end), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     Text("${strings.rating(window.rating)} · ${window.score}/100", style = MaterialTheme.typography.bodyMedium,
-                        color = ratingColor(window.score), fontWeight = FontWeight.SemiBold)
+                        color = currentRatingColor(window.score), fontWeight = FontWeight.SemiBold)
                     if (outlook.activity == ActivityType.BEACH && coastal && window.marineCoverage != outlook.marineCoverage)
                         Text(beachCoverageLabel(true, window.marineCoverage, strings.language), style = MaterialTheme.typography.bodySmall)
                 }
@@ -151,7 +153,7 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
     val time = hour.time.toLocalTime()
     val isBest = best != null && !time.isBefore(best.start) && time.isBefore(best.end)
     val score = hour.evaluation?.score
-    val scoreColor = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
+    val scoreColor = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Surface(onClick = onClick, shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         border = if (isBest) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) else null) {
@@ -175,7 +177,7 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(999.dp))
                 .clearAndSetSemantics { }) {
                 Box(Modifier.fillMaxWidth(score / 100f).fillMaxHeight()
-                    .background(ratingColor(score), RoundedCornerShape(999.dp)))
+                    .background(currentRatingColor(score), RoundedCornerShape(999.dp)))
             }
         }
     }
@@ -208,7 +210,7 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
         }
     }
     if (day == null) {
-        Text(strings(outlook.dayUnavailableReason.orEmpty()))
+        Text(strings.dayUnavailable(outlook.dayUnavailableReason))
         Text(strings("${outlook.hourly.count { it.evaluation != null }}/${outlook.hourly.size} hours rated"))
         return
     }
@@ -236,7 +238,7 @@ private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean) {
     Text(strings("Best 3 hours"), style = MaterialTheme.typography.titleMedium)
     Text(window?.let { timeRange(it.start, it.end) } ?: strings("Unavailable"),
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-    if (window == null) { Text(strings(outlook.windowUnavailableReason.orEmpty())); return }
+    if (window == null) { Text(strings.windowUnavailable(outlook.windowUnavailableReason)); return }
     RatingValue(window.rating, window.score)
     if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, window.marineCoverage, strings.language),
         style = MaterialTheme.typography.bodySmall)
@@ -282,7 +284,7 @@ private fun SuitabilityNote(activity: ActivityType, coastal: Boolean) {
 @Composable
 private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
     val strings = LocalUiStrings.current
-    val color = factorColor(factor.outcome)
+    val color = currentFactorColor(factor.outcome)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).background(color, CircleShape).clearAndSetSemantics { })
@@ -302,14 +304,14 @@ private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
 @Composable
 internal fun RatingValue(rating: Rating?, score: Int?) {
     val strings = LocalUiStrings.current
-    val color = score?.let(::ratingColor) ?: MaterialTheme.colorScheme.onSurface
+    val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(rating?.let(strings::rating) ?: strings("Unavailable"), Modifier.weight(1f),
             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
             color = color)
         Surface(shape = RoundedCornerShape(999.dp),
-            color = score?.let(::ratingContainerColor) ?: MaterialTheme.colorScheme.surfaceVariant) {
+            color = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant) {
             Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
         }
@@ -325,24 +327,33 @@ private fun ratingRange(rating: Rating) = when (rating) {
     Rating.VERY_GOOD -> "60–89"
     Rating.EXCELLENT -> "90–100"
 }
-internal fun ratingColor(score: Int) = when {
-    score >= 90 -> Color(0xFF087A63)
-    score >= 60 -> Color(0xFF39734B)
-    score >= 40 -> Color(0xFF8A6500)
-    score >= 20 -> Color(0xFFA85D16)
-    else -> Color(0xFFA34235)
+internal fun ratingColor(score: Int, darkTheme: Boolean = false) = when {
+    score >= 90 -> if (darkTheme) Color(0xFF75D8C8) else Color(0xFF087A63)
+    score >= 60 -> if (darkTheme) Color(0xFF9AD39F) else Color(0xFF39734B)
+    score >= 40 -> if (darkTheme) Color(0xFFFFCC65) else Color(0xFF8A6500)
+    score >= 20 -> if (darkTheme) Color(0xFFFFB77B) else Color(0xFFA85D16)
+    else -> if (darkTheme) Color(0xFFFFB4A9) else Color(0xFFA34235)
 }
 
-internal fun ratingContainerColor(score: Int) = when {
-    score >= 90 -> Color(0xFFD7F3EC)
-    score >= 60 -> Color(0xFFE0F0E2)
-    score >= 40 -> Color(0xFFFFF0C2)
-    score >= 20 -> Color(0xFFFCE4CA)
-    else -> Color(0xFFF9DDD8)
+internal fun ratingContainerColor(score: Int, darkTheme: Boolean = false) = when {
+    score >= 90 -> if (darkTheme) Color(0xFF174D43) else Color(0xFFD7F3EC)
+    score >= 60 -> if (darkTheme) Color(0xFF294B31) else Color(0xFFE0F0E2)
+    score >= 40 -> if (darkTheme) Color(0xFF554500) else Color(0xFFFFF0C2)
+    score >= 20 -> if (darkTheme) Color(0xFF5B3518) else Color(0xFFFCE4CA)
+    else -> if (darkTheme) Color(0xFF5F2B27) else Color(0xFFF9DDD8)
 }
 
-internal fun factorColor(outcome: FactorOutcome) = when (outcome) {
-    FactorOutcome.POSITIVE -> Color(0xFF087A63)
-    FactorOutcome.MIXED -> Color(0xFF8A6500)
-    FactorOutcome.NEGATIVE -> Color(0xFFA34235)
+internal fun factorColor(outcome: FactorOutcome, darkTheme: Boolean = false) = when (outcome) {
+    FactorOutcome.POSITIVE -> if (darkTheme) Color(0xFF75D8C8) else Color(0xFF087A63)
+    FactorOutcome.MIXED -> if (darkTheme) Color(0xFFFFCC65) else Color(0xFF8A6500)
+    FactorOutcome.NEGATIVE -> if (darkTheme) Color(0xFFFFB4A9) else Color(0xFFA34235)
 }
+
+@Composable
+internal fun currentRatingColor(score: Int) = ratingColor(score, isSystemInDarkTheme())
+
+@Composable
+internal fun currentRatingContainerColor(score: Int) = ratingContainerColor(score, isSystemInDarkTheme())
+
+@Composable
+internal fun currentFactorColor(outcome: FactorOutcome) = factorColor(outcome, isSystemInDarkTheme())

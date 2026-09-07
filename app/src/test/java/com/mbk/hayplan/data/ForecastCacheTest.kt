@@ -63,6 +63,16 @@ class ForecastCacheTest {
         assertFalse(ForecastCache.isFresh(fallback.fetchedAt, clock.instant()))
     }
 
+    @Test fun `failed refresh rejects a cache older than the fallback limit`() = runBlocking {
+        val cache = ForecastCache(temporary.root, clock)
+        cache.get("weather") { "saved" }
+        clock.advance(ForecastCache.MAX_STALE_AGE.plusMinutes(1))
+        try {
+            cache.get("weather") { throw IOException("offline") }
+            fail("Expected an expired fallback to be rejected")
+        } catch (_: IOException) { /* expected */ }
+    }
+
     @Test fun `corrupt file is ignored`() = runBlocking {
         ForecastCache(temporary.root, clock).get("weather") { "saved" }
         temporary.root.listFiles()!!.single().writeText("corrupt")
