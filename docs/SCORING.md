@@ -145,10 +145,17 @@ applicable cap wins.
 ## API alignment and limitations
 
 Weather and marine series are joined by timestamp, never by array position.
+Coastal Beach forecasts use the named coast reference for both weather and marine
+conditions. Hiking uses the town or documented regional weather reference. If coastal
+weather fails but town weather remains available, Beach mode labels that fallback.
 Open-Meteo precipitation and gusts describe the preceding hour: values timestamped
 12:00 belong to the app's 11:00–12:00 interval. Instantaneous values such as apparent
 temperature, cloud cover, humidity, visibility and UV remain on their stated timestamp.
 Missing/non-finite values stay unknown. Never extrapolate marine variables into later dates.
+
+Dates three through six are labelled as later outlooks that may change; day seven onward
+is labelled as a lower-confidence long-range outlook. A forecast is fresh for one hour.
+After a failed refresh, saved data may be used with a warning for at most 12 hours.
 
 Ratings estimate comfort, not safety. Beach flags, local shelter, tides, rip
 currents, UV, lightning warnings, elevation differences, trail surfaces and route
