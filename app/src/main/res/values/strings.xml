@@ -32,6 +32,12 @@
     <string name="more_conditions">More conditions</string>
     <string name="fewer_conditions">Fewer conditions</string>
     <string name="incomplete_hour">Forecast data is incomplete for this hour.</string>
+    <string name="daily_notification">Daily outing notification</string>
+    <string name="daily_notification_time">Time · %1$s</string>
+    <string name="daily_notification_around">Around %1$s · Asturias time</string>
+    <string name="notification_permission_required">Permission required when enabled</string>
+    <string name="notification_blocked">Notifications are blocked in Android settings</string>
+    <string name="language">Language</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Show the other %1$d location</item>

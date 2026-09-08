@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.mbk.hayplan.data.ActivityForecastData
 import com.mbk.hayplan.data.Coordinates
 import com.mbk.hayplan.data.HayPlanLocation
@@ -121,5 +122,8 @@ class HayPlanScreenTest {
         compose.onNodeWithText("Ordenar los otros lugares por").assertIsDisplayed()
         compose.onNodeWithText("Todo el día").assertIsSelected()
         compose.onNodeWithText("Mejores otros lugares").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Ajustes").performClick()
+        compose.onNodeWithText("Notificación diaria de planes").assertHasClickAction().assertIsDisplayed()
+        compose.onNodeWithText("Hora · 09:00").assertHasClickAction().assertIsDisplayed()
     }
 }

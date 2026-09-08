@@ -32,6 +32,12 @@
     <string name="more_conditions">Ver más</string>
     <string name="fewer_conditions">Ver menos</string>
     <string name="incomplete_hour">Faltan datos para esta hora.</string>
+    <string name="daily_notification">Notificación diaria de planes</string>
+    <string name="daily_notification_time">Hora · %1$s</string>
+    <string name="daily_notification_around">Alrededor de las %1$s · hora de Asturias</string>
+    <string name="notification_permission_required">Se solicitará permiso al activarla</string>
+    <string name="notification_blocked">Las notificaciones están bloqueadas en los ajustes de Android</string>
+    <string name="language">Idioma</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Ver la otra ubicación</item>

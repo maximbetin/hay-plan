@@ -1,6 +1,15 @@
 package com.mbk.hayplan.ui
 
+import android.Manifest
+import android.app.NotificationManager
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,12 +44,16 @@ import androidx.core.content.edit
 import com.mbk.hayplan.R
 import com.mbk.hayplan.data.*
 import com.mbk.hayplan.domain.*
+import com.mbk.hayplan.notification.DailyNotificationPreferences
+import com.mbk.hayplan.notification.DailyNotificationSettings
+import com.mbk.hayplan.notification.DailyPlanScheduler
 import com.mbk.hayplan.ui.theme.HayPlanTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -54,6 +67,17 @@ fun HayPlanApp() {
     }
     var rankingMode by remember {
         mutableStateOf(RankingMode.fromCode(preferences.getString("ranking_mode", null)))
+    }
+    var dailyNotification by remember { mutableStateOf(DailyNotificationPreferences.read(context)) }
+    var notificationsAllowed by remember { mutableStateOf(canPostNotifications(context)) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()) { granted ->
+        notificationsAllowed = canPostNotifications(context)
+        if (granted) {
+            val updated = DailyNotificationPreferences.setEnabled(context, true)
+            dailyNotification = updated
+            DailyPlanScheduler.replace(context, updated)
+        }
     }
     val factory = remember(context) {
         viewModelFactory {
@@ -70,9 +94,13 @@ fun HayPlanApp() {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive) {
                 model.onVisibleTick()
+                notificationsAllowed = canPostNotifications(context)
                 delay(60_000)
             }
         }
+    }
+    LaunchedEffect(Unit) {
+        DailyPlanScheduler.ensure(context, dailyNotification)
     }
     CompositionLocalProvider(LocalUiStrings provides UiStrings(language)) {
         HayPlanScreen(
@@ -84,9 +112,39 @@ fun HayPlanApp() {
             onRefresh = model::refresh,
             language = language,
             rankingMode = rankingMode,
+            dailyNotification = dailyNotification,
+            notificationsAllowed = notificationsAllowed,
             onRankingModeSelected = { selected ->
                 preferences.edit { putString("ranking_mode", selected.code) }
                 rankingMode = selected
+            },
+            onDailyNotificationEnabled = { enabled ->
+                if (!enabled) {
+                    val updated = DailyNotificationPreferences.setEnabled(context, false)
+                    dailyNotification = updated
+                    DailyPlanScheduler.replace(context, updated)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else if (!canPostNotifications(context)) {
+                    val updated = DailyNotificationPreferences.setEnabled(context, true)
+                    dailyNotification = updated
+                    DailyPlanScheduler.replace(context, updated)
+                    context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                } else {
+                    val updated = DailyNotificationPreferences.setEnabled(context, true)
+                    dailyNotification = updated
+                    DailyPlanScheduler.replace(context, updated)
+                }
+            },
+            onDailyNotificationTimeSelected = { time ->
+                val updated = DailyNotificationPreferences.setTime(context, time)
+                dailyNotification = updated
+                DailyPlanScheduler.replace(context, updated)
             },
             onLanguageSelected = { selected ->
                 preferences.edit { putString("language", selected.code) }
@@ -106,11 +164,28 @@ fun HayPlanScreen(
     onRefresh: () -> Unit = {},
     language: AppLanguage = AppLanguage.ENGLISH,
     rankingMode: RankingMode = RankingMode.WHOLE_DAY,
+    dailyNotification: DailyNotificationSettings = DailyNotificationSettings(),
+    notificationsAllowed: Boolean = true,
     onRankingModeSelected: (RankingMode) -> Unit = {},
+    onDailyNotificationEnabled: (Boolean) -> Unit = {},
+    onDailyNotificationTimeSelected: (LocalTime) -> Unit = {},
     onLanguageSelected: (AppLanguage) -> Unit = {},
 ) {
     val strings = LocalUiStrings.current
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val notificationTime = dailyNotification.time.format(SETTINGS_TIME)
+    val notificationSubtitle = when {
+        notificationsAllowed -> localizedString(R.string.daily_notification_around, notificationTime)
+        dailyNotification.enabled -> localizedString(R.string.notification_blocked)
+        else -> localizedString(R.string.notification_permission_required)
+    }
+    val showTimePicker = {
+        showSettings = false
+        TimePickerDialog(context, { _, hour, minute ->
+            onDailyNotificationTimeSelected(LocalTime.of(hour, minute))
+        }, dailyNotification.time.hour, dailyNotification.time.minute, true).show()
+    }
     val opened = state.opened
     val date = state.selectedDate ?: state.now.toLocalDate()
     val remaining = date == state.now.toLocalDate()
@@ -151,6 +226,29 @@ fun HayPlanScreen(
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = localizedString(R.string.settings))
                     }
                     DropdownMenu(expanded = showSettings, onDismissRequest = { showSettings = false }) {
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(localizedString(R.string.daily_notification))
+                                    Text(notificationSubtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            },
+                            trailingIcon = { Switch(checked = dailyNotification.enabled, onCheckedChange = null) },
+                            onClick = {
+                                showSettings = false
+                                onDailyNotificationEnabled(!dailyNotification.enabled)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(localizedString(R.string.daily_notification_time, notificationTime)) },
+                            onClick = showTimePicker,
+                        )
+                        HorizontalDivider()
+                        Text(localizedString(R.string.language), Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                         AppLanguage.entries.forEach { option ->
                             DropdownMenuItem(
                                 text = { Text(strings(option.displayName)) },
@@ -284,6 +382,14 @@ fun HayPlanScreen(
         }
     }
 }
+
+private fun canPostNotifications(context: android.content.Context): Boolean {
+    val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    return permissionGranted && context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
+}
+
+private val SETTINGS_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
 private fun RankingSelector(selected: RankingMode, onSelected: (RankingMode) -> Unit) {

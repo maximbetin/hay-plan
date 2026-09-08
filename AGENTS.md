@@ -28,6 +28,9 @@
 - Dates 3-6 are labelled as later outlooks; day 7 onward is labelled long-range.
 - Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
   followed by the ten highest-ranked remaining locations with no duplicates.
+- Daily notifications are opt-in, default to approximately 09:00 Europe/Madrid, and request
+  notification permission only when enabled. Oviedo considers Hiking; Gijón prefers a
+  complete, fully marine-informed Very Good Beach window and otherwise considers Hiking.
 - Preserve the explicit limitations: the score estimates comfort, not safety, and does
   not assess beach flags, currents, tides, water quality, exact trails, or elevation.
 
@@ -50,7 +53,7 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 106 JVM tests, zero failures; Android lint reports no issues.
+- Current baseline: 111 JVM tests, zero failures; Android lint reports no issues.
 - `compileDebugAndroidTestKotlin` compiles the Compose regression test but does not run it.
   Run connected/instrumented tests only when an emulator or phone is available.
 - Use `git diff --check` and keep the working tree free of generated artifacts.
@@ -59,6 +62,6 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 
 ## Previous released state
 
-- Released commit: `8c16af7` (`Hay Plan 0.7.0.21`, tag `auto-21`).
-- The release workflow completed successfully on 2026-09-07.
+- Released commit: `6d44d51` (`Hay Plan 0.7.0.22`, tag `auto-22`).
+- The release workflow completed successfully on 2026-09-08.
 - Manual phone checks still useful: narrow width, large font, TalkBack, Spanish, and dark mode.

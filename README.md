@@ -19,6 +19,7 @@ Older builds signed with another key require uninstalling first, which removes l
 3. Tap a location for hourly results and score explanations. Date and activity changes keep that location open.
 4. Use **Refresh** to bypass the one-hour forecast cache. If updating fails, saved data is used for at most 12 hours and clearly labelled.
 5. The app follows English or Spanish system language by default. Open **Settings** to override it; the choice is saved on the phone. Light and dark system themes are supported.
+6. Optionally enable the **Daily outing notification** in Settings and choose a time. Around that time in Asturias, a compact notification recommends Beach or walking for Gijón and walking for Oviedo; tap it to open today’s overview.
 
 Dates seven days away and later are deliberately shown as lower-confidence outlooks: rating bands and conditions remain visible, while exact comfort scores and best-window timing are hidden.
 

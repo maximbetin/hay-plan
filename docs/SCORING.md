@@ -176,3 +176,18 @@ but the app does not replace official UV or lightning warnings. Beach flags, loc
 shelter, tides, rip currents, elevation differences, trail surfaces and route hazards
 are outside this version. Long-range windows are tentative and labelled as an outlook
 in the UI.
+
+## Daily outing notification
+
+The optional notification evaluates today's remaining daylight with the same `DayPlanner`
+results shown in the app. Oviedo always considers Hiking. Gijón recommends Beach only when
+its best complete window scores at least 60, has water and wave data throughout, and has no
+warning with priority 2 or 3. Otherwise Gijón considers Hiking. Hiking is recommended only
+for a complete window scoring at least 40 with no priority 2 or 3 warning. A lower-quality
+known window is labelled as having no strong recommendation; an absent complete window is
+labelled unavailable.
+
+Delivery is scheduled for approximately the selected Europe/Madrid time, not as an exact
+alarm. The notification uses the normal one-hour cache and the same labelled, maximum
+12-hour saved-forecast fallback. It never turns a missing or severe forecast into a positive
+recommendation.
