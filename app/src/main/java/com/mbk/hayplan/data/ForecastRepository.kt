@@ -1,8 +1,6 @@
 package com.mbk.hayplan.data
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -16,34 +14,34 @@ class ForecastRepository(
         // Hiking uses the town/reference point; Beach uses the actual coastal reference point.
         val weatherPoints = (locations.map { it.coordinates } +
             locations.mapNotNull { it.coast?.coordinates }).distinct()
-        val weather = weatherPoints.associateWith { point ->
-            async { attempt { requestSlots.withPermit { client.weather(point, forceRefresh) } } }
+        val weatherLoads = weatherPoints.chunked(BATCH_SIZE).map { points ->
+            async { requestSlots.withPermit { client.weather(points, forceRefresh) } }
         }
-        val marine = locations.mapNotNull { it.coast?.coordinates }.distinct().associateWith { point ->
-            async { attempt { requestSlots.withPermit { client.marine(point, forceRefresh) } } }
+        val marineLoads = locations.mapNotNull { it.coast?.coordinates }.distinct().chunked(BATCH_SIZE).map { points ->
+            async { requestSlots.withPermit { client.marine(points, forceRefresh) } }
         }
+        val weather = weatherLoads.map { it.await() }.flatMap { it.entries }.associate { it.toPair() }
+        val marine = marineLoads.map { it.await() }.flatMap { it.entries }.associate { it.toPair() }
         locations.map { location ->
-            async {
-                val city = weather.getValue(location.coordinates).await()
-                val base = weatherData(city)
-                val beach = location.coast?.let { coast ->
-                    val coastalWeather = weather.getValue(coast.coordinates).await()
-                    val sea = marine.getValue(coast.coordinates).await()
-                    val beachBase = when {
-                        coastalWeather != null -> weatherData(coastalWeather)
-                        city != null -> base.copy(errors = base.errors + ForecastIssue.BEACH_WEATHER_FALLBACK)
-                        else -> base
-                    }
-                    beachBase.copy(
-                        hours = if (sea != null) OpenMeteoParser.withMarine(beachBase.hours, sea.body) else beachBase.hours,
-                        sources = beachBase.sources + listOfNotNull(sea?.status("Sea")),
-                        errors = beachBase.errors + if (sea == null)
-                            listOf(ForecastIssue.SEA_UNAVAILABLE) else emptyList(),
-                    )
-                } ?: base
-                LocationForecast(location, base, beach)
-            }
-        }.awaitAll()
+            val city = weather[location.coordinates]
+            val base = weatherData(city)
+            val beach = location.coast?.let { coast ->
+                val coastalWeather = weather[coast.coordinates]
+                val sea = marine[coast.coordinates]
+                val beachBase = when {
+                    coastalWeather != null -> weatherData(coastalWeather)
+                    city != null -> base.copy(errors = base.errors + ForecastIssue.BEACH_WEATHER_FALLBACK)
+                    else -> base
+                }
+                beachBase.copy(
+                    hours = if (sea != null) OpenMeteoParser.withMarine(beachBase.hours, sea.body) else beachBase.hours,
+                    sources = beachBase.sources + listOfNotNull(sea?.status("Sea")),
+                    errors = beachBase.errors + if (sea == null)
+                        listOf(ForecastIssue.SEA_UNAVAILABLE) else emptyList(),
+                )
+            } ?: base
+            LocationForecast(location, base, beach)
+        }
     }
 
     private fun weatherData(data: CachedForecast?): ActivityForecastData =
@@ -53,15 +51,8 @@ class ForecastRepository(
     private fun CachedForecast.status(label: String) =
         ForecastSourceStatus(label, fetchedAt, refreshFailed, persistenceFailed)
 
-    private suspend fun <T> attempt(block: suspend () -> T): T? = try {
-        block()
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (_: Exception) {
-        null
-    }
-
     companion object {
+        const val BATCH_SIZE = 5
         const val MAX_PARALLEL_REQUESTS = 6
     }
 }

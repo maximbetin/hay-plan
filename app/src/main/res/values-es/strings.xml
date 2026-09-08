@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hay Plan</string>
+    <string name="back">Atrás</string>
+    <string name="settings">Ajustes</string>
+    <string name="refresh">Actualizar</string>
+    <string name="comfort_disclaimer">Previsión de comodidad, no garantía de seguridad · consulta las condiciones locales</string>
+    <string name="no_daylight_remains">Ya no quedan horas de luz</string>
+    <string name="choose_tomorrow">Elige mañana para ver las mejores opciones.</string>
+    <string name="view_tomorrow">Ver mañana</string>
+    <string name="main_towns">Principales ciudades</string>
+    <string name="best_other_locations">Mejores otros lugares</string>
+    <string name="rank_other_locations">Ordenar los otros lugares por</string>
+    <string name="hourly">Por horas</string>
+    <string name="best_three_hours">Mejor franja de 3 horas</string>
+    <string name="unavailable">No disponible</string>
+    <string name="daylight_hours">Horas de luz</string>
+    <string name="no_daylight_hours">No quedan horas de luz disponibles.</string>
+    <string name="close">Cerrar</string>
+    <string name="daylight_conditions">Tiempo durante el día</string>
+    <string name="long_range_timing_hidden">No se muestra la hora exacta en previsiones a largo plazo</string>
+    <string name="long_range_scores_hidden">Las puntuaciones exactas de comodidad se ocultan en previsiones a largo plazo.</string>
+    <string name="personal_score_note">Puntuación orientativa según el tiempo; no mide la fiabilidad de la previsión ni garantiza la seguridad.</string>
+    <string name="show_top_ten">Ver los 10 mejores</string>
+    <string name="warning_description">Aviso: %1$s</string>
+    <string name="notice_description">Aviso: %1$s</string>
+    <string name="comfort_score_details">Detalles de la puntuación de comodidad</string>
+    <string name="outlook_details">Detalles de la previsión</string>
+    <string name="show_day_score_details">Mostrar detalles de la puntuación de comodidad del día</string>
+    <string name="show_long_range_details">Mostrar detalles de la previsión a largo plazo</string>
+    <string name="show_best_forecast">Mostrar la mejor franja de tres horas</string>
+    <string name="more_conditions">Ver más</string>
+    <string name="fewer_conditions">Ver menos</string>
+    <string name="incomplete_hour">Faltan datos para esta hora.</string>
+
+    <plurals name="show_all_other_locations">
+        <item quantity="one">Ver la otra ubicación</item>
+        <item quantity="other">Ver las otras %1$d ubicaciones</item>
+        <item quantity="many">Ver las otras %1$d ubicaciones</item>
+    </plurals>
+    <plurals name="remaining_daylight_average">
+        <item quantity="one">Media de %1$d hora de luz restante</item>
+        <item quantity="other">Media de %1$d horas de luz restantes</item>
+        <item quantity="many">Media de %1$d horas de luz restantes</item>
+    </plurals>
+    <plurals name="daylight_average">
+        <item quantity="one">Media de %1$d hora de luz</item>
+        <item quantity="other">Media de %1$d horas de luz</item>
+        <item quantity="many">Media de %1$d horas de luz</item>
+    </plurals>
+    <plurals name="good_daylight_hours">
+        <item quantity="one">%1$d de %2$d hora con buen tiempo</item>
+        <item quantity="other">%1$d de %2$d horas con buen tiempo</item>
+        <item quantity="many">%1$d de %2$d horas con buen tiempo</item>
+    </plurals>
+    <plurals name="hours_rated">
+        <item quantity="one">%1$d/%2$d hora valorada</item>
+        <item quantity="other">%1$d/%2$d horas valoradas</item>
+        <item quantity="many">%1$d/%2$d horas valoradas</item>
+    </plurals>
+    <plurals name="score_reduced_points">
+        <item quantity="one">Se resta %1$d punto</item>
+        <item quantity="other">Se restan %1$d puntos</item>
+        <item quantity="many">Se restan %1$d puntos</item>
+    </plurals>
+</resources>

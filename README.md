@@ -14,11 +14,13 @@ Older builds signed with another key require uninstalling first, which removes l
 
 ## Use
 
-1. Choose a date and **Beach** or **Hiking** to see the top five locations ranked by daylight score. Beach ranks coastal locations first and keeps inland alternatives under **Show all**; after sunset, use **View tomorrow**.
-2. Each card shows its rating, essential conditions, important warnings, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
+1. Choose a date and **Beach** or **Hiking**, then rank the other locations by the whole day or their best three-hour opportunity. Gijón, Oviedo, and Avilés appear first in that fixed order, followed by the ten highest-ranked remaining locations without duplicates. After sunset, use **View tomorrow**.
+2. Each card shows its comfort rating, essential conditions, timed important warnings, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
 3. Tap a location for hourly results and score explanations. Date and activity changes keep that location open.
 4. Use **Refresh** to bypass the one-hour forecast cache. If updating fails, saved data is used for at most 12 hours and clearly labelled.
 5. The app follows English or Spanish system language by default. Open **Settings** to override it; the choice is saved on the phone. Light and dark system themes are supported.
+
+Dates seven days away and later are deliberately shown as lower-confidence outlooks: rating bands and conditions remain visible, while exact comfort scores and best-window timing are hidden.
 
 Locations: Gijón, Oviedo, Avilés, Luanco, Llanes, Ribadesella, Candás, Luarca,
 Cangas de Onís, Salinas, Cudillero, Tapia de Casariego, Villaviciosa, Somiedo, and Redes.

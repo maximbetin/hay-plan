@@ -10,9 +10,18 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
 
 internal data class WeatherValue(val label: String, val value: String)
 internal data class DayWeatherSummary(val headline: String, val values: List<WeatherValue>)
+
+internal fun dayWeatherHeadline(summary: DayWeatherSummary, language: AppLanguage): String {
+    if (language == AppLanguage.ENGLISH) return summary.headline
+    val strings = UiStrings(language)
+    fun value(label: String) = strings(summary.values.first { it.label == label }.value)
+    return "Sensación ${value("Feels like")} · Prob. lluvia ${value("Rain chance")}\n" +
+        "Rachas ${value("Wind gusts")} · Nubes ${value("Cloud cover")}"
+}
 
 internal fun formatDate(
     date: LocalDate,
@@ -68,9 +77,9 @@ internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyCondi
     val rain = values { it.precipitationMm?.takeIf { v -> v >= 0 } }
         ?.let { "${number(it.sum())} mm total" } ?: "Unknown"
     val clouds = values { it.cloudCoverPercent?.takeIf { v -> v in 0..100 }?.toDouble() }
-        ?.let { "${it.average().toInt()}% avg" } ?: "Unknown"
+        ?.let { "${it.average().roundToInt()}% avg" } ?: "Unknown"
     val humidity = values { it.relativeHumidityPercent?.takeIf { v -> v in 0..100 }?.toDouble() }
-        ?.let { "${it.average().toInt()}% avg" } ?: "Unknown"
+        ?.let { "${it.average().roundToInt()}% avg" } ?: "Unknown"
     val visibility = values { it.visibilityM?.takeIf { v -> v >= 0 } }
         ?.let { "${number(it.min() / 1_000)} km min" } ?: "Unknown"
     val uv = values { it.uvIndex?.takeIf { v -> v >= 0 } }
@@ -95,17 +104,19 @@ internal fun dayWeatherSummary(outlook: ActivityOutlook, hours: List<HourlyCondi
     return DayWeatherSummary("Feels $feels · Rain chance $chance\nGusts $gusts · Clouds $clouds", details)
 }
 
-internal fun daylightAverageLabel(count: Int, remainingToday: Boolean): String {
-    val period = if (remainingToday) "remaining daylight" else "daylight"
-    val hours = if (count == 1) "hour" else "hours"
-    return "Average of $count $period $hours"
-}
-
-internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType, coastal: Boolean): String? {
+internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType, coastal: Boolean,
+                            language: AppLanguage = AppLanguage.ENGLISH): String? {
     if (summary == null) return null
-    fun value(label: String) = summary.values.first { it.label == label }.value
-        .removeSuffix(" max").removeSuffix(" avg")
-    return if (activity == ActivityType.BEACH && coastal) {
+    val strings = UiStrings(language)
+    fun value(label: String) = strings(summary.values.first { it.label == label }.value
+        .removeSuffix(" max").removeSuffix(" avg"))
+    return if (language == AppLanguage.SPANISH && activity == ActivityType.BEACH && coastal) {
+        "Sensación ${value("Feels like")} · Agua ${value("Water temperature")} · Olas ${value("Waves")}\n" +
+            "Lluvia ${value("Rain chance")} · Rachas ${value("Wind gusts")} · Nubes ${value("Cloud cover")}"
+    } else if (language == AppLanguage.SPANISH) {
+        "Sensación ${value("Feels like")} · Lluvia ${value("Rain chance")} · Rachas ${value("Wind gusts")}\n" +
+            "Nubes ${value("Cloud cover")} · UV ${value("UV index")}"
+    } else if (activity == ActivityType.BEACH && coastal) {
         "Feels ${value("Feels like")} · Water ${value("Water temperature")} · Waves ${value("Waves")}\n" +
             "Rain ${value("Rain chance")} · Gusts ${value("Wind gusts")} · Clouds ${value("Cloud cover")}"
     } else {
@@ -115,10 +126,13 @@ internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType,
 }
 
 internal fun forecastConfidenceLabel(date: LocalDate, today: LocalDate): String? = when {
-    date.isAfter(today.plusDays(6)) -> "Long-range outlook · lower confidence"
+    isLongRangeOutlook(date, today) -> "Long-range outlook · lower confidence"
     date.isAfter(today.plusDays(2)) -> "Later outlook · forecast may change"
     else -> null
 }
+
+internal fun isLongRangeOutlook(date: LocalDate, today: LocalDate): Boolean =
+    date.isAfter(today.plusDays(6))
 
 internal fun beachCoverageLabel(
     coastal: Boolean,

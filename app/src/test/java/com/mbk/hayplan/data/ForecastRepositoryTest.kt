@@ -7,6 +7,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.IOException
 import com.mbk.hayplan.domain.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ForecastRepositoryTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -18,22 +20,20 @@ class ForecastRepositoryTest {
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls += url; response(url) }
         val repository = ForecastRepository(client, listOf(location))
         val initial = repository.load().single()
-        assertEquals(3, calls.size)
+        assertEquals(2, calls.size)
         assertEquals(20.0, initial.weather.hours.first().airTemperatureC!!, 0.001)
         assertEquals(20.0, initial.beach.hours.first().airTemperatureC!!, 0.001)
         assertEquals(21.0, initial.beach.hours.first().seaTemperatureC!!, 0.001)
-        val weatherUrl = calls.single { !it.contains("marine-api") &&
-            it.contains("latitude=${location.coordinates.latitude}") }
+        val weatherUrl = calls.single { !it.contains("marine-api") }
         listOf("apparent_temperature", "relative_humidity_2m", "visibility", "weather_code",
             "wind_gusts_10m", "uv_index").forEach { assertTrue(weatherUrl.contains(it)) }
         val coast = requireNotNull(location.coast)
         assertTrue(calls.single { it.contains("marine-api") }.contains("latitude=${coast.coordinates.latitude}"))
-        assertTrue(calls.any { !it.contains("marine-api") &&
-            it.contains("latitude=${coast.coordinates.latitude}") })
+        assertTrue(weatherUrl.contains(coast.coordinates.latitude.toString()))
         repository.load()
-        assertEquals(3, calls.size)
+        assertEquals(2, calls.size)
         repository.load(forceRefresh = true)
-        assertEquals(6, calls.size)
+        assertEquals(4, calls.size)
     }
 
     @Test fun `inland town supports both activities without any marine request or invented sea data`() = runBlocking {
@@ -54,7 +54,7 @@ class ForecastRepositoryTest {
         var calls = 0
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url -> calls++; response(url) }
         ForecastRepository(client, listOf(location, location.copy(id = "second"))).load(true)
-        assertEquals(3, calls)
+        assertEquals(2, calls)
     }
 
     @Test fun `marine failure produces an explicit weather only fallback without affecting Hiking`() = runBlocking {
@@ -71,11 +71,10 @@ class ForecastRepositoryTest {
     @Test fun `Beach uses coastal weather while Hiking retains town weather`() = runBlocking {
         val coastalLatitude = location.coast!!.coordinates.latitude
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
-            when {
-                url.contains("marine-api") -> marine
-                url.contains("latitude=$coastalLatitude") -> weather.replace(
+            response(url) { latitude ->
+                if (latitude == coastalLatitude) weather.replace(
                     "\"temperature_2m\":[20,20,20,20]", "\"temperature_2m\":[26,26,26,26]")
-                else -> weather
+                else weather
             }
         }
         val result = ForecastRepository(client, listOf(location)).load().single()
@@ -86,7 +85,7 @@ class ForecastRepositoryTest {
     @Test fun `failed coastal weather explicitly falls back to usable town weather`() = runBlocking {
         val coastalLatitude = location.coast!!.coordinates.latitude
         val client = OpenMeteoClient(ForecastCache(temporary.root, clock)) { url ->
-            if (!url.contains("marine-api") && url.contains("latitude=$coastalLatitude"))
+            if (!url.contains("marine-api") && latitudes(url).contains(coastalLatitude))
                 throw IOException("coastal weather offline") else response(url)
         }
         val result = ForecastRepository(client, listOf(location)).load().single()
@@ -129,9 +128,11 @@ class ForecastRepositoryTest {
         val weatherPoints = (LocationCatalog.locations.map { it.coordinates } +
             LocationCatalog.locations.mapNotNull { it.coast?.coordinates }).distinct().size
         val marinePoints = LocationCatalog.locations.mapNotNull { it.coast?.coordinates }.distinct().size
-        val expected = weatherPoints + marinePoints
+        val expected = (weatherPoints + ForecastRepository.BATCH_SIZE - 1) / ForecastRepository.BATCH_SIZE +
+            (marinePoints + ForecastRepository.BATCH_SIZE - 1) / ForecastRepository.BATCH_SIZE
         assertEquals(expected, calls.size)
-        assertEquals(marinePoints, calls.count { it.contains("marine-api") })
+        assertEquals((marinePoints + ForecastRepository.BATCH_SIZE - 1) / ForecastRepository.BATCH_SIZE,
+            calls.count { it.contains("marine-api") })
         forecasts.filter { it.location.coast == null }.forEach {
             assertSame(it.weather, it.beach)
             assertTrue(it.beach.hours.all { hour -> hour.seaTemperatureC == null && hour.waveHeightM == null })
@@ -140,7 +141,17 @@ class ForecastRepositoryTest {
         assertEquals(expected * 2, calls.size)
     }
 
-    private fun response(url: String) = if (url.contains("marine-api")) marine else weather
+    private fun response(url: String, weatherForLatitude: (Double) -> String = { weather }): String {
+        val points = latitudes(url)
+        val bodies = points.map { latitude -> if (url.contains("marine-api")) marine else weatherForLatitude(latitude) }
+        if (bodies.size == 1) return bodies.single()
+        return JSONArray().also { array ->
+            bodies.forEachIndexed { index, body -> array.put(JSONObject(body).put("location_id", index)) }
+        }.toString()
+    }
+
+    private fun latitudes(url: String): List<Double> = url.substringAfter("latitude=").substringBefore('&')
+        .split(',').map(String::toDouble)
     private val weather = """
         {"daily":{"time":["2026-09-02"],"sunrise":["2026-09-02T08:00"],"sunset":["2026-09-02T20:00"]},
          "hourly":{"time":["2026-09-02T09:00","2026-09-02T10:00","2026-09-02T11:00","2026-09-02T12:00"],

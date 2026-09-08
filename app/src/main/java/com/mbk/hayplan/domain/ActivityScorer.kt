@@ -48,11 +48,12 @@ object ActivityScorer {
 
         when (activity) {
             ActivityType.BEACH -> {
-                factor("Feels like", celsius(feelsLike), "Average", beachTemperaturePoints(feelsLike), 15)
+                factor("Feels like", celsius(feelsLike, 12.0, 16.0, 19.0, 22.0, 27.0, 30.0, 33.0, 35.0),
+                    "Average", beachTemperaturePoints(feelsLike), 15)
                 val water = hours.mapNotNull { it.seaTemperatureC?.takeIf(Double::isFinite) }
                 if (water.size == hours.size) {
                     val average = water.average()
-                    factor("Water", celsius(average), "Average", when {
+                    factor("Water", celsius(average, 16.0, 17.0, 19.0, 21.0), "Average", when {
                         average >= 21 -> 12
                         average >= 19 -> 9
                         average >= 17 -> 5
@@ -62,7 +63,7 @@ object ActivityScorer {
                 val waves = hours.mapNotNull { it.waveHeightM?.takeIf { v -> v.isFinite() && v >= 0 } }
                 if (waves.size == hours.size) {
                     val highest = waves.max()
-                    factor("Waves", String.format(Locale.US, "%.2f m", highest), "Highest", when {
+                    factor("Waves", "${decimal(highest, 0.4, 0.7, 0.8, 1.0, 1.2)} m", "Highest", when {
                         highest <= 0.4 -> 18
                         highest <= 0.7 -> 13
                         highest <= 1.0 -> 7
@@ -71,10 +72,10 @@ object ActivityScorer {
                     }, 18)
                 }
                 factor("Cloud cover", "$clouds%", "Average", beachCloudPoints(clouds), 10)
-                factor("Wind", "${decimal(wind)} km/h", "Highest", windPoints(wind, 8), 8)
-                factor("Wind gusts", "${decimal(gusts)} km/h", "Highest", gustPoints(gusts, 7), 7)
+                factor("Wind", "${decimal(wind, 10.0, 15.0, 22.0, 30.0, 35.0)} km/h", "Highest", windPoints(wind, 8), 8)
+                factor("Wind gusts", "${decimal(gusts, 20.0, 30.0, 40.0, 50.0, 60.0)} km/h", "Highest", gustPoints(gusts, 7), 7)
                 factor("Rain chance", "$rainChance%", "Highest", rainChancePoints(rainChance, 10), 10)
-                factor("Rainfall", "${decimal(rain)} mm", "Total", rainAmountPoints(rain, 10), 10)
+                factor("Rainfall", "${decimal(rain, 0.1, 0.3, 1.0, 3.0)} mm", "Total", rainAmountPoints(rain, 10), 10)
                 factor("Humidity", "$humidity%", "Average", humidityPoints(humidity, 5), 5)
                 factor("Visibility", visibility(visibility), "Lowest", visibilityPoints(visibility, 5), 5)
                 // Known limiting conditions still apply even when other hours lack sea values.
@@ -85,11 +86,12 @@ object ActivityScorer {
                 }
             }
             ActivityType.HIKING -> {
-                factor("Feels like", celsius(feelsLike), "Average", hikingTemperaturePoints(feelsLike), 25)
+                factor("Feels like", celsius(feelsLike, 0.0, 5.0, 10.0, 13.0, 16.0, 22.0, 25.0, 28.0, 31.0, 35.0),
+                    "Average", hikingTemperaturePoints(feelsLike), 25)
                 factor("Rain chance", "$rainChance%", "Highest", rainChancePoints(rainChance, 15), 15)
-                factor("Rainfall", "${decimal(rain)} mm", "Total", rainAmountPoints(rain, 15), 15)
-                factor("Wind", "${decimal(wind)} km/h", "Highest", windPoints(wind, 10), 10)
-                factor("Wind gusts", "${decimal(gusts)} km/h", "Highest", gustPoints(gusts, 10), 10)
+                factor("Rainfall", "${decimal(rain, 0.1, 0.3, 1.0, 3.0)} mm", "Total", rainAmountPoints(rain, 15), 15)
+                factor("Wind", "${decimal(wind, 10.0, 15.0, 22.0, 30.0, 35.0)} km/h", "Highest", windPoints(wind, 10), 10)
+                factor("Wind gusts", "${decimal(gusts, 20.0, 30.0, 40.0, 50.0, 60.0)} km/h", "Highest", gustPoints(gusts, 10), 10)
                 factor("Cloud cover", "$clouds%", "Average", hikingCloudPoints(clouds), 15)
                 factor("Humidity", "$humidity%", "Average", humidityPoints(humidity, 5), 5)
                 factor("Visibility", visibility(visibility), "Lowest", visibilityPoints(visibility, 5), 5)
@@ -101,7 +103,7 @@ object ActivityScorer {
                 1 -> FactorOutcome.MIXED
                 else -> FactorOutcome.NEGATIVE
             }, points = 0)
-        factors += FactorResult("UV index", decimal(uv), "Highest", when {
+        factors += FactorResult("UV index", decimal(uv, 6.0, 8.0, 11.0), "Highest", when {
             uv < 6 -> FactorOutcome.POSITIVE
             uv < 8 -> FactorOutcome.MIXED
             else -> FactorOutcome.NEGATIVE
@@ -276,7 +278,19 @@ object ActivityScorer {
 
     private fun scaled(maximum: Int, ratio: Double) = (maximum * ratio).roundToInt()
 
-    private fun decimal(value: Double) = String.format(Locale.US, "%.1f", value)
-    private fun celsius(value: Double) = "${decimal(value)}°C"
-    private fun visibility(value: Double) = if (value >= 1_000) "${decimal(value / 1_000)} km" else "${value.roundToInt()} m"
+    /** Mark values that would otherwise appear to sit exactly on the opposite side of a score boundary. */
+    private fun decimal(value: Double, vararg boundaries: Double): String {
+        val displayed = String.format(Locale.US, "%.1f", value)
+        val rounded = displayed.toDouble()
+        val onBoundary = boundaries.any { kotlin.math.abs(it - rounded) < 0.000_001 }
+        val prefix = when {
+            onBoundary && value < rounded - 0.000_001 -> "<"
+            onBoundary && value > rounded + 0.000_001 -> ">"
+            else -> ""
+        }
+        return prefix + displayed
+    }
+    private fun celsius(value: Double, vararg boundaries: Double) = "${decimal(value, *boundaries)}°C"
+    private fun visibility(value: Double) = if (value >= 1_000)
+        "${decimal(value / 1_000, 1.0, 3.0, 5.0, 10.0)} km" else "${value.roundToInt()} m"
 }

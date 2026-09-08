@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hay Plan</string>
+    <string name="back">Back</string>
+    <string name="settings">Settings</string>
+    <string name="refresh">Refresh</string>
+    <string name="comfort_disclaimer">Comfort forecast, not a safety guarantee · check local conditions</string>
+    <string name="no_daylight_remains">No daylight remains today</string>
+    <string name="choose_tomorrow">Choose tomorrow to see useful rankings.</string>
+    <string name="view_tomorrow">View tomorrow</string>
+    <string name="main_towns">Main towns</string>
+    <string name="best_other_locations">Best other locations</string>
+    <string name="rank_other_locations">Rank other locations by</string>
+    <string name="hourly">Hourly</string>
+    <string name="best_three_hours">Best 3 hours</string>
+    <string name="unavailable">Unavailable</string>
+    <string name="daylight_hours">Daylight hours</string>
+    <string name="no_daylight_hours">No daylight hours remaining or available.</string>
+    <string name="close">Close</string>
+    <string name="daylight_conditions">Daylight conditions</string>
+    <string name="long_range_timing_hidden">Timing not shown for long-range outlooks</string>
+    <string name="long_range_scores_hidden">Exact comfort scores are hidden for long-range outlooks.</string>
+    <string name="personal_score_note">Personal weather-suitability score, not forecast confidence or safety.</string>
+    <string name="show_top_ten">Show top 10</string>
+    <string name="warning_description">Warning: %1$s</string>
+    <string name="notice_description">Notice: %1$s</string>
+    <string name="comfort_score_details">Comfort score details</string>
+    <string name="outlook_details">Outlook details</string>
+    <string name="show_day_score_details">Show day comfort score details</string>
+    <string name="show_long_range_details">Show long-range outlook details</string>
+    <string name="show_best_forecast">Show best three-hour forecast</string>
+    <string name="more_conditions">More conditions</string>
+    <string name="fewer_conditions">Fewer conditions</string>
+    <string name="incomplete_hour">Forecast data is incomplete for this hour.</string>
+
+    <plurals name="show_all_other_locations">
+        <item quantity="one">Show the other %1$d location</item>
+        <item quantity="other">Show all %1$d other locations</item>
+    </plurals>
+    <plurals name="remaining_daylight_average">
+        <item quantity="one">Average of %1$d remaining daylight hour</item>
+        <item quantity="other">Average of %1$d remaining daylight hours</item>
+    </plurals>
+    <plurals name="daylight_average">
+        <item quantity="one">Average of %1$d daylight hour</item>
+        <item quantity="other">Average of %1$d daylight hours</item>
+    </plurals>
+    <plurals name="good_daylight_hours">
+        <item quantity="one">%1$d of %2$d daylight hour Good or better</item>
+        <item quantity="other">%1$d of %2$d daylight hours Good or better</item>
+    </plurals>
+    <plurals name="hours_rated">
+        <item quantity="one">%1$d/%2$d hour rated</item>
+        <item quantity="other">%1$d/%2$d hours rated</item>
+    </plurals>
+    <plurals name="score_reduced_points">
+        <item quantity="one">Score reduced by %1$d point</item>
+        <item quantity="other">Score reduced by %1$d points</item>
+    </plurals>
+</resources>

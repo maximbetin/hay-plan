@@ -5,6 +5,7 @@ import com.mbk.hayplan.domain.*
 import org.junit.Assert.*
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
 
 class LocationRankingTest {
     private val date = LocalDate.of(2026, 9, 4)
@@ -58,6 +59,7 @@ class LocationRankingTest {
         assertNull(outlooks.getValue("incomplete").day)
         assertNotNull(outlooks.getValue("incomplete").bestWindow)
         assertEquals(listOf(poor, incomplete), rankLocations(forecasts, outlooks))
+        assertEquals(listOf(incomplete, poor), rankLocations(forecasts, outlooks, RankingMode.BEST_WINDOW))
     }
 
     @Test fun `Beach ranking does not reward missing optional evidence`() {
@@ -70,5 +72,74 @@ class LocationRankingTest {
             "unknown" to beach(score = 100, evidence = 70),
         )
         assertEquals(listOf(known, unknown), rankLocations(listOf(unknown, known), outlooks))
+    }
+
+    @Test fun `Beach best-window ranking remains evidence aware`() {
+        val known = forecast("known-window", 20.0)
+        val unknown = forecast("unknown-window", 20.0)
+        fun beachWindow(score: Int, evidence: Int) = ActivityOutlook(
+            ActivityType.BEACH, null,
+            BestWindow(LocalTime.of(10, 0), LocalTime.of(13, 0), ratingFor(score), score,
+                emptyList(), evidenceScore = evidence),
+        )
+        val outlooks = mapOf(
+            "known-window" to beachWindow(score = 82, evidence = 82),
+            "unknown-window" to beachWindow(score = 100, evidence = 70),
+        )
+        assertEquals(listOf(known, unknown),
+            rankLocations(listOf(unknown, known), outlooks, RankingMode.BEST_WINDOW))
+    }
+
+    @Test fun `ranking preference codes are stable and unknown values preserve whole-day default`() {
+        assertEquals(RankingMode.WHOLE_DAY, RankingMode.fromCode(null))
+        assertEquals(RankingMode.WHOLE_DAY, RankingMode.fromCode("future-value"))
+        RankingMode.entries.forEach { assertEquals(it, RankingMode.fromCode(it.code)) }
+    }
+
+    @Test fun `long-range ranking uses rating bands instead of hidden point differences`() {
+        val low = forecast("a-low", 20.0)
+        val high = forecast("z-high", 20.0)
+        val outlooks = mapOf(
+            "a-low" to ActivityOutlook(ActivityType.HIKING,
+                DayRating(Rating.VERY_GOOD, 61, 4, 4, emptyList(), uncappedScore = 61), null),
+            "z-high" to ActivityOutlook(ActivityType.HIKING,
+                DayRating(Rating.VERY_GOOD, 89, 4, 4, emptyList(), uncappedScore = 89), null),
+        )
+        assertEquals(listOf(high, low), rankLocations(listOf(low, high), outlooks))
+        assertEquals(listOf(low, high), rankLocations(listOf(high, low), outlooks, coarseScores = true))
+    }
+
+    @Test fun `coarse Beach ranking keeps visible marine evidence ahead of normalized score`() {
+        val known = forecast("z-known", 20.0)
+        val unknown = forecast("a-unknown", 20.0)
+        val outlooks = mapOf(
+            "z-known" to ActivityOutlook(ActivityType.BEACH,
+                DayRating(Rating.VERY_GOOD, 82, 4, 4, emptyList(), MarineCoverage.FULL,
+                    evidenceScore = 82), null),
+            "a-unknown" to ActivityOutlook(ActivityType.BEACH,
+                DayRating(Rating.EXCELLENT, 100, 4, 4, emptyList(), MarineCoverage.NONE,
+                    evidenceScore = 70), null),
+        )
+        assertEquals(listOf(known, unknown),
+            rankLocations(listOf(unknown, known), outlooks, coarseScores = true))
+    }
+
+    @Test fun `main towns use fixed population order and never repeat in ranked others`() {
+        val ranked = listOf(
+            forecast("aviles", 20.0), forecast("other-1", 20.0), forecast("gijon", 20.0),
+            forecast("other-2", 20.0), forecast("oviedo", 20.0),
+        )
+        val sections = locationSections(ranked)
+        assertEquals(listOf("gijon", "oviedo", "aviles"), sections.main.map { it.location.id })
+        assertEquals(listOf("other-1", "other-2"), sections.allOthers.map { it.location.id })
+        assertTrue(sections.main.none { it in sections.allOthers })
+    }
+
+    @Test fun `other locations show ten before expanding`() {
+        val ranked = (1..12).map { forecast("other-$it", 20.0) }
+        val sections = locationSections(ranked)
+        assertEquals(10, sections.topOthers.size)
+        assertEquals(12, sections.allOthers.size)
+        assertEquals((1..10).map { "other-$it" }, sections.topOthers.map { it.location.id })
     }
 }

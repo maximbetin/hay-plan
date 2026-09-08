@@ -13,6 +13,8 @@ data class ActivityOutlook(
     val dayUnavailableReason: DayUnavailableReason? = null,
     val windowUnavailableReason: WindowUnavailableReason? = null,
     val hourly: List<HourlyAssessment> = emptyList(),
+    /** Known warning evidence remains available even when an incomplete day has no rating. */
+    val warningPeriods: List<ForecastWarningPeriod> = emptyList(),
 ) {
     val marineCoverage: MarineCoverage get() = MarineCoverage.combine(hourly.mapNotNull { it.evaluation?.marineCoverage })
 }
@@ -42,23 +44,33 @@ object DayPlanner {
             HourlyAssessment(time, byTime[time]?.let { ActivityScorer.score(activity, listOf(it)) })
         }
         val evaluations = hourly.mapNotNull { it.evaluation }
+        val dayWarningPeriods = warningPeriods(hourly)
         val day = if (expectedHours > 0 && evaluations.size == expectedHours) {
             val mean = evaluations.map { it.score }.average().roundToInt()
             DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
                 evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }),
                 uncappedScore = evaluations.map { it.pointsBeforeLimits }.average().roundToInt(),
-                evidenceScore = evaluations.map { it.evidenceScore }.average().roundToInt())
+                evidenceScore = evaluations.map { it.evidenceScore }.average().roundToInt(),
+                warningPeriods = dayWarningPeriods)
         } else null
 
         val best = hourly.windowed(WINDOW_HOURS).mapNotNull { window ->
             if (window.any { it.evaluation == null }) return@mapNotNull null
             val conditions = window.map { byTime.getValue(it.time) }
             val summary = ActivityScorer.score(activity, conditions) ?: return@mapNotNull null
-            val hourlyMean = window.map { requireNotNull(it.evaluation).score }.average().roundToInt()
+            val windowScores = window.map { requireNotNull(it.evaluation) }
+            val hourlyMean = windowScores.map { it.score }.average().roundToInt()
             val score = minOf(hourlyMean, summary.maximumScore)
+            val periods = warningPeriods(window).toMutableList()
+            summary.warnings.filter { warning -> periods.none { it.warning == warning } }.forEach { warning ->
+                periods += ForecastWarningPeriod(warning, window.first().time, window.last().time.plusHours(1))
+            }
             BestWindow(window.first().time.toLocalTime(), window.last().time.plusHours(1).toLocalTime(),
                 ratingFor(score), score, summary.factors, summary.warnings,
-                MarineCoverage.combine(window.map { requireNotNull(it.evaluation).marineCoverage }))
+                MarineCoverage.combine(window.map { requireNotNull(it.evaluation).marineCoverage }),
+                periods.sortedBy { it.start },
+                uncappedScore = windowScores.map { it.pointsBeforeLimits }.average().roundToInt(),
+                evidenceScore = windowScores.map { it.evidenceScore }.average().roundToInt())
         }.maxByOrNull { it.score }
 
         return ActivityOutlook(
@@ -71,6 +83,7 @@ object DayPlanner {
             },
             windowUnavailableReason = if (best != null) null else WindowUnavailableReason.NO_COMPLETE_WINDOW,
             hourly = hourly,
+            warningPeriods = dayWarningPeriods,
         )
     }
 
@@ -78,4 +91,25 @@ object DayPlanner {
         val rounded = time.truncatedTo(ChronoUnit.HOURS)
         return if (rounded.isBefore(time)) rounded.plusHours(1) else rounded
     }
+
+    private fun warningPeriods(hours: List<HourlyAssessment>): List<ForecastWarningPeriod> =
+        ForecastWarning.entries.flatMap { warning ->
+            val periods = mutableListOf<ForecastWarningPeriod>()
+            var start: LocalDateTime? = null
+            var end: LocalDateTime? = null
+            hours.sortedBy { it.time }.forEach { hour ->
+                val applies = hour.evaluation?.warnings?.contains(warning) == true
+                if (applies && (end == null || end == hour.time)) {
+                    if (start == null) start = hour.time
+                    end = hour.time.plusHours(1)
+                } else {
+                    if (start != null && end != null) periods += ForecastWarningPeriod(warning, start, end)
+                    start = if (applies) hour.time else null
+                    end = if (applies) hour.time.plusHours(1) else null
+                }
+            }
+            if (start != null && end != null) periods += ForecastWarningPeriod(warning, start, end)
+            periods
+        }.sortedWith(compareBy<ForecastWarningPeriod> { it.start }
+            .thenByDescending { it.warning.priority }.thenByDescending { it.warning.tieBreakPriority })
 }

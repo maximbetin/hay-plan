@@ -75,6 +75,8 @@ data class DayRating(
     val uncappedScore: Int = score,
     /** Conservative earned points against the full activity profile, used for evidence-aware ranking. */
     val evidenceScore: Int = score,
+    /** Contiguous periods retain when each warning applies instead of reducing the day to bare labels. */
+    val warningPeriods: List<ForecastWarningPeriod> = emptyList(),
 )
 
 data class HourlyAssessment(val time: LocalDateTime, val evaluation: ConditionsScore?)
@@ -95,6 +97,17 @@ data class BestWindow(
     val factors: List<FactorResult>,
     val warnings: List<ForecastWarning> = emptyList(),
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
+    val warningPeriods: List<ForecastWarningPeriod> = emptyList(),
+    /** Mean hourly score before limits, used only to resolve otherwise tied windows. */
+    val uncappedScore: Int = score,
+    /** Conservative earned points against the full profile for evidence-aware Beach ranking. */
+    val evidenceScore: Int = score,
+)
+
+data class ForecastWarningPeriod(
+    val warning: ForecastWarning,
+    val start: LocalDateTime,
+    val end: LocalDateTime,
 )
 
 fun ratingFor(score: Int): Rating = when {
@@ -134,6 +147,30 @@ enum class ForecastWarning(val message: String, val priority: Int) {
     LIGHT_RAIN_OR_SNOW("Light rain or snow.", 1);
 
     fun contains(text: String): Boolean = message.contains(text)
+
+    /** Resolve equally broad display priorities by the urgency of the condition. */
+    val tieBreakPriority: Int get() = when (this) {
+        THUNDERSTORM -> 100
+        FREEZING_RAIN -> 95
+        HEAVY_RAIN_OR_SNOW -> 90
+        VERY_STRONG_GUSTS -> 85
+        VERY_STRONG_WIND -> 80
+        ROUGH_WAVES -> 75
+        EXTREME_HEAT, FREEZING_TEMPERATURES -> 60
+        VERY_LOW_VISIBILITY, FOG -> 55
+        HEAVY_RAIN -> 50
+        STRONG_GUSTS -> 45
+        COLD_WATER -> 40
+        EXTREME_UV -> 35
+        else -> 0
+    }
 }
 
-fun primaryWarning(warnings: List<ForecastWarning>): ForecastWarning? = warnings.maxByOrNull { it.priority }
+fun primaryWarning(warnings: List<ForecastWarning>): ForecastWarning? = warnings.maxWithOrNull(
+    compareBy<ForecastWarning> { it.priority }.thenBy { it.tieBreakPriority },
+)
+
+fun primaryWarningPeriod(periods: List<ForecastWarningPeriod>): ForecastWarningPeriod? {
+    val warning = primaryWarning(periods.map { it.warning }) ?: return null
+    return periods.filter { it.warning == warning }.minByOrNull { it.start }
+}

@@ -8,6 +8,8 @@ import com.mbk.hayplan.domain.ForecastWarning
 import com.mbk.hayplan.domain.DayUnavailableReason
 import com.mbk.hayplan.domain.WindowUnavailableReason
 import com.mbk.hayplan.data.ForecastIssue
+import com.mbk.hayplan.domain.ForecastWarningPeriod
+import java.time.format.DateTimeFormatter
 
 enum class AppLanguage(val code: String, val displayName: String) {
     ENGLISH("en", "English"),
@@ -27,8 +29,9 @@ internal class UiStrings(val language: AppLanguage) {
         null -> ""
         DayUnavailableReason.NoForecast -> invoke("No forecast for this date.")
         DayUnavailableReason.NoHoursRemaining -> invoke("No hours remaining.")
-        is DayUnavailableReason.Incomplete -> invoke(
-            "Incomplete forecast · ${reason.ratedHours}/${reason.expectedHours} hours rated")
+        is DayUnavailableReason.Incomplete -> if (language == AppLanguage.SPANISH)
+            "Previsión incompleta · ${reason.ratedHours}/${reason.expectedHours} horas valoradas"
+        else "Incomplete forecast · ${reason.ratedHours}/${reason.expectedHours} hours rated"
     }
 
     fun windowUnavailable(reason: WindowUnavailableReason?): String = when (reason) {
@@ -38,51 +41,13 @@ internal class UiStrings(val language: AppLanguage) {
     operator fun invoke(english: String): String {
         if (language == AppLanguage.ENGLISH) return english
         val translated = fixed[english] ?: when {
-            english.startsWith("Show all ") -> Regex("Show all (\\d+) locations").replace(english) {
-                "Ver las ${it.groupValues[1]} ubicaciones"
-            }
-            english.startsWith("Updated ") -> english.replaceFirst("Updated ", "Actualizado: ")
-            english.startsWith("Weather reference: ") -> english.replaceFirst("Weather reference:", "Referencia del tiempo:")
-            english.startsWith("Sea reference: ") -> english.replaceFirst("Sea reference:", "Referencia del mar:")
-            english.startsWith("Weather: ") -> english.replaceFirst("Weather:", "Tiempo:")
-            english.startsWith("Sea: ") -> english.replaceFirst("Sea:", "Mar:").replace("Weather + sea", "Tiempo y mar")
-                .replace("Weather + waves", "Tiempo y olas").replace("Weather + water temperature", "Tiempo y temperatura del agua")
-                .replace("Sea data varies by hour", "Los datos marítimos varían por hora")
-            english.startsWith("Average of 1 remaining daylight hour") -> "Media de 1 hora de luz restante"
-            english.startsWith("Average of ") -> Regex("Average of (\\d+) remaining daylight hours").replace(english) {
-                "Media de ${it.groupValues[1]} horas de luz restantes"
-            }.let { value -> Regex("Average of (\\d+) daylight hours?").replace(value) {
-                val count = it.groupValues[1]
-                if (count == "1") "Media de 1 hora de luz" else "Media de $count horas de luz"
-            } }
-            english.matches(Regex("\\d+/\\d+ daylight hours Good or better")) -> {
-                val values = english.substringBefore(' ').split('/')
-                "${values[0]} de ${values[1]} horas con buen tiempo"
-            }
-            english.matches(Regex("\\d+/\\d+ hours rated")) -> english.replace(" hours rated", " horas valoradas")
-            english.startsWith("Score reduced by ") -> english.replace("Score reduced by", "Se restan")
-                .replace(" points", " puntos")
             english.contains(" available points × 100 ") -> english.replace("available points", "puntos disponibles")
                 .replace("(rounded)", "(redondeado)")
             english.startsWith("Weighted total: ") -> english.replace("Weighted total:", "Total ponderado:")
             english.endsWith(" points") -> english.replace(" points", " puntos")
-            english.startsWith("Air ") -> english.replaceFirst("Air", "Aire")
-                .replace(" · Rain chance ", " · Prob. lluvia ").replace(" · Rain ", " · Lluvia ")
-                .replace(" · Wind ", " · Viento ").replace("\nWind ", "\nViento ")
-                .replace(" · Water ", " · Agua ").replace(" · Waves ", " · Olas ")
-                .replace("Unknown", "Desconocido").replace(" max", " máx.")
-            english.startsWith("Feels ") -> english.replaceFirst("Feels", "Sensación")
-                .replace(" · Rain chance ", " · Prob. lluvia ").replace(" · Rain ", " · Lluvia ")
-                .replace(" · Gusts ", " · Rachas ").replace("\nGusts ", "\nRachas ")
-                .replace(" · Water ", " · Agua ").replace(" · Waves ", " · Olas ")
-                .replace("\nRain ", "\nLluvia ").replace("\nClouds ", "\nNubes ")
-                .replace(" · Clouds ", " · Nubes ").replace(" · UV ", " · UV ")
-                .replace("Unknown", "Desconocido").replace(" max", " máx.").replace(" avg", " media")
             english.endsWith(" max") -> english.replace(" max", " máx.")
             english.endsWith(" avg") -> english.replace(" avg", " media")
             english.endsWith(" min") -> english.replace(" min", " mín.")
-            english.startsWith("Incomplete forecast · ") -> english.replace("Incomplete forecast", "Previsión incompleta")
-                .replace(" hours rated", " horas valoradas")
             else -> english
         }
         return translated.replace(Regex("(?<=\\d)\\.(?=\\d)"), ",")
@@ -91,6 +56,28 @@ internal class UiStrings(val language: AppLanguage) {
     fun activity(activity: ActivityType) = when (activity) {
         ActivityType.BEACH -> if (language == AppLanguage.SPANISH) "Playa" else activity.label
         ActivityType.HIKING -> if (language == AppLanguage.SPANISH) "Senderismo" else activity.label
+    }
+
+    fun rankingMode(mode: RankingMode): String = when (mode) {
+        RankingMode.WHOLE_DAY -> if (language == AppLanguage.SPANISH) "Todo el día" else "Whole day"
+        RankingMode.BEST_WINDOW -> if (language == AppLanguage.SPANISH) "Mejor franja de 3 horas" else "Best 3 hours"
+    }
+
+    fun updated(value: String) = if (language == AppLanguage.SPANISH) "Actualizado: $value" else "Updated $value"
+    fun weatherReference(name: String) = if (language == AppLanguage.SPANISH)
+        "Referencia del tiempo: $name" else "Weather reference: $name"
+    fun seaReference(name: String) = if (language == AppLanguage.SPANISH)
+        "Referencia del mar: $name" else "Sea reference: $name"
+    fun weatherSource(name: String) = if (language == AppLanguage.SPANISH) "Tiempo: $name" else "Weather: $name"
+    fun seaSource(name: String, coverage: MarineCoverage) = if (language == AppLanguage.SPANISH)
+        "Mar: $name · ${coverage(coverage)}" else "Sea: $name · ${coverage(coverage)}"
+
+    fun averageRating(rating: Rating): String = if (language == AppLanguage.SPANISH)
+        "Media: ${rating(rating)}" else "Average: ${rating(rating)}"
+
+    fun warningPeriod(period: ForecastWarningPeriod): String {
+        val warning = invoke(period.warning).removeSuffix(".")
+        return "$warning · ${period.start.format(TIME)}–${period.end.format(TIME)}"
     }
 
     fun rating(rating: Rating) = if (language == AppLanguage.ENGLISH) rating.label else when (rating) {
@@ -110,30 +97,15 @@ internal class UiStrings(val language: AppLanguage) {
     }
 
     private val fixed = mapOf(
-        "Back" to "Atrás", "Refresh" to "Actualizar", "Updating…" to "Actualizando…",
-        "Settings" to "Ajustes", "Language" to "Idioma", "Close" to "Cerrar", "English" to "Inglés",
-        "Long-range outlook" to "Previsión a largo plazo", "Loading forecasts…" to "Cargando previsiones…",
+        "Updating…" to "Actualizando…", "Language" to "Idioma", "English" to "Inglés",
+        "Loading forecasts…" to "Cargando previsiones…",
         "Long-range outlook · lower confidence" to "Previsión a largo plazo · menor fiabilidad",
         "Later outlook · forecast may change" to "Previsión posterior · puede cambiar",
-        "Comfort forecast, not a safety guarantee · check local conditions" to
-            "Previsión de comodidad, no garantía de seguridad · consulta las condiciones locales",
         "No forecasts available. Try Refresh." to "No hay previsiones. Pulsa Actualizar.",
-        "No daylight remains today" to "Ya no quedan horas de luz",
-        "Choose tomorrow to see useful rankings." to "Elige mañana para ver las mejores opciones.",
-        "View tomorrow" to "Ver mañana", "All locations" to "Todos los lugares",
-        "Best locations" to "Mejores lugares", "Best coastal locations" to "Mejores lugares de costa",
-        "Show top 5" to "Ver los 5 mejores", "Coastal locations" to "Lugares de costa",
-        "Inland alternatives" to "Opciones de interior", "Hourly" to "Por horas",
-        "Best 3 hours" to "Mejor franja de 3 horas", "More conditions" to "Ver más",
-        "Fewer conditions" to "Ver menos",
-        "Unavailable" to "No disponible", "Unknown" to "Desconocido",
+        "Unknown" to "Desconocido",
         "Inland estimate · no beach" to "Opción de interior · sin playa",
         "Daylight overall" to "Día completo", "Remaining daylight" to "Horas de luz restantes",
-        "Score details" to "Detalles de puntuación", "Daylight hours" to "Horas de luz",
-        "Show day score details" to "Mostrar detalles de la puntuación del día",
-        "Show best three-hour forecast" to "Mostrar la mejor franja de tres horas",
-        "No daylight hours remaining or available." to "No quedan horas de luz disponibles.",
-        "Daylight conditions" to "Tiempo durante el día", "Air temperature" to "Temperatura del aire",
+        "Air temperature" to "Temperatura del aire",
         "Wind" to "Viento", "Wind gusts" to "Rachas de viento", "Rain chance" to "Probabilidad de lluvia",
         "Rainfall" to "Lluvia", "Feels like" to "Sensación térmica", "Humidity" to "Humedad",
         "Visibility" to "Visibilidad", "UV index" to "Índice UV", "Conditions" to "Condiciones",
@@ -144,15 +116,12 @@ internal class UiStrings(val language: AppLanguage) {
         "Partly cloudy" to "Sol y nubes", "Overcast" to "Nublado", "Fog" to "Niebla",
         "Drizzle" to "Llovizna", "Rain showers" to "Chubascos", "Snow" to "Nieve",
         "Snow showers" to "Chubascos de nieve", "Thunderstorm" to "Tormenta", "Mixed conditions" to "Tiempo variable",
-        "How is this score calculated? ▾" to "¿Cómo se calcula esta puntuación? ▾",
-        "Hide score calculation ▴" to "Ocultar cálculo de puntuación ▴",
-        "The day score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation." to
-            "La puntuación del día es la media de las horas de luz que se muestran. Cada hora se puntúa sobre 100 y se aplican los límites necesarios. Toca una hora para ver el cálculo.",
+        "How is this comfort score calculated? ▾" to "¿Cómo se calcula esta puntuación de comodidad? ▾",
+        "Hide comfort score calculation ▴" to "Ocultar cálculo de la puntuación de comodidad ▴",
+        "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation." to
+            "La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora se puntúa sobre 100 y se aplican los límites necesarios. Toca una hora para ver el cálculo.",
         "Average of these three hourly scores, with any limits for the whole period applied." to
             "Media de esas tres horas, con los límites que correspondan.",
-        "Forecast data is incomplete for this hour." to "Faltan datos para esta hora.",
-        "Personal weather-suitability score, not forecast confidence or safety." to
-            "Puntuación orientativa según el tiempo; no mide la fiabilidad de la previsión ni garantiza la seguridad.",
         "Town and nearby-area weather, not exact trail or elevation conditions." to
             "Tiempo previsto para la localidad y sus alrededores, no para una ruta o altitud concretas.",
         "Only available sea data is used. Local shelter, beach flags and currents are not assessed." to
@@ -195,6 +164,10 @@ internal class UiStrings(val language: AppLanguage) {
         "Moderate rain or snow." to "Lluvia o nieve moderada.",
         "Light rain or snow." to "Lluvia o nieve débil.",
     )
+
+    companion object {
+        private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    }
 }
 
 internal val LocalUiStrings = staticCompositionLocalOf { UiStrings(AppLanguage.ENGLISH) }

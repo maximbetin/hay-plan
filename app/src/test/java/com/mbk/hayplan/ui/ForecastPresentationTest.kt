@@ -25,6 +25,16 @@ class ForecastPresentationTest {
         assertEquals(12, result.values.size)
     }
 
+    @Test fun `summary rounds percentage averages instead of truncating them`() {
+        val result = summary(listOf(
+            hour(8).copy(cloudCoverPercent = 45, relativeHumidityPercent = 60),
+            hour(9).copy(cloudCoverPercent = 46, relativeHumidityPercent = 61),
+            hour(10).copy(cloudCoverPercent = 46, relativeHumidityPercent = 61),
+        ))!!
+        assertEquals("46% avg", result.values.first { it.label == "Cloud cover" }.value)
+        assertEquals("61% avg", result.values.first { it.label == "Humidity" }.value)
+    }
+
     @Test fun `missing slots never become a summary of only known hours`() {
         val result = summary(listOf(hour(8), hour(10)))!!
         assertTrue(result.values.all { it.value == "Unknown" })
@@ -71,12 +81,6 @@ class ForecastPresentationTest {
         assertNull(summary(emptyList()))
     }
 
-    @Test fun `average label explains daylight and remaining hours`() {
-        assertEquals("Average of 5 remaining daylight hours", daylightAverageLabel(5, true))
-        assertEquals("Average of 12 daylight hours", daylightAverageLabel(12, false))
-        assertEquals("Average of 1 remaining daylight hour", daylightAverageLabel(1, true))
-    }
-
     @Test fun `card conditions are compact and inland Beach is explicit`() {
         val result = summary((8..10).map(::hour))!!
         assertEquals("Feels 23.0°C · Rain 10% · Gusts 18.0 km/h\nClouds 20% · UV 4.0",
@@ -96,16 +100,39 @@ class ForecastPresentationTest {
         assertEquals("Tiempo y mar", strings.coverage(MarineCoverage.FULL))
         assertEquals("Viento muy fuerte.", strings("Very strong wind."))
         assertEquals("28,2 km/h máx.", strings("28.2 km/h max"))
-        assertEquals("Sensación 20°C · Prob. lluvia 10% máx.\nRachas 18 km/h máx. · Nubes 90% media",
-            strings("Feels 20°C · Rain chance 10% max\nGusts 18 km/h max · Clouds 90% avg"))
-        assertEquals("Media de 1 hora de luz restante", strings(daylightAverageLabel(1, true)))
-        assertEquals("Mejor franja de 3 horas", strings("Best 3 hours"))
-        assertEquals("Previsión a largo plazo", strings("Long-range outlook"))
+        val summary = summary((8..10).map(::hour))!!
+        assertEquals("Sensación 23,0°C · Prob. lluvia 10% máx.\nRachas 18,0 km/h máx. · Nubes 20% media",
+            dayWeatherHeadline(summary, AppLanguage.SPANISH))
+        assertEquals("Sensación 23,0°C · Agua 20,0°C · Olas 0,5 m\n" +
+            "Lluvia 10% · Rachas 18,0 km/h · Nubes 20%",
+            cardConditions(summary, ActivityType.BEACH, coastal = true, language = AppLanguage.SPANISH))
+        assertEquals("Media: Excelente", strings.averageRating(Rating.EXCELLENT))
+        assertEquals("Todo el día", strings.rankingMode(RankingMode.WHOLE_DAY))
+        assertEquals("Mejor franja de 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))
+        assertEquals("Tormenta · 18:00–20:00", strings.warningPeriod(ForecastWarningPeriod(
+            ForecastWarning.THUNDERSTORM, date.atTime(18, 0), date.atTime(20, 0))))
+    }
+
+    @Test fun `typed Spanish references and source timestamps preserve supplied names`() {
+        val strings = UiStrings(AppLanguage.SPANISH)
+        assertEquals("Tiempo: Pola de Somiedo", strings.weatherSource("Pola de Somiedo"))
+        assertEquals("Referencia del mar: San Lorenzo", strings.seaReference("San Lorenzo"))
+        assertEquals("Actualizado: 03/09 10:00", strings.updated("03/09 10:00"))
+    }
+
+    @Test fun `typed unavailable reasons format counts without sentence matching`() {
+        val strings = UiStrings(AppLanguage.SPANISH)
+        assertEquals("Previsión incompleta · 2/4 horas valoradas",
+            strings.dayUnavailable(DayUnavailableReason.Incomplete(2, 4)))
+        assertEquals("No hay previsión para esta fecha.",
+            strings.dayUnavailable(DayUnavailableReason.NoForecast))
     }
 
     @Test fun `forecast horizon labels separate later and long range dates`() {
         assertNull(forecastConfidenceLabel(date.plusDays(2), date))
         assertEquals("Later outlook · forecast may change", forecastConfidenceLabel(date.plusDays(3), date))
+        assertFalse(isLongRangeOutlook(date.plusDays(6), date))
+        assertTrue(isLongRangeOutlook(date.plusDays(7), date))
         assertEquals("Long-range outlook · lower confidence", forecastConfidenceLabel(date.plusDays(7), date))
     }
 
@@ -117,4 +144,5 @@ class ForecastPresentationTest {
         assertEquals(3, FactorOutcome.entries.map(::factorColor).distinct().size)
         assertEquals(5, listOf(0, 20, 40, 60, 90).map { ratingColor(it, darkTheme = true) }.distinct().size)
     }
+
 }

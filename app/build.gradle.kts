@@ -7,8 +7,17 @@ android {
     namespace = "com.mbk.hayplan"
     compileSdk = 37
 
+    val automaticBuildProperty = providers.gradleProperty("hayPlanBuildNumber").orNull
+    val automaticBuild = automaticBuildProperty?.toIntOrNull()
+    val releaseKeystore = providers.environmentVariable("HAY_PLAN_DEBUG_KEYSTORE").orNull
+    require(automaticBuildProperty == null || automaticBuild != null) {
+        "hayPlanBuildNumber must be an integer."
+    }
+    require(automaticBuild == null || !releaseKeystore.isNullOrBlank()) {
+        "HAY_PLAN_DEBUG_KEYSTORE is required for versioned release builds."
+    }
+
     defaultConfig {
-        val automaticBuild = providers.gradleProperty("hayPlanBuildNumber").orNull?.toIntOrNull()
         applicationId = "com.mbk.hayplan"
         minSdk = 26
         targetSdk = 37
@@ -17,9 +26,9 @@ android {
         versionName = automaticBuild?.let { "0.7.0.$it" } ?: "0.7.0"
     }
 
-    // CI supplies the restored test key explicitly; local builds keep their normal debug key.
+    // CI supplies the private update-compatible key; local unversioned builds use the normal debug key.
     signingConfigs.getByName("debug") {
-        System.getenv("HAY_PLAN_DEBUG_KEYSTORE")?.let { storeFile = file(it) }
+        releaseKeystore?.takeUnless(String::isBlank)?.let { storeFile = file(it) }
     }
 
     buildTypes {
@@ -37,6 +46,13 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // Both bundled languages must remain available to the app's persisted language override.
+    bundle {
+        language {
+            enableSplit = false
+        }
     }
 }
 

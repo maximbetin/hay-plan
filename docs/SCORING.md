@@ -2,6 +2,8 @@
 
 These are initial personal-preference heuristics, not scientifically validated
 safety thresholds. Adjust them in `ActivityScorer`; protect changes with tests.
+The number shown out of 100 is a comfort score, not forecast confidence or a
+probability that an activity will be safe or enjoyable.
 
 ## Whole day versus best window
 
@@ -35,28 +37,37 @@ window summaries; points are assigned per hour, not to those displayed averages.
 A 12-hour day with three excellent hours and nine poor hours is a poor/fair day
 with a potentially excellent window, not an excellent day. Day warnings indicate
 limiting conditions during some hours; they are not claims that every hour is unsafe.
-The highest-priority warning remains visible even when the arithmetic day average is
-Very Good or Excellent.
+The highest-priority warning and its affected time remain visible even when the
+arithmetic day average is Very Good or Excellent. Equally broad priorities use an
+explicit urgency order rather than depending on discovery order. Known warning periods
+also remain visible when missing required data prevents a full-day rating.
 
 The rating scale is Poor 0–19, Fair 20–39, Good 40–59, Very Good 60–89,
 Excellent 90–100. Detail views also count hours rated Good or better (score >= 40).
 
 ## Inspecting the score
 
-Hiking locations are ordered by day score. Beach locations use conservative earned
-points against the full profile for ordering, so unavailable optional sea inputs cannot
-make an otherwise identical forecast rank above known usable sea conditions. The visible
-score still normalizes only the available inputs and its coverage label explains what was
-known. Visible score, mean uncapped conditions and the stable identifier resolve later ties.
-Unavailable days go last, even if they have a valid
-three-hour window. Beach initially shows the five highest coastal locations; Show all
-keeps the coastal ranking first and places ranked inland estimates in a separate section.
-Hiking ranks all locations together. Changing date or activity resets an overview to five;
-activity changes within details keep the selected location open.
+The overview can order other locations by whole-day rating or by the best complete
+three-hour opportunity. Whole-day mode does not substitute a good window for an incomplete
+day; best-window mode can rank that complete window even when missing hours prevent a day
+rating. Periods without the selected rating go last. Beach ordering uses conservative earned
+points against the full profile for the selected period, so unavailable optional sea inputs
+cannot make an otherwise identical forecast rank above known usable sea conditions. The
+visible score still normalizes only the available inputs and its coverage label explains what
+was known. Visible score, mean uncapped conditions and the stable identifier resolve later ties.
+The overview always
+shows Gijón, Oviedo and Avilés first, in that population-based order, for either activity.
+The next section contains the ten highest-ranked remaining locations without duplicating
+those main towns; Show all reveals any remainder. Beach cards continue to label coastal
+references and inland estimates explicitly. Changing date or activity collapses the
+overview to ten other locations; activity changes within details keep the selected location open.
 
 The day headline and every hourly row display the actual internal score out of 100.
 The hourly rows are the exact inputs to the day average; missing expected hours
 remain visible as Unavailable. The best three-hour span is highlighted in the list.
+When rounding a displayed factor would make it appear to sit on the wrong side of a
+scoring boundary, the value uses `<` or `>` to preserve that distinction without
+implying extra forecast precision.
 Cards and details use the same calculated outlook and best window. Each hourly detail shows its
 actual raw points, available maximum, normalized score and any reductions.
 Day summaries use the same expected daylight slots; a missing
@@ -154,10 +165,14 @@ temperature, cloud cover, humidity, visibility and UV remain on their stated tim
 Missing/non-finite values stay unknown. Never extrapolate marine variables into later dates.
 
 Dates three through six are labelled as later outlooks that may change; day seven onward
-is labelled as a lower-confidence long-range outlook. A forecast is fresh for one hour.
+is labelled as a lower-confidence long-range outlook. Long-range views show rating bands
+and forecast conditions but hide exact comfort scores, progress bars and best-window timing.
+Their location ordering uses rating bands and visible marine-coverage evidence rather than
+unseen differences within a band. A forecast is fresh for one hour.
 After a failed refresh, saved data may be used with a warning for at most 12 hours.
 
-Ratings estimate comfort, not safety. Beach flags, local shelter, tides, rip
-currents, UV, lightning warnings, elevation differences, trail surfaces and route
-hazards are outside this version. Long-range windows are tentative and labelled
-as an outlook in the UI.
+Ratings estimate comfort, not safety. UV contributes a rating limit and warning,
+but the app does not replace official UV or lightning warnings. Beach flags, local
+shelter, tides, rip currents, elevation differences, trail surfaces and route hazards
+are outside this version. Long-range windows are tentative and labelled as an outlook
+in the UI.

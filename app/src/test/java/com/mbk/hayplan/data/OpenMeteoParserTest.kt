@@ -86,4 +86,26 @@ class OpenMeteoParserTest {
         OpenMeteoParser.validateMarine(
             """{"hourly":{"time":["2026-09-02T09:00"],"wave_height":[null]}}""")
     }
+
+    @Test
+    fun `batch response uses location ids and accepts omitted zero id`() {
+        val batch = """[
+            {"hourly":{"time":["2026-09-02T09:00"]}},
+            {"location_id":1,"hourly":{"time":["2026-09-02T10:00"]}}
+        ]""".trimIndent()
+        val split = OpenMeteoParser.splitBatch(batch, 2)
+        assertEquals(setOf(0, 1), split.keys)
+        assertTrue(split.getValue(0).contains("2026-09-02T09:00"))
+        assertTrue(split.getValue(1).contains("2026-09-02T10:00"))
+    }
+
+    @Test
+    fun `batch response rejects missing duplicate or unexpected members`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            OpenMeteoParser.splitBatch("""[{"location_id":0},{"location_id":0}]""", 2)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            OpenMeteoParser.splitBatch("""[{"location_id":0}]""", 2)
+        }
+    }
 }

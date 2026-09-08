@@ -23,7 +23,11 @@
   uses the town/reference weather point. Town weather is an explicit Beach fallback only.
 - Cached data is fresh for one hour and may be used after a failed refresh for no more
   than 12 hours. Failed sources retry after 15 minutes.
+- Open-Meteo requests batch at most five coordinates while preserving individual cache
+  entries, validation, stale fallback, and single-coordinate recovery.
 - Dates 3-6 are labelled as later outlooks; day 7 onward is labelled long-range.
+- Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
+  followed by the ten highest-ranked remaining locations with no duplicates.
 - Preserve the explicit limitations: the score estimates comfort, not safety, and does
   not assess beach flags, currents, tides, water quality, exact trails, or elevation.
 
@@ -46,14 +50,14 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 89 JVM tests, zero failures; Android lint reports no issues.
+- Current baseline: 106 JVM tests, zero failures; Android lint reports no issues.
 - `compileDebugAndroidTestKotlin` compiles the Compose regression test but does not run it.
   Run connected/instrumented tests only when an emulator or phone is available.
 - Use `git diff --check` and keep the working tree free of generated artifacts.
-- A push to `main` triggers `.github/workflows/build-apk.yml` and publishes a latest APK.
+- A push to `main` triggers `.github/workflows/android.yml` and publishes a latest APK.
   Never push when the user asks not to trigger a release.
 
-## Latest reviewed state
+## Previous released state
 
 - Released commit: `8c16af7` (`Hay Plan 0.7.0.21`, tag `auto-21`).
 - The release workflow completed successfully on 2026-09-07.

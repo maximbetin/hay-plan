@@ -217,6 +217,48 @@ class DayPlannerTest {
         assertEquals(Rating.EXCELLENT, outlook.day!!.rating)
         assertEquals(ForecastWarning.THUNDERSTORM, primaryWarning(outlook.day.warnings))
         assertEquals(3, primaryWarning(outlook.day.warnings)!!.priority)
+        assertEquals(date.atTime(19, 0), outlook.day.warningPeriods.single().start)
+        assertEquals(date.atTime(20, 0), outlook.day.warningPeriods.single().end)
+    }
+
+    @Test fun `warning periods merge adjacent hours and preserve later occurrences`() {
+        val hours = (8..11).map {
+            if (it == 8 || it == 9 || it == 11) hour(it).copy(weatherCode = 95) else hour(it)
+        }
+        val periods = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
+            .day!!.warningPeriods.filter { it.warning == ForecastWarning.THUNDERSTORM }
+        assertEquals(2, periods.size)
+        assertEquals(date.atTime(8, 0), periods[0].start)
+        assertEquals(date.atTime(10, 0), periods[0].end)
+        assertEquals(date.atTime(11, 0), periods[1].start)
+        assertEquals(date.atTime(12, 0), periods[1].end)
+    }
+
+    @Test fun `known warning periods survive an incomplete unrated day`() {
+        val outlook = DayPlanner.forDate(
+            listOf(hour(10).copy(weatherCode = 95), hour(12), hour(13)),
+            date, morning, ActivityType.HIKING,
+        )
+        assertNull(outlook.day)
+        assertEquals(ForecastWarning.THUNDERSTORM, outlook.warningPeriods.single().warning)
+        assertEquals(date.atTime(10, 0), outlook.warningPeriods.single().start)
+        assertEquals(date.atTime(11, 0), outlook.warningPeriods.single().end)
+    }
+
+    @Test fun `warning ties use explicit urgency rather than discovery order`() {
+        assertEquals(ForecastWarning.THUNDERSTORM,
+            primaryWarning(listOf(ForecastWarning.ROUGH_WAVES, ForecastWarning.THUNDERSTORM)))
+    }
+
+    @Test fun `displayed aggregate retains enough precision to explain its point band`() {
+        val score = ActivityScorer.score(ActivityType.BEACH, listOf(
+            hour(10).copy(apparentTemperatureC = 21.9),
+            hour(11).copy(apparentTemperatureC = 22.0),
+            hour(12).copy(apparentTemperatureC = 22.0),
+        ))!!
+        val feelsLike = score.factors.first { it.label == "Feels like" }
+        assertEquals("<22.0°C", feelsLike.value)
+        assertEquals(12, feelsLike.points)
     }
 
     private fun hour(hour: Int) = HourlyConditions(date.atTime(hour, 0), true,

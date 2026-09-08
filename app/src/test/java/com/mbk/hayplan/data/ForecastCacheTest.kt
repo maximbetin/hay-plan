@@ -109,6 +109,46 @@ class ForecastCacheTest {
         assertEquals(1, calls)
     }
 
+    @Test fun `batch refresh persists independent entries for later single-key reads`() = runBlocking {
+        val cache = ForecastCache(temporary.root, clock)
+        var calls = 0
+        val result = cache.getMany(listOf("one", "two"), validate = { require(it.startsWith("valid")) }) { keys ->
+            calls++
+            keys.associateWith { "valid-$it" }
+        }
+        assertEquals("valid-one", result.getValue("one")!!.body)
+        assertEquals("valid-two", result.getValue("two")!!.body)
+        assertEquals(1, calls)
+
+        val recreated = ForecastCache(temporary.root, clock)
+        assertEquals("valid-one", recreated.get("one", validate = { require(it.startsWith("valid")) }) {
+            error("No network expected")
+        }.body)
+    }
+
+    @Test fun `partial batch response refreshes valid members and marks per-key stale fallback`() = runBlocking {
+        val cache = ForecastCache(temporary.root, clock)
+        cache.get("one") { "old-one" }
+        cache.get("two") { "old-two" }
+        clock.advance(Duration.ofHours(2))
+        val result = cache.getMany(listOf("one", "two"), forceRefresh = true) {
+            mapOf("one" to "new-one")
+        }
+        assertEquals("new-one", result.getValue("one")!!.body)
+        assertFalse(result.getValue("one")!!.refreshFailed)
+        assertEquals("old-two", result.getValue("two")!!.body)
+        assertTrue(result.getValue("two")!!.refreshFailed)
+    }
+
+    @Test fun `batch cancellation is never converted into stale results`() = runBlocking {
+        val cache = ForecastCache(temporary.root, clock)
+        cache.get("one") { "saved" }
+        try {
+            cache.getMany(listOf("one"), forceRefresh = true) { throw CancellationException("cancel") }
+            fail("Expected cancellation")
+        } catch (_: CancellationException) { /* expected */ }
+    }
+
     @Test fun `clock moving backwards cannot make entry fresh indefinitely`() = runBlocking {
         val cache = ForecastCache(temporary.root, clock)
         cache.get("weather") { "old" }

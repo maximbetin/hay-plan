@@ -2,10 +2,30 @@ package com.mbk.hayplan.data
 
 import com.mbk.hayplan.domain.HourlyConditions
 import org.json.JSONObject
+import org.json.JSONArray
 import java.time.LocalDateTime
 
 /** Keeps API array layout, null handling, and timestamp alignment out of scoring code. */
 object OpenMeteoParser {
+    /** Split a multi-coordinate response by Open-Meteo's location_id, including omitted id 0. */
+    fun splitBatch(json: String, expectedSize: Int): Map<Int, String> {
+        require(expectedSize > 0)
+        if (!json.trimStart().startsWith("[")) {
+            require(expectedSize == 1)
+            return mapOf(0 to JSONObject(json).toString())
+        }
+        val array = JSONArray(json)
+        require(array.length() == expectedSize)
+        val result = (0 until array.length()).associate { index ->
+            val item = array.getJSONObject(index)
+            val locationId = if (item.has("location_id")) item.getInt("location_id") else index
+            require(locationId in 0 until expectedSize)
+            locationId to item.toString()
+        }
+        require(result.size == expectedSize)
+        return result
+    }
+
     fun validateMarine(json: String) {
         val hourly = JSONObject(json).getJSONObject("hourly")
         require(hourly.times().isNotEmpty())
