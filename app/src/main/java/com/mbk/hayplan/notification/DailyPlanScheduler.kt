@@ -1,7 +1,10 @@
 package com.mbk.hayplan.notification
 
 import android.content.Context
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.mbk.hayplan.data.LocationCatalog
@@ -33,6 +36,10 @@ object DailyPlanScheduler {
         val delayMillis = Duration.between(now, next).toMillis().coerceAtLeast(0)
         val request = OneTimeWorkRequestBuilder<DailyPlanWorker>()
             .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .setConstraints(Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build())
+            .setBackoffCriteria(BackoffPolicy.LINEAR, RETRY_DELAY.toMinutes(), TimeUnit.MINUTES)
             .addTag(WORK_TAG)
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -44,4 +51,6 @@ object DailyPlanScheduler {
         val today = localNow.toLocalDate().atTime(time).atZone(LocationCatalog.zone)
         return if (today.isAfter(localNow)) today else today.plusDays(1)
     }
+
+    val RETRY_DELAY: Duration = Duration.ofMinutes(15)
 }

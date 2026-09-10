@@ -2,6 +2,7 @@ package com.mbk.hayplan.domain
 
 import com.mbk.hayplan.data.LocationCatalog
 import com.mbk.hayplan.notification.DailyPlanScheduler
+import com.mbk.hayplan.notification.DailyNotificationRetryPolicy
 import com.mbk.hayplan.ui.AppLanguage
 import com.mbk.hayplan.ui.DailyNotificationFormatter
 import org.junit.Assert.assertEquals
@@ -70,6 +71,16 @@ class DailyRecommendationTest {
         val after = ZonedDateTime.of(2026, 3, 28, 10, 0, 0, 0, LocationCatalog.zone)
         assertEquals(ZonedDateTime.of(2026, 3, 29, 9, 0, 0, 0, LocationCatalog.zone),
             DailyPlanScheduler.nextRun(after, LocalTime.of(9, 0)))
+    }
+
+    @Test fun `notification retries missing essential forecasts before reporting unavailable`() {
+        assertTrue(DailyNotificationRetryPolicy.shouldRetry(0, essentialForecastAvailable = false))
+        assertTrue(DailyNotificationRetryPolicy.shouldRetry(1, essentialForecastAvailable = false))
+        assertTrue(DailyNotificationRetryPolicy.shouldRetry(2, essentialForecastAvailable = false))
+        assertEquals(false,
+            DailyNotificationRetryPolicy.shouldRetry(3, essentialForecastAvailable = false))
+        assertEquals(false,
+            DailyNotificationRetryPolicy.shouldRetry(0, essentialForecastAvailable = true))
     }
 
     private fun outlook(activity: ActivityType, window: BestWindow?) =

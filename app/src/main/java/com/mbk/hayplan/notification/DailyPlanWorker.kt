@@ -18,11 +18,14 @@ import com.mbk.hayplan.data.ForecastRepository
 import com.mbk.hayplan.data.LocationCatalog
 import com.mbk.hayplan.data.OpenMeteoClient
 import com.mbk.hayplan.domain.ActivityType
+import com.mbk.hayplan.domain.DailyRecommendations
 import com.mbk.hayplan.domain.DailyRecommendationPlanner
 import com.mbk.hayplan.domain.DayPlanner
+import com.mbk.hayplan.domain.PlaceRecommendation
 import com.mbk.hayplan.domain.RecommendedActivity
 import com.mbk.hayplan.ui.AppLanguage
 import com.mbk.hayplan.ui.DailyNotificationFormatter
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.time.Instant
 import java.time.LocalDateTime
@@ -35,13 +38,25 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
 
         val nowInstant = Instant.now()
         val now = LocalDateTime.ofInstant(nowInstant, LocationCatalog.zone)
+        val language = selectedLanguage()
         val notificationLocations = LocationCatalog.locations.filter { it.id == "gijon" || it.id == "oviedo" }
         val repository = ForecastRepository(OpenMeteoClient(
             ForecastCache(File(applicationContext.noBackupFilesDir, "forecasts"))), notificationLocations)
-        val forecasts = repository.load()
+        val forecasts = try {
+            repository.load()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return retryOrNotifyUnavailable(language)
+        }
         val gijon = forecasts.firstOrNull { it.location.id == "gijon" }
         val oviedo = forecasts.firstOrNull { it.location.id == "oviedo" }
-        if (gijon == null || oviedo == null) return Result.success()
+        if (gijon == null || oviedo == null) return retryOrNotifyUnavailable(language)
+
+        val essentialWeatherAvailable = gijon.weather.hours.isNotEmpty() && oviedo.weather.hours.isNotEmpty()
+        if (DailyNotificationRetryPolicy.shouldRetry(runAttemptCount, essentialWeatherAvailable)) {
+            return Result.retry()
+        }
 
         val date = now.toLocalDate()
         val gijonBeach = DayPlanner.forDate(gijon.beach.hours, date, now, ActivityType.BEACH)
@@ -52,12 +67,26 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
             gijon.beach.sources else gijon.weather.sources
         val sources = gijonSources + oviedo.weather.sources
         val saved = sources.any { it.refreshFailed || !ForecastCache.isFresh(it.fetchedAt, nowInstant) }
-        val preferences = applicationContext.getSharedPreferences("settings", 0)
-        val language = if (preferences.contains("language"))
-            AppLanguage.fromCode(preferences.getString("language", null)) else AppLanguage.fromSystem()
         val text = DailyNotificationFormatter.format(plan, language, saved)
         showNotification(text.title, text.body, text.subText, language)
         return Result.success()
+    }
+
+    private fun retryOrNotifyUnavailable(language: AppLanguage): Result {
+        if (DailyNotificationRetryPolicy.shouldRetry(runAttemptCount, essentialForecastAvailable = false)) {
+            return Result.retry()
+        }
+        val unavailable = PlaceRecommendation(RecommendedActivity.UNAVAILABLE)
+        val text = DailyNotificationFormatter.format(
+            DailyRecommendations(unavailable, unavailable), language, savedForecast = false)
+        showNotification(text.title, text.body, text.subText, language)
+        return Result.success()
+    }
+
+    private fun selectedLanguage(): AppLanguage {
+        val preferences = applicationContext.getSharedPreferences("settings", 0)
+        return if (preferences.contains("language"))
+            AppLanguage.fromCode(preferences.getString("language", null)) else AppLanguage.fromSystem()
     }
 
     private fun showNotification(title: String, body: String, subText: String?, language: AppLanguage) {
@@ -90,4 +119,11 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
         private const val CHANNEL_ID = "daily-outing-plan"
         private const val NOTIFICATION_ID = 1001
     }
+}
+
+object DailyNotificationRetryPolicy {
+    const val MAX_RETRIES = 3
+
+    fun shouldRetry(runAttemptCount: Int, essentialForecastAvailable: Boolean): Boolean =
+        !essentialForecastAvailable && runAttemptCount < MAX_RETRIES
 }

@@ -189,5 +189,7 @@ labelled unavailable.
 
 Delivery is scheduled for approximately the selected Europe/Madrid time, not as an exact
 alarm. The notification uses the normal one-hour cache and the same labelled, maximum
-12-hour saved-forecast fallback. It never turns a missing or severe forecast into a positive
-recommendation.
+12-hour saved-forecast fallback. Work waits for a network connection. If essential Gijón or
+Oviedo weather is still unavailable, it retries three times with a 15-minute linear-backoff
+base before showing the honest unavailable result. It never turns a missing or severe forecast
+into a positive recommendation.
