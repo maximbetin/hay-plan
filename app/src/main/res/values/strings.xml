@@ -38,6 +38,12 @@
     <string name="notification_permission_required">Permission required when enabled</string>
     <string name="notification_blocked">Notifications are blocked in Android settings</string>
     <string name="language">Language</string>
+    <string name="weekly_outlook">7-day outlook</string>
+    <string name="daylight_average">Daylight average</string>
+    <string name="warning">Warning</string>
+    <string name="today_uses_remaining_daylight">Today uses the remaining daylight hours; later days use the full daylight period.</string>
+    <string name="weekly_outlook_day_description">%1$s: daylight average %2$s; best three hours %3$s%4$s</string>
+    <string name="weekly_outlook_warning_suffix">; warning: %1$s</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Show the other %1$d location</item>

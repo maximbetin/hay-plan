@@ -38,6 +38,12 @@
     <string name="notification_permission_required">Se solicitará permiso al activarla</string>
     <string name="notification_blocked">Las notificaciones están bloqueadas en los ajustes de Android</string>
     <string name="language">Idioma</string>
+    <string name="weekly_outlook">Previsión de 7 días</string>
+    <string name="daylight_average">Media durante el día</string>
+    <string name="warning">Aviso</string>
+    <string name="today_uses_remaining_daylight">Hoy usa las horas de luz restantes; los días posteriores usan todas las horas de luz.</string>
+    <string name="weekly_outlook_day_description">%1$s: media durante el día %2$s; mejor franja de tres horas %3$s%4$s</string>
+    <string name="weekly_outlook_warning_suffix">; aviso: %1$s</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Ver la otra ubicación</item>

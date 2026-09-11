@@ -191,6 +191,11 @@ fun HayPlanScreen(
     val remaining = date == state.now.toLocalDate()
     val showExactScores = !isLongRangeOutlook(date, state.now.toLocalDate())
     val period = if (remaining) "Remaining daylight" else "Daylight overall"
+    val weeklyOutlook = remember(opened, state.dates, state.now, state.activity) {
+        opened?.let {
+            sevenDayOutlook(it.forActivity(state.activity).hours, state.dates, state.now, state.activity)
+        }.orEmpty()
+    }
     // Cards and details share these exact objects, including the selected best window.
     val outlooks = remember(state.forecasts, date, state.now, state.activity) {
         state.forecasts.associate { forecast ->
@@ -369,7 +374,8 @@ fun HayPlanScreen(
                         OutlookDetails(outlooks.getValue(opened.location.id), opened.forActivity(state.activity).hours,
                             period, "${opened.location.id}/$date/${state.activity}", remaining,
                             forecastContextLabel(opened.location, state.activity, date, language),
-                            opened.location.coast != null, showExactScores)
+                            opened.location.coast != null, showExactScores,
+                            weeklyOutlook, date, state.now.toLocalDate(), onDateSelected)
                     }
                 }
                 item {

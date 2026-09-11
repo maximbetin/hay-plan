@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mbk.hayplan.R
 import com.mbk.hayplan.domain.*
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -121,6 +122,10 @@ internal fun OutlookDetails(
     contextLabel: String,
     coastal: Boolean,
     showExactScores: Boolean,
+    weeklyOutlook: List<DatedOutlook> = emptyList(),
+    selectedDate: LocalDate? = null,
+    today: LocalDate? = null,
+    onDateSelected: (LocalDate) -> Unit = {},
 ) {
     val strings = LocalUiStrings.current
     var target by remember(selectionKey) { mutableStateOf<DetailTarget?>(null) }
@@ -132,6 +137,9 @@ internal fun OutlookDetails(
                     onDayClick = { target = DetailTarget.Day },
                     onWindowClick = { target = DetailTarget.Window })
             }
+        }
+        if (selectedDate != null && today != null) {
+            WeeklyScoreOutlook(weeklyOutlook, selectedDate, today, onDateSelected)
         }
         Text(localizedString(R.string.daylight_hours), Modifier.semantics { heading() },
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

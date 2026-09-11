@@ -136,6 +136,21 @@ class ForecastPresentationTest {
         assertEquals("Long-range outlook · lower confidence", forecastConfidenceLabel(date.plusDays(7), date))
     }
 
+    @Test fun `weekly outlook uses the seven exact-score dates and keeps unavailable days`() {
+        fun hoursFor(day: LocalDate) = (8..10).map { time ->
+            hour(time).copy(time = day.atTime(time, 0), sunrise = day.atTime(8, 0), sunset = day.atTime(11, 0))
+        }
+        val dates = (0L..8L).map(date::plusDays)
+        val hours = dates.flatMap(::hoursFor).filterNot { it.time == date.plusDays(2).atTime(9, 0) }
+
+        val result = sevenDayOutlook(hours, dates, date.atStartOfDay(), ActivityType.BEACH)
+
+        assertEquals(dates.take(7), result.map { it.date })
+        assertTrue(result.first().outlook.day != null)
+        assertNull(result[2].outlook.day)
+        assertTrue(result[2].outlook.dayUnavailableReason is DayUnavailableReason.Incomplete)
+    }
+
     @Test fun `semantic colors distinguish every rating band and factor outcome`() {
         val ratingColors = listOf(0, 20, 40, 60, 90).map(::ratingColor)
         val containers = listOf(0, 20, 40, 60, 90).map(::ratingContainerColor)
