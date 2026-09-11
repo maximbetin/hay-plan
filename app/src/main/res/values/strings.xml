@@ -21,6 +21,8 @@
     <string name="long_range_timing_hidden">Timing not shown for long-range outlooks</string>
     <string name="long_range_scores_hidden">Exact comfort scores are hidden for long-range outlooks.</string>
     <string name="personal_score_note">Personal weather-suitability score, not forecast confidence or safety.</string>
+    <string name="supported_score_total">Supported total: %1$d/100 possible points</string>
+    <string name="known_inputs_score">Known inputs: %1$d/%2$d available points = %3$d/100 when normalized</string>
     <string name="show_top_ten">Show top 10</string>
     <string name="warning_description">Warning: %1$s</string>
     <string name="notice_description">Notice: %1$s</string>
@@ -39,9 +41,9 @@
     <string name="notification_blocked">Notifications are blocked in Android settings</string>
     <string name="language">Language</string>
     <string name="weekly_outlook">7-day comfort</string>
-    <string name="weekly_outlook_subtitle">Average daylight score / 100 · higher is better</string>
+    <string name="weekly_outlook_subtitle">Daylight comfort · exact near term, rating bands later</string>
     <string name="today_uses_remaining_daylight">Today uses the remaining daylight hours; later days use the full daylight period.</string>
-    <string name="weekly_outlook_day_description">%1$s: average daylight score %2$s%3$s</string>
+    <string name="weekly_outlook_day_description">%1$s: daylight comfort %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; warning: %1$s</string>
 
     <plurals name="show_all_other_locations">

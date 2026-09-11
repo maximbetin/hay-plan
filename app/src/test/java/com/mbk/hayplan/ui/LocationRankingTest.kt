@@ -41,8 +41,9 @@ class LocationRankingTest {
     @Test fun `capped score ties retain the safer label but rank by underlying conditions`() {
         val better = forecast("better", 20.0)
         val worse = forecast("worse", 20.0)
-        fun capped(uncapped: Int) = ActivityOutlook(ActivityType.BEACH,
-            DayRating(Rating.POOR, 19, 4, 0, emptyList(), uncappedScore = uncapped), null)
+        fun capped(knownConditions: Int) = ActivityOutlook(ActivityType.BEACH,
+            DayRating(Rating.POOR, 19, 4, 0, emptyList(),
+                knownConditionsScore = knownConditions), null)
         val outlooks = mapOf("better" to capped(82), "worse" to capped(54))
         assertEquals(listOf(better, worse), rankLocations(listOf(worse, better), outlooks))
         assertTrue(outlooks.values.all { it.day!!.score == 19 && it.day.rating == Rating.POOR })
@@ -62,29 +63,29 @@ class LocationRankingTest {
         assertEquals(listOf(incomplete, poor), rankLocations(forecasts, outlooks, RankingMode.BEST_WINDOW))
     }
 
-    @Test fun `Beach ranking does not reward missing optional evidence`() {
+    @Test fun `Beach ranking matches the conservative score shown to the user`() {
         val known = forecast("known", 20.0)
         val unknown = forecast("unknown", 20.0)
-        fun beach(score: Int, evidence: Int) = ActivityOutlook(ActivityType.BEACH,
-            DayRating(ratingFor(score), score, 4, 4, emptyList(), evidenceScore = evidence), null)
+        fun beach(score: Int) = ActivityOutlook(ActivityType.BEACH,
+            DayRating(ratingFor(score), score, 4, 4, emptyList()), null)
         val outlooks = mapOf(
-            "known" to beach(score = 82, evidence = 82),
-            "unknown" to beach(score = 100, evidence = 70),
+            "known" to beach(score = 82),
+            "unknown" to beach(score = 70),
         )
         assertEquals(listOf(known, unknown), rankLocations(listOf(unknown, known), outlooks))
     }
 
-    @Test fun `Beach best-window ranking remains evidence aware`() {
+    @Test fun `Beach best-window ranking matches the score shown to the user`() {
         val known = forecast("known-window", 20.0)
         val unknown = forecast("unknown-window", 20.0)
-        fun beachWindow(score: Int, evidence: Int) = ActivityOutlook(
+        fun beachWindow(score: Int) = ActivityOutlook(
             ActivityType.BEACH, null,
             BestWindow(LocalTime.of(10, 0), LocalTime.of(13, 0), ratingFor(score), score,
-                emptyList(), evidenceScore = evidence),
+                emptyList()),
         )
         val outlooks = mapOf(
-            "known-window" to beachWindow(score = 82, evidence = 82),
-            "unknown-window" to beachWindow(score = 100, evidence = 70),
+            "known-window" to beachWindow(score = 82),
+            "unknown-window" to beachWindow(score = 70),
         )
         assertEquals(listOf(known, unknown),
             rankLocations(listOf(unknown, known), outlooks, RankingMode.BEST_WINDOW))
@@ -96,29 +97,27 @@ class LocationRankingTest {
         RankingMode.entries.forEach { assertEquals(it, RankingMode.fromCode(it.code)) }
     }
 
-    @Test fun `long-range ranking uses rating bands instead of hidden point differences`() {
+    @Test fun `banded ranking ignores hidden point differences within a rating`() {
         val low = forecast("a-low", 20.0)
         val high = forecast("z-high", 20.0)
         val outlooks = mapOf(
             "a-low" to ActivityOutlook(ActivityType.HIKING,
-                DayRating(Rating.VERY_GOOD, 61, 4, 4, emptyList(), uncappedScore = 61), null),
+                DayRating(Rating.VERY_GOOD, 61, 4, 4, emptyList(), knownConditionsScore = 61), null),
             "z-high" to ActivityOutlook(ActivityType.HIKING,
-                DayRating(Rating.VERY_GOOD, 89, 4, 4, emptyList(), uncappedScore = 89), null),
+                DayRating(Rating.VERY_GOOD, 89, 4, 4, emptyList(), knownConditionsScore = 89), null),
         )
         assertEquals(listOf(high, low), rankLocations(listOf(low, high), outlooks))
         assertEquals(listOf(low, high), rankLocations(listOf(high, low), outlooks, coarseScores = true))
     }
 
-    @Test fun `coarse Beach ranking keeps visible marine evidence ahead of normalized score`() {
+    @Test fun `coarse Beach ranking uses visible coverage when scores share a band`() {
         val known = forecast("z-known", 20.0)
         val unknown = forecast("a-unknown", 20.0)
         val outlooks = mapOf(
             "z-known" to ActivityOutlook(ActivityType.BEACH,
-                DayRating(Rating.VERY_GOOD, 82, 4, 4, emptyList(), MarineCoverage.FULL,
-                    evidenceScore = 82), null),
+                DayRating(Rating.VERY_GOOD, 82, 4, 4, emptyList(), MarineCoverage.FULL), null),
             "a-unknown" to ActivityOutlook(ActivityType.BEACH,
-                DayRating(Rating.EXCELLENT, 100, 4, 4, emptyList(), MarineCoverage.NONE,
-                    evidenceScore = 70), null),
+                DayRating(Rating.VERY_GOOD, 70, 4, 4, emptyList(), MarineCoverage.NONE), null),
         )
         assertEquals(listOf(known, unknown),
             rankLocations(listOf(unknown, known), outlooks, coarseScores = true))

@@ -58,10 +58,15 @@ internal fun WeeklyScoreOutlook(
     val descriptionParts = mutableListOf<String>()
     for (point in points) {
         val warning = point.outlook.severeGraphWarning()
+        val day = point.outlook.day
+        val scoreDescription = day?.let {
+            if (scorePrecision(point.date, today) == ScorePrecision.EXACT) "${it.score}/100"
+            else strings.rating(it.rating)
+        } ?: localizedString(R.string.unavailable)
         descriptionParts += localizedString(
             R.string.weekly_outlook_day_description,
             formatDate(point.date, today, strings.language),
-            point.outlook.day?.score?.let { "$it/100" } ?: localizedString(R.string.unavailable),
+            scoreDescription,
             warning?.let { localizedString(R.string.weekly_outlook_warning_suffix, strings(it)) }.orEmpty(),
         )
     }
@@ -83,7 +88,11 @@ internal fun WeeklyScoreOutlook(
                         Row(Modifier.fillMaxSize()) {
                             points.forEach { point ->
                                 val score = point.outlook.day?.score
-                                val barHeight = score?.let { usableHeight * it.coerceIn(0, 100) / 100f }
+                                val precision = scorePrecision(point.date, today)
+                                val chartScore = score?.let {
+                                    if (precision == ScorePrecision.EXACT) it else scoreBandMidpoint(it)
+                                }
+                                val barHeight = chartScore?.let { usableHeight * it.coerceIn(0, 100) / 100f }
                                 Box(Modifier.weight(1f).fillMaxHeight()) {
                                     if (score == null || barHeight == null) {
                                         Text("—", Modifier.align(Alignment.BottomCenter).offset(y = (-4).dp),
@@ -92,9 +101,10 @@ internal fun WeeklyScoreOutlook(
                                     } else {
                                         Box(Modifier.align(Alignment.BottomCenter).width(BAR_WIDTH).height(barHeight)
                                             .background(ratingColor(score, darkTheme), BAR_SHAPE))
-                                        Text("$score", Modifier.align(Alignment.BottomCenter)
+                                        Text(if (precision == ScorePrecision.EXACT) "$score" else scoreBand(score),
+                                            Modifier.align(Alignment.BottomCenter)
                                             .offset(y = -(barHeight + 4.dp)),
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface)
                                     }

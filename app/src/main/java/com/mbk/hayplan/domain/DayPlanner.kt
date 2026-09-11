@@ -33,6 +33,7 @@ object DayPlanner {
             .distinctBy { it.time }.sortedBy { it.time }
         val sunrise = dayHours.firstNotNullOfOrNull { it.sunrise }
         val sunset = dayHours.firstNotNullOfOrNull { it.sunset }
+        val missingDaylightBounds = dayHours.isNotEmpty() && (sunrise == null || sunset == null)
         val start = if (sunrise != null) ceilHour(maxOf(sunrise, now)) else eligible.firstOrNull()?.time
         val end = sunset?.truncatedTo(ChronoUnit.HOURS) ?: eligible.lastOrNull()?.time?.plusHours(1)
         val expectedHours = if (start == null || end == null) 0 else
@@ -49,8 +50,7 @@ object DayPlanner {
             val mean = evaluations.map { it.score }.average().roundToInt()
             DayRating(ratingFor(mean), mean, evaluations.size, evaluations.count { it.score >= 40 },
                 evaluations.flatMap { it.warnings }.distinct(), MarineCoverage.combine(evaluations.map { it.marineCoverage }),
-                uncappedScore = evaluations.map { it.pointsBeforeLimits }.average().roundToInt(),
-                evidenceScore = evaluations.map { it.evidenceScore }.average().roundToInt(),
+                knownConditionsScore = evaluations.map { it.knownConditionsScore }.average().roundToInt(),
                 warningPeriods = dayWarningPeriods)
         } else null
 
@@ -69,8 +69,7 @@ object DayPlanner {
                 ratingFor(score), score, summary.factors, summary.warnings,
                 MarineCoverage.combine(window.map { requireNotNull(it.evaluation).marineCoverage }),
                 periods.sortedBy { it.start },
-                uncappedScore = windowScores.map { it.pointsBeforeLimits }.average().roundToInt(),
-                evidenceScore = windowScores.map { it.evidenceScore }.average().roundToInt())
+                knownConditionsScore = windowScores.map { it.knownConditionsScore }.average().roundToInt())
         }.maxByOrNull { it.score }
 
         return ActivityOutlook(
@@ -78,6 +77,7 @@ object DayPlanner {
             dayUnavailableReason = when {
                 day != null -> null
                 dayHours.isEmpty() -> DayUnavailableReason.NoForecast
+                missingDaylightBounds -> DayUnavailableReason.MissingDaylightBounds
                 expectedHours == 0 -> DayUnavailableReason.NoHoursRemaining
                 else -> DayUnavailableReason.Incomplete(evaluations.size, expectedHours)
             },

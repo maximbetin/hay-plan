@@ -5,6 +5,8 @@ import com.mbk.hayplan.domain.ActivityType
 import com.mbk.hayplan.domain.HourlyConditions
 import com.mbk.hayplan.domain.MarineCoverage
 import com.mbk.hayplan.domain.DayUnavailableReason
+import com.mbk.hayplan.domain.Rating
+import com.mbk.hayplan.domain.ratingFor
 import com.mbk.hayplan.data.HayPlanLocation
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -133,6 +135,33 @@ internal fun forecastConfidenceLabel(date: LocalDate, today: LocalDate): String?
 
 internal fun isLongRangeOutlook(date: LocalDate, today: LocalDate): Boolean =
     date.isAfter(today.plusDays(6))
+
+internal enum class ScorePrecision { EXACT, BAND, HIDDEN }
+
+internal fun scorePrecision(date: LocalDate, today: LocalDate): ScorePrecision = when {
+    isLongRangeOutlook(date, today) -> ScorePrecision.HIDDEN
+    date.isAfter(today.plusDays(2)) -> ScorePrecision.BAND
+    else -> ScorePrecision.EXACT
+}
+
+internal fun scoreBand(score: Int): String = ratingRange(ratingFor(score))
+
+internal fun ratingRange(rating: Rating): String = when (rating) {
+    Rating.POOR -> "0–19"
+    Rating.FAIR -> "20–39"
+    Rating.GOOD -> "40–59"
+    Rating.VERY_GOOD -> "60–89"
+    Rating.EXCELLENT -> "90–100"
+}
+
+// Equal-height bars within a band avoid implying meaningful one-point differences.
+internal fun scoreBandMidpoint(score: Int): Int = when (ratingFor(score)) {
+    Rating.POOR -> 10
+    Rating.FAIR -> 30
+    Rating.GOOD -> 50
+    Rating.VERY_GOOD -> 75
+    Rating.EXCELLENT -> 95
+}
 
 internal fun beachCoverageLabel(
     coastal: Boolean,

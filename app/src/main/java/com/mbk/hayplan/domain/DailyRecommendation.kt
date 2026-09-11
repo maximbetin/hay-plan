@@ -18,9 +18,10 @@ object DailyRecommendationPlanner {
         gijonBeach: ActivityOutlook,
         gijonHiking: ActivityOutlook,
         oviedoHiking: ActivityOutlook,
+        gijonCoastalWeatherAvailable: Boolean,
     ): DailyRecommendations = DailyRecommendations(
         gijon = when {
-            gijonBeach.bestWindow.isRecommendedBeach() ->
+            gijonCoastalWeatherAvailable && gijonBeach.bestWindow.isRecommendedBeach() ->
                 PlaceRecommendation(RecommendedActivity.BEACH, gijonBeach.bestWindow)
             gijonHiking.bestWindow.isRecommendedWalk() ->
                 PlaceRecommendation(RecommendedActivity.WALK, gijonHiking.bestWindow)
@@ -37,8 +38,12 @@ object DailyRecommendationPlanner {
     )
 
     private fun BestWindow?.isRecommendedBeach(): Boolean = this != null &&
-        score >= 60 && marineCoverage == MarineCoverage.FULL && warnings.none { it.priority >= 2 }
+        score >= 60 && marineCoverage == MarineCoverage.FULL && !hasBlockingWarning()
 
     private fun BestWindow?.isRecommendedWalk(): Boolean = this != null &&
-        score >= 40 && warnings.none { it.priority >= 2 }
+        score >= 40 && !hasBlockingWarning()
+
+    private fun BestWindow.hasBlockingWarning(): Boolean =
+        (warnings.asSequence() + warningPeriods.asSequence().map { it.warning })
+            .any { it.priority >= 2 }
 }

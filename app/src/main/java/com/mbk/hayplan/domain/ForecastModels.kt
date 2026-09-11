@@ -71,10 +71,8 @@ data class DayRating(
     val goodHours: Int,
     val warnings: List<ForecastWarning>,
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
-    /** Mean score before safety/comfort caps; used only to order otherwise tied locations. */
-    val uncappedScore: Int = score,
-    /** Conservative earned points against the full activity profile, used for evidence-aware ranking. */
-    val evidenceScore: Int = score,
+    /** Mean normalized known-input score before limits; used only to order displayed-score ties. */
+    val knownConditionsScore: Int = score,
     /** Contiguous periods retain when each warning applies instead of reducing the day to bare labels. */
     val warningPeriods: List<ForecastWarningPeriod> = emptyList(),
 )
@@ -83,6 +81,7 @@ data class HourlyAssessment(val time: LocalDateTime, val evaluation: ConditionsS
 
 sealed interface DayUnavailableReason {
     data object NoForecast : DayUnavailableReason
+    data object MissingDaylightBounds : DayUnavailableReason
     data object NoHoursRemaining : DayUnavailableReason
     data class Incomplete(val ratedHours: Int, val expectedHours: Int) : DayUnavailableReason
 }
@@ -98,10 +97,8 @@ data class BestWindow(
     val warnings: List<ForecastWarning> = emptyList(),
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
     val warningPeriods: List<ForecastWarningPeriod> = emptyList(),
-    /** Mean hourly score before limits, used only to resolve otherwise tied windows. */
-    val uncappedScore: Int = score,
-    /** Conservative earned points against the full profile for evidence-aware Beach ranking. */
-    val evidenceScore: Int = score,
+    /** Mean normalized known-input score before limits, used only to resolve displayed-score ties. */
+    val knownConditionsScore: Int = score,
 )
 
 data class ForecastWarningPeriod(

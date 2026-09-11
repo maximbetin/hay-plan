@@ -2,7 +2,6 @@ package com.mbk.hayplan.ui
 
 import com.mbk.hayplan.data.LocationForecast
 import com.mbk.hayplan.domain.ActivityOutlook
-import com.mbk.hayplan.domain.ActivityType
 import com.mbk.hayplan.domain.MarineCoverage
 import com.mbk.hayplan.domain.ratingFor
 
@@ -41,19 +40,15 @@ internal fun rankLocations(
     compareByDescending<LocationForecast> {
         val outlook = outlooks[it.location.id]
         when (mode) {
-            RankingMode.WHOLE_DAY -> if (outlook?.activity == ActivityType.BEACH)
-                rankingValue(outlook.day?.evidenceScore, coarseScores)
-                else rankingValue(outlook?.day?.score, coarseScores)
-            RankingMode.BEST_WINDOW -> if (outlook?.activity == ActivityType.BEACH)
-                rankingValue(outlook.bestWindow?.evidenceScore, coarseScores)
-                else rankingValue(outlook?.bestWindow?.score, coarseScores)
+            RankingMode.WHOLE_DAY -> rankingValue(outlook?.day?.score, coarseScores)
+            RankingMode.BEST_WINDOW -> rankingValue(outlook?.bestWindow?.score, coarseScores)
         }
     }
         .thenByDescending {
             val outlook = outlooks[it.location.id]
-            if (!coarseScores || outlook?.activity != ActivityType.BEACH) 0 else coverageValue(
-                if (mode == RankingMode.WHOLE_DAY) outlook.day?.marineCoverage
-                else outlook.bestWindow?.marineCoverage,
+            if (!coarseScores) 0 else coverageValue(
+                if (mode == RankingMode.WHOLE_DAY) outlook?.day?.marineCoverage
+                else outlook?.bestWindow?.marineCoverage,
             )
         }
         .thenByDescending {
@@ -63,8 +58,8 @@ internal fun rankLocations(
         }
         .thenByDescending {
             val outlook = outlooks[it.location.id]
-            rankingValue(if (mode == RankingMode.WHOLE_DAY) outlook?.day?.uncappedScore
-                else outlook?.bestWindow?.uncappedScore, coarseScores)
+            rankingValue(if (mode == RankingMode.WHOLE_DAY) outlook?.day?.knownConditionsScore
+                else outlook?.bestWindow?.knownConditionsScore, coarseScores)
         }
         .thenBy { it.location.id },
 )

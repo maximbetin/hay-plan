@@ -23,6 +23,7 @@ class LocationSelectionTest {
     private fun forecast(location: HayPlanLocation, day: LocalDate = date) = LocationForecast(location,
         ActivityForecastData(hours = listOf(HourlyConditions(day.atTime(12, 0), true,
             20.0, 0, 0, 10.0, null, null, 0.0,
+            sunrise = day.atTime(8, 0), sunset = day.atTime(13, 0),
             apparentTemperatureC = 20.0, relativeHumidityPercent = 60, visibilityM = 20_000.0,
             weatherCode = 1, windGustsKmh = 18.0, uvIndex = 4.0))))
 

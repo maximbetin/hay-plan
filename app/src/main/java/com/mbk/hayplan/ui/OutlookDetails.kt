@@ -42,16 +42,18 @@ internal fun DayOverview(
     summary: DayWeatherSummary?,
     remainingToday: Boolean,
     coastal: Boolean,
-    showExactScores: Boolean,
+    scorePrecision: ScorePrecision,
     onDayClick: () -> Unit,
     onWindowClick: () -> Unit,
 ) {
     val strings = LocalUiStrings.current
+    val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
+    val dayWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button,
-                onClickLabel = localizedString(if (showExactScores) R.string.show_day_score_details
-                    else R.string.show_long_range_details), onClick = onDayClick)
+                onClickLabel = localizedString(if (scorePrecision == ScorePrecision.HIDDEN)
+                    R.string.show_long_range_details else R.string.show_day_score_details), onClick = onDayClick)
                 .semantics(mergeDescendants = true) {}
                 .padding(vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -59,13 +61,14 @@ internal fun DayOverview(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(strings(label), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${localizedString(if (showExactScores) R.string.comfort_score_details
-                    else R.string.outlook_details)} ›",
+                Text("${localizedString(if (scorePrecision == ScorePrecision.HIDDEN)
+                    R.string.outlook_details else R.string.comfort_score_details)} ›",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary)
             }
             RatingValue(outlook.day?.rating, outlook.day?.score, average = true,
-                showExactScore = showExactScores)
+                showExactScore = scorePrecision == ScorePrecision.EXACT,
+                severePeriod = dayWarning?.priority == 3)
             if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, outlook.marineCoverage, strings.language),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(outlook.day?.let {
@@ -74,8 +77,6 @@ internal fun DayOverview(
             } ?: strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             summary?.let { Text(dayWeatherHeadline(it, strings.language), style = MaterialTheme.typography.bodyMedium) }
-            val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
-            val dayWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
             dayWarning?.let { warning ->
                 WarningText(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
             }
@@ -94,13 +95,15 @@ internal fun DayOverview(
                 val window = outlook.bestWindow
                 if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason), style = MaterialTheme.typography.bodySmall)
                 else {
-                    Text(if (showExactScores) timeRange(window.start, window.end)
+                    Text(if (scorePrecision != ScorePrecision.HIDDEN) timeRange(window.start, window.end)
                         else localizedString(R.string.long_range_timing_hidden),
-                        style = if (showExactScores) MaterialTheme.typography.titleLarge
+                        style = if (scorePrecision != ScorePrecision.HIDDEN) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (showExactScores) FontWeight.SemiBold else FontWeight.Normal)
-                    Text(if (showExactScores) "${strings.rating(window.rating)} · ${window.score}/100"
-                        else strings.rating(window.rating), style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (scorePrecision != ScorePrecision.HIDDEN)
+                            FontWeight.SemiBold else FontWeight.Normal)
+                    Text(if (scorePrecision == ScorePrecision.EXACT)
+                        "${strings.rating(window.rating)} · ${window.score}/100"
+                    else strings.rating(window.rating), style = MaterialTheme.typography.bodyMedium,
                         color = currentRatingColor(window.score), fontWeight = FontWeight.SemiBold)
                     if (outlook.activity == ActivityType.BEACH && coastal && window.marineCoverage != outlook.marineCoverage)
                         Text(beachCoverageLabel(true, window.marineCoverage, strings.language), style = MaterialTheme.typography.bodySmall)
@@ -121,7 +124,7 @@ internal fun OutlookDetails(
     remainingToday: Boolean,
     contextLabel: String,
     coastal: Boolean,
-    showExactScores: Boolean,
+    scorePrecision: ScorePrecision,
     weeklyOutlook: List<DatedOutlook> = emptyList(),
     selectedDate: LocalDate? = null,
     today: LocalDate? = null,
@@ -133,7 +136,7 @@ internal fun OutlookDetails(
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
             Box(Modifier.padding(18.dp)) {
-                DayOverview(outlook, label, summary, remainingToday, coastal, showExactScores,
+                DayOverview(outlook, label, summary, remainingToday, coastal, scorePrecision,
                     onDayClick = { target = DetailTarget.Day },
                     onWindowClick = { target = DetailTarget.Window })
             }
@@ -144,12 +147,15 @@ internal fun OutlookDetails(
         Text(localizedString(R.string.daylight_hours), Modifier.semantics { heading() },
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         outlook.hourly.forEach { hour ->
-            HourRow(hour, if (showExactScores) outlook.bestWindow else null,
-                outlook.marineCoverage == MarineCoverage.MIXED, showExactScores) {
+            HourRow(hour, if (scorePrecision != ScorePrecision.HIDDEN) outlook.bestWindow else null,
+                outlook.marineCoverage == MarineCoverage.MIXED,
+                scorePrecision == ScorePrecision.EXACT) {
                 target = DetailTarget.Hour(hour.time)
             }
         }
-        if (outlook.hourly.isEmpty()) Text(localizedString(R.string.no_daylight_hours),
+        if (outlook.hourly.isEmpty() &&
+            outlook.dayUnavailableReason != DayUnavailableReason.MissingDaylightBounds) Text(
+            localizedString(R.string.no_daylight_hours),
             style = MaterialTheme.typography.bodyMedium)
     }
     val selected = target
@@ -167,10 +173,13 @@ internal fun OutlookDetails(
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 when (selected) {
-                    DetailTarget.Day -> DayInspection(outlook, label, summary, coastal, showExactScores)
-                    DetailTarget.Window -> WindowInspection(outlook, coastal, showExactScores)
+                    DetailTarget.Day -> DayInspection(outlook, label, summary, coastal,
+                        scorePrecision != ScorePrecision.HIDDEN)
+                    DetailTarget.Window -> WindowInspection(outlook, coastal,
+                        scorePrecision != ScorePrecision.HIDDEN)
                     is DetailTarget.Hour -> HourInspection(outlook.hourly.find { it.time == selected.time },
-                        selected.time, outlook.activity, coastal, showExactScores)
+                        selected.time, outlook.activity, coastal,
+                        scorePrecision != ScorePrecision.HIDDEN)
                 }
                 SuitabilityNote(outlook.activity, coastal)
                 Spacer(Modifier.height(16.dp))
@@ -221,13 +230,16 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
 
 @Composable
 private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayWeatherSummary?,
-                          coastal: Boolean, showExactScores: Boolean) {
+                          coastal: Boolean, showCalculationScores: Boolean) {
     val strings = LocalUiStrings.current
     var showAllConditions by rememberSaveable { mutableStateOf(false) }
     Text(strings(label), Modifier.semantics { heading() },
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     val day = outlook.day
-    RatingValue(day?.rating, day?.score, average = true, showExactScore = showExactScores)
+    val severePeriod = (primaryWarningPeriod(outlook.warningPeriods)?.warning
+        ?: day?.warnings?.let(::primaryWarning))?.priority == 3
+    RatingValue(day?.rating, day?.score, average = true, showExactScore = showCalculationScores,
+        severePeriod = severePeriod)
     if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, outlook.marineCoverage, strings.language),
         style = MaterialTheme.typography.bodySmall)
     summary?.let {
@@ -264,7 +276,7 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
     } else day.warnings.forEach {
         WarningText(strings(it), it)
     }
-    if (!showExactScores) {
+    if (!showCalculationScores) {
         Text(localizedString(R.string.long_range_scores_hidden),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -277,30 +289,34 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
             else "How is this comfort score calculated? ▾"))
     }
     if (!showCalculation) return
-    Text(strings("The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
-        "Each hour uses its available factors, scales their points to 100, then applies any condition limits. " +
-        "Tap an hour to see its inputs and calculation."),
+    Text(strings(if (outlook.activity == ActivityType.BEACH)
+        "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
+            "Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, " +
+            "then applies any condition limits. Tap an hour to see its inputs and calculation."
+        else "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
+            "Each hour uses its available factors, scales their points to 100, then applies any condition limits. " +
+            "Tap an hour to see its inputs and calculation."),
         style = MaterialTheme.typography.bodySmall)
     Text(Rating.entries.joinToString(" · ") { "${strings.rating(it)} ${ratingRange(it)}" },
         style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
-private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showExactScores: Boolean) {
+private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showCalculationScores: Boolean) {
     val strings = LocalUiStrings.current
     val window = outlook.bestWindow
     Text(localizedString(R.string.best_three_hours), Modifier.semantics { heading() },
         style = MaterialTheme.typography.titleMedium)
-    Text(window?.let { if (showExactScores) timeRange(it.start, it.end)
+    Text(window?.let { if (showCalculationScores) timeRange(it.start, it.end)
         else localizedString(R.string.long_range_timing_hidden) } ?: localizedString(R.string.unavailable),
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     if (window == null) { Text(strings.windowUnavailable(outlook.windowUnavailableReason)); return }
-    RatingValue(window.rating, window.score, average = true, showExactScore = showExactScores)
+    RatingValue(window.rating, window.score, average = true, showExactScore = showCalculationScores)
     if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, window.marineCoverage, strings.language),
         style = MaterialTheme.typography.bodySmall)
     Text(strings("Average of these three hourly scores, with any limits for the whole period applied."),
         style = MaterialTheme.typography.bodySmall)
-    if (!showExactScores) Text(localizedString(R.string.long_range_scores_hidden),
+    if (!showCalculationScores) Text(localizedString(R.string.long_range_scores_hidden),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     // Values summarize the period; the score itself uses its individual hourly scores.
     window.factors.forEach { FactorRow(it, showPoints = false) }
@@ -325,10 +341,20 @@ private fun HourInspection(hour: HourlyAssessment?, time: LocalDateTime, activit
         style = MaterialTheme.typography.bodySmall)
     evaluation.factors.forEach { FactorRow(it, showPoints = showExactScore) }
     if (showExactScore) {
-        Text(strings(if (evaluation.availablePoints == 100) "Weighted total: ${evaluation.pointsBeforeLimits}/100"
-            else "${evaluation.factors.sumOf { it.points }} / ${evaluation.availablePoints} available points × 100 " +
-                "= ${evaluation.pointsBeforeLimits}/100 (rounded)"), style = MaterialTheme.typography.bodySmall)
-        val deduction = evaluation.pointsBeforeLimits - evaluation.score
+        if (activity == ActivityType.BEACH && evaluation.availablePoints < 100) {
+            Text(localizedString(R.string.supported_score_total, evaluation.supportedScoreBeforeLimits),
+                style = MaterialTheme.typography.bodySmall)
+            Text(localizedString(R.string.known_inputs_score, evaluation.supportedScoreBeforeLimits,
+                evaluation.availablePoints, evaluation.knownConditionsScore),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text(strings("Weighted total: ${evaluation.knownConditionsScore}/100"),
+                style = MaterialTheme.typography.bodySmall)
+        }
+        val scoreBeforeLimits = if (activity == ActivityType.BEACH)
+            evaluation.supportedScoreBeforeLimits else evaluation.knownConditionsScore
+        val deduction = scoreBeforeLimits - evaluation.score
         if (deduction > 0) Text(localizedPlural(R.plurals.score_reduced_points, deduction, deduction),
             color = MaterialTheme.colorScheme.error)
     } else Text(localizedString(R.string.long_range_scores_hidden),
@@ -369,12 +395,12 @@ private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
 
 @Composable
 internal fun RatingValue(rating: Rating?, score: Int?, average: Boolean = false,
-                         showExactScore: Boolean = true) {
+                         showExactScore: Boolean = true, severePeriod: Boolean = false) {
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(rating?.let { if (average) strings.averageRating(it) else strings.rating(it) }
+        Text(rating?.let { if (average) strings.averageRating(it, severePeriod) else strings.rating(it) }
             ?: localizedString(R.string.unavailable), Modifier.weight(1f),
             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
             color = color)
@@ -390,14 +416,6 @@ internal fun RatingValue(rating: Rating?, score: Int?, average: Boolean = false,
 
 private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 internal fun timeRange(start: LocalTime, end: LocalTime) = "${start.format(TIME)}–${end.format(TIME)}"
-private fun ratingRange(rating: Rating) = when (rating) {
-    Rating.POOR -> "0–19"
-    Rating.FAIR -> "20–39"
-    Rating.GOOD -> "40–59"
-    Rating.VERY_GOOD -> "60–89"
-    Rating.EXCELLENT -> "90–100"
-}
-
 @Composable
 private fun warningColor(warning: ForecastWarning): Color =
     if (warning.priority >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary

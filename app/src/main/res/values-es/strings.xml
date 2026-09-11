@@ -21,6 +21,8 @@
     <string name="long_range_timing_hidden">No se muestra la hora exacta en previsiones a largo plazo</string>
     <string name="long_range_scores_hidden">Las puntuaciones exactas de comodidad se ocultan en previsiones a largo plazo.</string>
     <string name="personal_score_note">Puntuación orientativa según el tiempo; no mide la fiabilidad de la previsión ni garantiza la seguridad.</string>
+    <string name="supported_score_total">Total respaldado: %1$d/100 puntos posibles</string>
+    <string name="known_inputs_score">Datos conocidos: %1$d/%2$d puntos disponibles = %3$d/100 al normalizar</string>
     <string name="show_top_ten">Ver los 10 mejores</string>
     <string name="warning_description">Aviso: %1$s</string>
     <string name="notice_description">Aviso: %1$s</string>
@@ -39,9 +41,9 @@
     <string name="notification_blocked">Las notificaciones están bloqueadas en los ajustes de Android</string>
     <string name="language">Idioma</string>
     <string name="weekly_outlook">Comodidad durante 7 días</string>
-    <string name="weekly_outlook_subtitle">Puntuación media durante el día / 100 · cuanto más alta, mejor</string>
+    <string name="weekly_outlook_subtitle">Comodidad diurna · exacta a corto plazo y por rangos después</string>
     <string name="today_uses_remaining_daylight">Hoy usa las horas de luz restantes; los días posteriores usan todas las horas de luz.</string>
-    <string name="weekly_outlook_day_description">%1$s: puntuación media durante el día %2$s%3$s</string>
+    <string name="weekly_outlook_day_description">%1$s: comodidad diurna %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; aviso: %1$s</string>
 
     <plurals name="show_all_other_locations">

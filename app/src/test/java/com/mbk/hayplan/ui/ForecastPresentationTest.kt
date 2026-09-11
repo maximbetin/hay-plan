@@ -107,6 +107,8 @@ class ForecastPresentationTest {
             "Lluvia 10% · Rachas 18,0 km/h · Nubes 20%",
             cardConditions(summary, ActivityType.BEACH, coastal = true, language = AppLanguage.SPANISH))
         assertEquals("Media: Excelente", strings.averageRating(Rating.EXCELLENT))
+        assertEquals("Media: Excelente · periodo adverso",
+            strings.averageRating(Rating.EXCELLENT, severePeriod = true))
         assertEquals("Todo el día", strings.rankingMode(RankingMode.WHOLE_DAY))
         assertEquals("Mejor franja de 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))
         assertEquals("Tormenta · 18:00–20:00", strings.warningPeriod(ForecastWarningPeriod(
@@ -126,6 +128,8 @@ class ForecastPresentationTest {
             strings.dayUnavailable(DayUnavailableReason.Incomplete(2, 4)))
         assertEquals("No hay previsión para esta fecha.",
             strings.dayUnavailable(DayUnavailableReason.NoForecast))
+        assertEquals("No están disponibles las horas de luz para esta fecha.",
+            strings.dayUnavailable(DayUnavailableReason.MissingDaylightBounds))
     }
 
     @Test fun `forecast horizon labels separate later and long range dates`() {
@@ -134,9 +138,15 @@ class ForecastPresentationTest {
         assertFalse(isLongRangeOutlook(date.plusDays(6), date))
         assertTrue(isLongRangeOutlook(date.plusDays(7), date))
         assertEquals("Long-range outlook · lower confidence", forecastConfidenceLabel(date.plusDays(7), date))
+        assertEquals(ScorePrecision.EXACT, scorePrecision(date.plusDays(2), date))
+        assertEquals(ScorePrecision.BAND, scorePrecision(date.plusDays(3), date))
+        assertEquals(ScorePrecision.BAND, scorePrecision(date.plusDays(6), date))
+        assertEquals(ScorePrecision.HIDDEN, scorePrecision(date.plusDays(7), date))
+        assertEquals("60–89", scoreBand(61))
+        assertEquals(scoreBandMidpoint(61), scoreBandMidpoint(89))
     }
 
-    @Test fun `weekly outlook uses the seven exact-score dates and keeps unavailable days`() {
+    @Test fun `weekly outlook uses seven dates and keeps unavailable days`() {
         fun hoursFor(day: LocalDate) = (8..10).map { time ->
             hour(time).copy(time = day.atTime(time, 0), sunrise = day.atTime(8, 0), sunset = day.atTime(11, 0))
         }

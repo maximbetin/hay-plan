@@ -28,6 +28,7 @@ internal class UiStrings(val language: AppLanguage) {
     fun dayUnavailable(reason: DayUnavailableReason?): String = when (reason) {
         null -> ""
         DayUnavailableReason.NoForecast -> invoke("No forecast for this date.")
+        DayUnavailableReason.MissingDaylightBounds -> invoke("Daylight times unavailable for this date.")
         DayUnavailableReason.NoHoursRemaining -> invoke("No hours remaining.")
         is DayUnavailableReason.Incomplete -> if (language == AppLanguage.SPANISH)
             "Previsión incompleta · ${reason.ratedHours}/${reason.expectedHours} horas valoradas"
@@ -72,8 +73,13 @@ internal class UiStrings(val language: AppLanguage) {
     fun seaSource(name: String, coverage: MarineCoverage) = if (language == AppLanguage.SPANISH)
         "Mar: $name · ${coverage(coverage)}" else "Sea: $name · ${coverage(coverage)}"
 
-    fun averageRating(rating: Rating): String = if (language == AppLanguage.SPANISH)
-        "Media: ${rating(rating)}" else "Average: ${rating(rating)}"
+    fun averageRating(rating: Rating, severePeriod: Boolean = false): String {
+        val average = if (language == AppLanguage.SPANISH)
+            "Media: ${rating(rating)}" else "Average: ${rating(rating)}"
+        if (!severePeriod) return average
+        return if (language == AppLanguage.SPANISH) "$average · periodo adverso"
+            else "$average · severe period"
+    }
 
     fun warningPeriod(period: ForecastWarningPeriod): String {
         val warning = invoke(period.warning).removeSuffix(".")
@@ -120,6 +126,8 @@ internal class UiStrings(val language: AppLanguage) {
         "Hide comfort score calculation ▴" to "Ocultar cálculo de la puntuación de comodidad ▴",
         "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation." to
             "La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora se puntúa sobre 100 y se aplican los límites necesarios. Toca una hora para ver el cálculo.",
+        "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, then applies any condition limits. Tap an hour to see its inputs and calculation." to
+            "La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora suma hasta 70 puntos del tiempo más los puntos disponibles del mar, siempre sobre 100 puntos posibles, y después se aplican los límites necesarios. Toca una hora para ver el cálculo.",
         "Average of these three hourly scores, with any limits for the whole period applied." to
             "Media de esas tres horas, con los límites que correspondan.",
         "Town and nearby-area weather, not exact trail or elevation conditions." to
@@ -129,6 +137,7 @@ internal class UiStrings(val language: AppLanguage) {
         "Weather for outdoor leisure; pool temperatures and river conditions are not assessed." to
             "Tiempo para actividades al aire libre; no incluye la temperatura de las piscinas ni el estado de los ríos.",
         "No forecast for this date." to "No hay previsión para esta fecha.", "No hours remaining." to "No quedan horas de luz.",
+        "Daylight times unavailable for this date." to "No están disponibles las horas de luz para esta fecha.",
         "No complete three-hour window" to "No hay una franja completa de tres horas",
         "Weather forecast unavailable." to "No hay previsión del tiempo.",
         "Beach weather unavailable · using town weather" to "No hay previsión para la playa · se usa el tiempo de la localidad",

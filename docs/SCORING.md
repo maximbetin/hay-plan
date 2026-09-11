@@ -9,8 +9,9 @@ probability that an activity will be safe or enjoyable.
 
 1. Select the date in Europe/Madrid. Keep only complete daylight hours, entirely
    inside sunrise/sunset. Today also excludes already-started hours.
-2. Score every eligible hour independently. Divide earned points by the available
-   factor maximum, multiply by 100, round to the nearest integer, then apply limits.
+2. Score every eligible hour independently. Hiking normalizes its required factors to
+   100. Beach keeps optional sea points unsupported when missing and therefore uses
+   earned points against the full 100-point profile. Then apply any condition limits.
 3. The **day score** is the arithmetic mean of those capped hourly scores,
    rounded to the nearest integer. It is NOT the maximum window score.
 4. Every expected daylight hour must have that activity's required weather inputs.
@@ -20,7 +21,8 @@ probability that an activity will be safe or enjoyable.
    tied windows choose the earliest. Partial days may still have a complete window.
 
 Sea temperature and wave height are optional, independently: absent, invalid or
-inapplicable values earn no points and add nothing to the available maximum.
+inapplicable values earn no points. Beach's supported score always uses the full
+100-point profile, so missing sea evidence cannot produce a perfect Beach rating.
 The UI distinguishes Weather only, Weather + sea, partial sea data, and coverage
 that varies by hour. These labels describe inputs, not forecast confidence.
 
@@ -30,7 +32,7 @@ For the window's displayed factors, temperatures/clouds are averages, wind/waves
 rain chance are maxima, and rainfall is summed. A sea summary value is shown only
 when present throughout the window; known limiting sea conditions still apply
 even if other hours lack sea data. Apply limits to the aggregates too.
-Cold-water/freezing/high-heat limits inspect individual hours so
+Cold-water/freezing/high-heat limits inspect individual air and apparent temperatures so
 an uncomfortable extreme cannot disappear into the average. Factor values are
 window summaries; points are assigned per hour, not to those displayed averages.
 
@@ -38,7 +40,8 @@ A 12-hour day with three excellent hours and nine poor hours is a poor/fair day
 with a potentially excellent window, not an excellent day. Day warnings indicate
 limiting conditions during some hours; they are not claims that every hour is unsafe.
 The highest-priority warning and its affected time remain visible even when the
-arithmetic day average is Very Good or Excellent. Equally broad priorities use an
+arithmetic day average is Very Good or Excellent. A priority-3 warning also adds a
+short `severe period` qualifier to the average rating. Equally broad priorities use an
 explicit urgency order rather than depending on discovery order. Known warning periods
 also remain visible when missing required data prevents a full-day rating.
 
@@ -50,11 +53,11 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 The overview can order other locations by whole-day rating or by the best complete
 three-hour opportunity. Whole-day mode does not substitute a good window for an incomplete
 day; best-window mode can rank that complete window even when missing hours prevent a day
-rating. Periods without the selected rating go last. Beach ordering uses conservative earned
-points against the full profile for the selected period, so unavailable optional sea inputs
-cannot make an otherwise identical forecast rank above known usable sea conditions. The
-visible score still normalizes only the available inputs and its coverage label explains what
-was known. Visible score, mean uncapped conditions and the stable identifier resolve later ties.
+rating. Periods without the selected rating go last. Beach ordering uses the same conservative
+score shown to the user: earned points against the full 100-point profile. Unavailable optional
+sea inputs therefore cannot become a perfect rating or silently produce a ranking different
+from the displayed score. Coverage, mean normalized known conditions and the stable identifier
+resolve later ties.
 The overview always
 shows Gijón, Oviedo and Avilés first, in that population-based order, for either activity.
 The next section contains the ten highest-ranked remaining locations without duplicating
@@ -62,14 +65,17 @@ those main towns; Show all reveals any remainder. Beach cards continue to label 
 references and inland estimates explicitly. Changing date or activity collapses the
 overview to ten other locations; activity changes within details keep the selected location open.
 
-The day headline and every hourly row display the actual internal score out of 100.
+Today through day two display exact scores on cards and hourly rows. Days three through
+six show rating bands there; opening a calculation still reveals the exact heuristic score.
+Day seven onward hides exact scores throughout.
 The hourly rows are the exact inputs to the day average; missing expected hours
 remain visible as Unavailable. The best three-hour span is highlighted in the list.
 When rounding a displayed factor would make it appear to sit on the wrong side of a
 scoring boundary, the value uses `<` or `>` to preserve that distinction without
 implying extra forecast precision.
-Cards and details use the same calculated outlook and best window. Each hourly detail shows its
-actual raw points, available maximum, normalized score and any reductions.
+Cards and details use the same calculated outlook and best window. Each Beach hourly detail
+shows supported points against the full profile and, when sea inputs are missing, the normalized
+known-input score as secondary context. It also shows any reductions from condition limits.
 Day summaries use the same expected daylight slots; a missing
 value in any slot leaves that field Unknown instead of summarizing a partial set.
 
@@ -84,6 +90,15 @@ All non-marine inputs are required: air and apparent temperature, humidity, clou
 sustained wind, gusts, rain probability, rainfall amount, visibility, UV index and WMO
 weather code. Missing or invalid values make that hour unavailable rather than silently
 assuming favorable weather.
+
+The weighted factors are preference signals, not independent scientific predictors.
+Apparent temperature already reflects temperature, humidity, wind and radiation; sustained
+wind and gusts are related; rain probability and amount are also related but answer different
+questions about likelihood and intensity. Their separate weights deliberately compound
+discomfort when several related aspects are poor. The review retained the current weights
+because replacing them without recorded user outcomes would create different, equally
+unsupported precision. Both activity profiles still total 100 points, and tests protect those
+totals and their documented factor maxima from accidental drift.
 
 ## Beach (weather maximum 70; optional marine maximum 30)
 
@@ -104,9 +119,12 @@ pool temperature or river conditions.
 | Relative humidity | 5 | Shared humidity bands below |
 | Visibility | 5 | Shared visibility bands below |
 
-The weather-only maximum is 70. Known water and waves independently add 12 and 18
-available points. Each hour is normalized against only the available maximum, so missing
-marine data is not invented as calm or warm; coverage remains clearly labelled.
+The weather-only maximum is 70. Known water and waves independently add 12 and 18 points.
+The displayed score is earned points out of the full 100-point Beach profile: weather-only
+coverage can therefore score at most 70, weather plus water at most 82, weather plus waves
+at most 88, and complete weather-and-sea coverage at most 100. Missing marine data is not invented as calm
+or warm; it contributes no supported points, while the coverage label and known-input detail
+explain what was available.
 
 ## Hiking (100 points)
 
@@ -163,12 +181,14 @@ Open-Meteo precipitation and gusts describe the preceding hour: values timestamp
 12:00 belong to the app's 11:00–12:00 interval. Instantaneous values such as apparent
 temperature, cloud cover, humidity, visibility and UV remain on their stated timestamp.
 Missing/non-finite values stay unknown. Never extrapolate marine variables into later dates.
+Missing sunrise or sunset metadata is reported as unavailable daylight timing, not as though
+the day's daylight had already ended.
 
-Dates three through six are labelled as later outlooks that may change; day seven onward
-is labelled as a lower-confidence long-range outlook. Long-range views show rating bands
-and forecast conditions but hide exact comfort scores, progress bars and best-window timing.
-Their location ordering uses rating bands and visible marine-coverage evidence rather than
-unseen differences within a band. A forecast is fresh for one hour.
+Dates three through six are labelled as later outlooks that may change. Their cards, hourly
+rows, weekly chart and location ordering use rating bands rather than one-point differences;
+exact scores remain available only inside calculation details. Day seven onward is labelled
+as a lower-confidence long-range outlook and also hides best-window timing. Forecast
+conditions and warnings remain visible at every horizon. A forecast is fresh for one hour.
 After a failed refresh, saved data may be used with a warning for at most 12 hours.
 
 Ratings estimate comfort, not safety. UV contributes a rating limit and warning,
@@ -181,15 +201,17 @@ in the UI.
 
 The optional notification evaluates today's remaining daylight with the same `DayPlanner`
 results shown in the app. Oviedo always considers Hiking. Gijón recommends Beach only when
-its best complete window scores at least 60, has water and wave data throughout, and has no
-warning with priority 2 or 3. Otherwise Gijón considers Hiking. Hiking is recommended only
-for a complete window scoring at least 40 with no priority 2 or 3 warning. A lower-quality
+its best complete window scores at least 60, uses the coastal weather forecast, has water and
+wave data throughout, and has no priority 2 or 3 warning in any of its hours. Otherwise Gijón
+considers Hiking. Hiking is recommended only for a complete window scoring at least 40 with
+no priority 2 or 3 warning in any of its hours. UV remains visible and limits the comfort score,
+but does not by itself block an Asturias notification. A lower-quality
 known window is labelled as having no strong recommendation; an absent complete window is
 labelled unavailable.
 
 Delivery is scheduled for approximately the selected Europe/Madrid time, not as an exact
 alarm. The notification uses the normal one-hour cache and the same labelled, maximum
-12-hour saved-forecast fallback. Work waits for a network connection. If essential Gijón or
-Oviedo weather is still unavailable, it retries three times with a 15-minute linear-backoff
-base before showing the honest unavailable result. It never turns a missing or severe forecast
-into a positive recommendation.
+12-hour saved-forecast fallback. Work waits for a network connection. If essential Gijón
+coastal, Gijón town or Oviedo weather is still unavailable, it retries three times with a
+15-minute linear-backoff base before falling back to Hiking or showing the honest unavailable
+result. It never turns a missing or severe forecast into a positive recommendation.

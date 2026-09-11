@@ -21,7 +21,7 @@ Older builds signed with another key require uninstalling first, which removes l
 5. The app follows English or Spanish system language by default. Open **Settings** to override it; the choice is saved on the phone. Light and dark system themes are supported.
 6. Optionally enable the **Daily outing notification** in Settings and choose a time. Around that time in Asturias, a compact notification recommends Beach or walking for Gijón and walking for Oviedo; tap it to open today’s overview.
 
-Dates seven days away and later are deliberately shown as lower-confidence outlooks: rating bands and conditions remain visible, while exact comfort scores and best-window timing are hidden.
+Dates three through six use rating bands on cards and charts, with exact heuristic scores available only inside calculation details. Dates seven days away and later are lower-confidence outlooks that also hide exact scores and best-window timing.
 
 Locations: Gijón, Oviedo, Avilés, Luanco, Llanes, Ribadesella, Candás, Luarca,
 Cangas de Onís, Salinas, Cudillero, Tapia de Casariego, Villaviciosa, Somiedo, and Redes.

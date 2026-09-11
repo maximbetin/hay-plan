@@ -189,7 +189,7 @@ fun HayPlanScreen(
     val opened = state.opened
     val date = state.selectedDate ?: state.now.toLocalDate()
     val remaining = date == state.now.toLocalDate()
-    val showExactScores = !isLongRangeOutlook(date, state.now.toLocalDate())
+    val precision = scorePrecision(date, state.now.toLocalDate())
     val period = if (remaining) "Remaining daylight" else "Daylight overall"
     val weeklyOutlook = remember(opened, state.dates, state.now, state.activity) {
         opened?.let {
@@ -203,8 +203,9 @@ fun HayPlanScreen(
                 forecast.forActivity(state.activity).hours, date, state.now, state.activity)
         }
     }
-    val ranked = remember(state.forecasts, outlooks, rankingMode, showExactScores) {
-        rankLocations(state.forecasts, outlooks, rankingMode, coarseScores = !showExactScores)
+    val ranked = remember(state.forecasts, outlooks, rankingMode, precision) {
+        rankLocations(state.forecasts, outlooks, rankingMode,
+            coarseScores = precision != ScorePrecision.EXACT)
     }
     val sections = remember(ranked) { locationSections(ranked) }
     val daylightFinished = daylightHasEnded(date, state.now, outlooks.values)
@@ -344,7 +345,7 @@ fun HayPlanScreen(
                         }
                         items(sections.main, key = { it.location.id }) { forecast ->
                             TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
-                                state.nowInstant, showExactScores) { onLocationSelected(forecast.location.id) }
+                                state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
                         }
                         if (sections.allOthers.isNotEmpty()) {
                             item { Text(localizedString(R.string.best_other_locations),
@@ -352,7 +353,7 @@ fun HayPlanScreen(
                             items(if (showAll) sections.allOthers else sections.topOthers,
                                 key = { it.location.id }) { forecast ->
                                 TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
-                                    state.nowInstant, showExactScores) { onLocationSelected(forecast.location.id) }
+                                    state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
                             }
                         }
                         if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
@@ -374,7 +375,7 @@ fun HayPlanScreen(
                         OutlookDetails(outlooks.getValue(opened.location.id), opened.forActivity(state.activity).hours,
                             period, "${opened.location.id}/$date/${state.activity}", remaining,
                             forecastContextLabel(opened.location, state.activity, date, language),
-                            opened.location.coast != null, showExactScores,
+                            opened.location.coast != null, precision,
                             weeklyOutlook, date, state.now.toLocalDate(), onDateSelected)
                     }
                 }
@@ -440,7 +441,7 @@ private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit
 
 @Composable
 private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activity: ActivityType,
-                     now: Instant, showExactScores: Boolean, onOpen: () -> Unit) {
+                     now: Instant, scorePrecision: ScorePrecision, onOpen: () -> Unit) {
     val strings = LocalUiStrings.current
     val data = forecast.forActivity(activity)
     val summary = remember(outlook, data.hours, forecast.location.coast) {
@@ -460,11 +461,12 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     color = MaterialTheme.colorScheme.primary)
             }
             CardReferenceLabel(forecast.location, activity, outlook)
-            CompactRatingValue(outlook.day?.rating, outlook.day?.score, average = true,
-                showExactScore = showExactScores)
-            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall)
             val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
             val cardWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
+            CompactRatingValue(outlook.day?.rating, outlook.day?.score, average = true,
+                showExactScore = scorePrecision == ScorePrecision.EXACT,
+                severePeriod = cardWarning?.priority == 3)
+            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall)
             cardWarning?.let { warning ->
                 val warningText = primaryPeriod?.let(strings::warningPeriod) ?: strings(warning)
                 val warningDescription = localizedString(R.string.warning_description, warningText)
@@ -486,8 +488,12 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     Text(localizedString(R.string.best_three_hours), Modifier.weight(1f),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(if (showExactScores) "${timeRange(window.start, window.end)} · ${window.score}/100"
-                        else strings.rating(window.rating),
+                    val windowSummary = when (scorePrecision) {
+                        ScorePrecision.EXACT -> "${timeRange(window.start, window.end)} · ${window.score}/100"
+                        ScorePrecision.BAND -> "${timeRange(window.start, window.end)} · ${strings.rating(window.rating)}"
+                        ScorePrecision.HIDDEN -> strings.rating(window.rating)
+                    }
+                    Text(windowSummary,
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                         color = currentRatingColor(window.score))
                 }
@@ -499,11 +505,11 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
 
 @Composable
 private fun CompactRatingValue(rating: Rating?, score: Int?, average: Boolean = false,
-                               showExactScore: Boolean = true) {
+                               showExactScore: Boolean = true, severePeriod: Boolean = false) {
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(rating?.let { if (average) strings.averageRating(it) else strings.rating(it) }
+        Text(rating?.let { if (average) strings.averageRating(it, severePeriod) else strings.rating(it) }
             ?: localizedString(R.string.unavailable), Modifier.weight(1f),
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
             color = color)

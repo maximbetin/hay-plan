@@ -23,7 +23,7 @@ android {
         targetSdk = 37
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = automaticBuild ?: 11
-        versionName = automaticBuild?.let { "0.7.0.$it" } ?: "0.7.0"
+        versionName = automaticBuild?.let { "0.8.0.$it" } ?: "0.8.0"
     }
 
     // CI supplies the private update-compatible key; local unversioned builds use the normal debug key.

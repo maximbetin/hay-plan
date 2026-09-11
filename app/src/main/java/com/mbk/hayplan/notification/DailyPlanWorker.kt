@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.mbk.hayplan.MainActivity
 import com.mbk.hayplan.R
 import com.mbk.hayplan.data.ForecastCache
+import com.mbk.hayplan.data.ForecastIssue
 import com.mbk.hayplan.data.ForecastRepository
 import com.mbk.hayplan.data.LocationCatalog
 import com.mbk.hayplan.data.OpenMeteoClient
@@ -53,7 +54,10 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
         val oviedo = forecasts.firstOrNull { it.location.id == "oviedo" }
         if (gijon == null || oviedo == null) return retryOrNotifyUnavailable(language)
 
-        val essentialWeatherAvailable = gijon.weather.hours.isNotEmpty() && oviedo.weather.hours.isNotEmpty()
+        val gijonCoastalWeatherAvailable = gijon.beach.hours.isNotEmpty() &&
+            ForecastIssue.BEACH_WEATHER_FALLBACK !in gijon.beach.errors
+        val essentialWeatherAvailable = gijon.weather.hours.isNotEmpty() &&
+            gijonCoastalWeatherAvailable && oviedo.weather.hours.isNotEmpty()
         if (DailyNotificationRetryPolicy.shouldRetry(runAttemptCount, essentialWeatherAvailable)) {
             return Result.retry()
         }
@@ -62,7 +66,12 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
         val gijonBeach = DayPlanner.forDate(gijon.beach.hours, date, now, ActivityType.BEACH)
         val gijonHiking = DayPlanner.forDate(gijon.weather.hours, date, now, ActivityType.HIKING)
         val oviedoHiking = DayPlanner.forDate(oviedo.weather.hours, date, now, ActivityType.HIKING)
-        val plan = DailyRecommendationPlanner.create(gijonBeach, gijonHiking, oviedoHiking)
+        val plan = DailyRecommendationPlanner.create(
+            gijonBeach,
+            gijonHiking,
+            oviedoHiking,
+            gijonCoastalWeatherAvailable = gijonCoastalWeatherAvailable,
+        )
         val gijonSources = if (plan.gijon.activity == RecommendedActivity.BEACH)
             gijon.beach.sources else gijon.weather.sources
         val sources = gijonSources + oviedo.weather.sources

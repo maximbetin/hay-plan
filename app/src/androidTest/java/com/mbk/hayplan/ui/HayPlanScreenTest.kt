@@ -50,7 +50,7 @@ class HayPlanScreenTest {
             }
         }
 
-        compose.onNodeWithText("Average: Excellent").assertIsDisplayed()
+        compose.onNodeWithText("Average: Excellent · severe period").assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertIsDisplayed()
         compose.onNodeWithText("Best 3 hours").assertIsDisplayed()
@@ -89,6 +89,40 @@ class HayPlanScreenTest {
         compose.onNodeWithText("Timing not shown for long-range outlooks").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("96/100").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("08:00–11:00").fetchSemanticsNodes().isEmpty())
+    }
+
+    @Test fun laterOutlookUsesBandsUntilCalculationDetailsAreOpened() {
+        val today = LocalDate.of(2026, 9, 3)
+        val date = today.plusDays(3)
+        val hours = (8..10).map { hour ->
+            HourlyConditions(
+                time = date.atTime(hour, 0), isDaylight = true,
+                airTemperatureC = 20.0, apparentTemperatureC = 20.0,
+                precipitationProbabilityPercent = 0, precipitationMm = 0.0,
+                cloudCoverPercent = 0, windSpeedKmh = 5.0, windGustsKmh = 10.0,
+                relativeHumidityPercent = 60, visibilityM = 20_000.0,
+                weatherCode = 0, uvIndex = 3.0, seaTemperatureC = null, waveHeightM = null,
+            )
+        }
+        val forecast = LocationForecast(
+            HayPlanLocation("later", "Later place", "Asturias", Coordinates(43.5, -5.5)),
+            ActivityForecastData(hours),
+        )
+        compose.setContent {
+            HayPlanTheme {
+                HayPlanScreen(HayPlanUiState(
+                    forecasts = listOf(forecast), dates = listOf(date), selectedDate = date,
+                    activity = ActivityType.HIKING, now = today.atStartOfDay(), isLoading = false,
+                ))
+            }
+        }
+
+        compose.onNodeWithText("Later outlook · forecast may change").assertIsDisplayed()
+        compose.onNodeWithText("08:00–11:00 · Excellent").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText("100/100").fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText("Later place").performClick()
+        compose.onNodeWithText("Comfort score details ›").performClick()
+        compose.onNodeWithText("100/100").assertIsDisplayed()
     }
 
     @Test fun SpanishOverrideControlsAndroidResourcesAndPluralPresentation() {

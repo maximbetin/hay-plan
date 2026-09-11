@@ -23,7 +23,8 @@ class OptionalMarineScoringTest {
         assertTrue(water.availablePoints > weather.availablePoints)
         assertTrue(waves.availablePoints > weather.availablePoints)
         assertTrue(full.availablePoints > water.availablePoints && full.availablePoints > waves.availablePoints)
-        listOf(weather, water, waves, full).forEach { assertTrue(it.score in 0..100) }
+        assertEquals(listOf(70, 75, 83, 100), listOf(weather, water, waves, full).map { it.score })
+        assertEquals(100, weather.knownConditionsScore)
     }
 
     @Test fun `zero is a real measurement while absent values receive no invented points`() {
@@ -43,7 +44,7 @@ class OptionalMarineScoringTest {
         assertFalse(result.factors.any { it.label == "Water" || it.label == "Waves" })
     }
 
-    @Test fun `limits apply after normalization`() {
+    @Test fun `limits apply after the supported total`() {
         val limited = listOf(score(hour().copy(windSpeedKmh = 40.0)),
             score(hour().copy(precipitationMm = 1.1)), score(hour().copy(waveHeightM = 1.5)))
         limited.forEach {

@@ -53,10 +53,18 @@ class DayPlannerTest {
     }
 
     @Test fun `no daylight yields no rating or window`() {
-        val hours = (20..23).map { hour(it).copy(isDaylight = false) }
+        val hours = (20..23).map { hour(it).copy(isDaylight = false,
+            sunrise = date.atTime(8, 0), sunset = date.atTime(20, 0)) }
         val result = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH)
         assertNull(result.day)
         assertNull(result.bestWindow)
+    }
+
+    @Test fun `missing daylight bounds are not described as hours having ended`() {
+        val hours = (8..19).map { hour(it).copy(isDaylight = false, sunrise = null, sunset = null) }
+        val result = DayPlanner.forDate(hours, date, morning, ActivityType.HIKING)
+        assertNull(result.day)
+        assertEquals(DayUnavailableReason.MissingDaylightBounds, result.dayUnavailableReason)
     }
 
     @Test fun `a missing hourly timestamp invalidates the full day`() {
@@ -96,6 +104,24 @@ class DayPlannerTest {
         assertNull(ActivityScorer.score(ActivityType.HIKING, listOf(data.copy(cloudCoverPercent = null))))
     }
 
+    @Test fun `documented activity weights retain their complete 100 point profiles`() {
+        val hiking = ActivityScorer.score(ActivityType.HIKING, listOf(hour(10)))!!
+        val beach = ActivityScorer.score(ActivityType.BEACH, listOf(hour(10)))!!
+        assertEquals(mapOf(
+            "Feels like" to 25, "Rain chance" to 15, "Rainfall" to 15,
+            "Wind" to 10, "Wind gusts" to 10, "Cloud cover" to 15,
+            "Humidity" to 5, "Visibility" to 5,
+        ), hiking.factors.filter { it.maximumPoints > 0 }.associate { it.label to it.maximumPoints })
+        assertEquals(mapOf(
+            "Feels like" to 15, "Water" to 12, "Waves" to 18,
+            "Rain chance" to 10, "Rainfall" to 10, "Wind" to 8,
+            "Wind gusts" to 7, "Cloud cover" to 10, "Humidity" to 5,
+            "Visibility" to 5,
+        ), beach.factors.filter { it.maximumPoints > 0 }.associate { it.label to it.maximumPoints })
+        assertEquals(100, hiking.availablePoints)
+        assertEquals(100, beach.availablePoints)
+    }
+
     @Test fun `rough seas cannot be offset by pleasant weather`() {
         val score = ActivityScorer.score(ActivityType.BEACH, listOf(hour(10).copy(waveHeightM = 1.3)))!!
         assertEquals(Rating.POOR, ratingFor(score.score))
@@ -113,6 +139,20 @@ class DayPlannerTest {
         val score = ActivityScorer.score(ActivityType.BEACH, data)!!
         assertTrue(score.score <= 39)
         assertTrue(score.warnings.size >= 2)
+    }
+
+    @Test fun `one apparent temperature extreme cannot hide inside a comfortable window average`() {
+        val cold = (10..12).map(::hour).toMutableList()
+        cold[1] = cold[1].copy(apparentTemperatureC = -1.0)
+        val coldScore = ActivityScorer.score(ActivityType.HIKING, cold)!!
+        assertTrue(coldScore.score <= 39)
+        assertTrue(ForecastWarning.FREEZING_TEMPERATURES in coldScore.warnings)
+
+        val hot = (10..12).map(::hour).toMutableList()
+        hot[1] = hot[1].copy(apparentTemperatureC = 35.0)
+        val hotScore = ActivityScorer.score(ActivityType.HIKING, hot)!!
+        assertTrue(hotScore.score <= 39)
+        assertTrue(ForecastWarning.EXTREME_HEAT in hotScore.warnings)
     }
 
     @Test fun `rainfall matters even with a low rain probability`() {
@@ -201,14 +241,15 @@ class DayPlannerTest {
         assertEquals(3, outlook.hourly.count { it.evaluation != null })
     }
 
-    @Test fun `day averages capped hourly scores rather than uncapped raw points`() {
+    @Test fun `day averages limited hourly scores rather than normalized known-condition scores`() {
         val hours = (8..19).map { hour(it).copy(waveHeightM = if (it < 14) 0.3 else 1.4) }
         val outlook = DayPlanner.forDate(hours, date, morning, ActivityType.BEACH)
         val scores = outlook.hourly.map { it.evaluation!! }
-        assertTrue(scores.any { it.score < it.pointsBeforeLimits })
+        assertTrue(scores.any { it.score < it.knownConditionsScore })
         assertEquals(outlook.day!!.score, scores.map { it.score }.average().roundToInt())
-        assertEquals(outlook.day.uncappedScore, scores.map { it.pointsBeforeLimits }.average().roundToInt())
-        assertTrue(outlook.day.uncappedScore > outlook.day.score)
+        assertEquals(outlook.day.knownConditionsScore,
+            scores.map { it.knownConditionsScore }.average().roundToInt())
+        assertTrue(outlook.day.knownConditionsScore > outlook.day.score)
     }
 
     @Test fun `excellent average retains a prominent thunderstorm warning`() {

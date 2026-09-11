@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZonedDateTime
 
@@ -18,6 +19,7 @@ class DailyRecommendationTest {
             outlook(ActivityType.BEACH, window(82, MarineCoverage.FULL)),
             outlook(ActivityType.HIKING, window(95)),
             outlook(ActivityType.HIKING, window(72)),
+            gijonCoastalWeatherAvailable = true,
         )
         assertEquals(RecommendedActivity.BEACH, plan.gijon.activity)
         assertEquals(RecommendedActivity.WALK, plan.oviedo.activity)
@@ -31,7 +33,7 @@ class DailyRecommendationTest {
         ).forEach { beach ->
             val plan = DailyRecommendationPlanner.create(
                 outlook(ActivityType.BEACH, beach), outlook(ActivityType.HIKING, window(70)),
-                outlook(ActivityType.HIKING, window(70)))
+                outlook(ActivityType.HIKING, window(70)), gijonCoastalWeatherAvailable = true)
             assertEquals(RecommendedActivity.WALK, plan.gijon.activity)
         }
     }
@@ -41,9 +43,51 @@ class DailyRecommendationTest {
             outlook(ActivityType.BEACH, window(30, MarineCoverage.FULL)),
             outlook(ActivityType.HIKING, window(39)),
             outlook(ActivityType.HIKING, null),
+            gijonCoastalWeatherAvailable = true,
         )
         assertEquals(RecommendedActivity.NONE, plan.gijon.activity)
         assertEquals(RecommendedActivity.UNAVAILABLE, plan.oviedo.activity)
+    }
+
+    @Test fun `warning periods block recommendations even when summary warnings omit them`() {
+        val date = LocalDate.of(2026, 9, 11)
+        val extremePeriod = ForecastWarningPeriod(
+            ForecastWarning.EXTREME_HEAT,
+            date.atTime(11, 0),
+            date.atTime(12, 0),
+        )
+        val plan = DailyRecommendationPlanner.create(
+            outlook(ActivityType.BEACH, window(82, MarineCoverage.FULL,
+                warningPeriods = listOf(extremePeriod))),
+            outlook(ActivityType.HIKING, window(70, warningPeriods = listOf(extremePeriod))),
+            outlook(ActivityType.HIKING, window(70, warningPeriods = listOf(extremePeriod))),
+            gijonCoastalWeatherAvailable = true,
+        )
+        assertEquals(RecommendedActivity.NONE, plan.gijon.activity)
+        assertEquals(RecommendedActivity.NONE, plan.oviedo.activity)
+    }
+
+    @Test fun `coastal weather fallback cannot produce a Beach recommendation`() {
+        val plan = DailyRecommendationPlanner.create(
+            outlook(ActivityType.BEACH, window(82, MarineCoverage.FULL)),
+            outlook(ActivityType.HIKING, window(70)),
+            outlook(ActivityType.HIKING, window(70)),
+            gijonCoastalWeatherAvailable = false,
+        )
+        assertEquals(RecommendedActivity.WALK, plan.gijon.activity)
+    }
+
+    @Test fun `extreme UV remains visible without blocking an Asturias notification`() {
+        assertEquals(1, ForecastWarning.EXTREME_UV.priority)
+        val extremeUv = listOf(ForecastWarning.EXTREME_UV)
+        val plan = DailyRecommendationPlanner.create(
+            outlook(ActivityType.BEACH, window(59, MarineCoverage.FULL, extremeUv)),
+            outlook(ActivityType.HIKING, window(59, warnings = extremeUv)),
+            outlook(ActivityType.HIKING, window(59, warnings = extremeUv)),
+            gijonCoastalWeatherAvailable = true,
+        )
+        assertEquals(RecommendedActivity.WALK, plan.gijon.activity)
+        assertEquals(RecommendedActivity.WALK, plan.oviedo.activity)
     }
 
     @Test fun `notification text stays compact localized and identifies saved data`() {
@@ -91,5 +135,7 @@ class DailyRecommendationTest {
         coverage: MarineCoverage = MarineCoverage.NONE,
         warnings: List<ForecastWarning> = emptyList(),
         start: LocalTime = LocalTime.of(10, 0),
-    ) = BestWindow(start, start.plusHours(3), ratingFor(score), score, emptyList(), warnings, coverage)
+        warningPeriods: List<ForecastWarningPeriod> = emptyList(),
+    ) = BestWindow(start, start.plusHours(3), ratingFor(score), score, emptyList(), warnings, coverage,
+        warningPeriods = warningPeriods)
 }

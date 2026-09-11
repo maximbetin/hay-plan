@@ -11,16 +11,18 @@ data class ConditionsScore(
     val marineCoverage: MarineCoverage = MarineCoverage.NONE,
 ) {
     val availablePoints: Int get() = factors.sumOf { it.maximumPoints }
-    val pointsBeforeLimits: Int get() = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
-    /** Earned points without treating unavailable optional inputs as perfect conditions. */
-    val evidenceScore: Int get() = minOf(factors.sumOf { it.points }, maximumScore)
+    val supportedScoreBeforeLimits: Int get() = factors.sumOf { it.points }.coerceAtMost(100)
+    /** Known-input score normalized to 100, retained as secondary detail and a stable tie-break. */
+    val knownConditionsScore: Int get() =
+        (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
 }
 
 /** Pure Kotlin rules. Score one hour for a day assessment, or a complete window. */
 object ActivityScorer {
     fun score(activity: ActivityType, hours: List<HourlyConditions>): ConditionsScore? {
         if (hours.isEmpty() || !hours.all(::complete)) return null
-        val feelsLike = hours.map { requireNotNull(it.apparentTemperatureC) }.average()
+        val apparentTemperatures = hours.map { requireNotNull(it.apparentTemperatureC) }
+        val feelsLike = apparentTemperatures.average()
         val humidity = hours.map { requireNotNull(it.relativeHumidityPercent) }.average().roundToInt()
         val wind = hours.maxOf { requireNotNull(it.windSpeedKmh) }
         val gusts = hours.maxOf { requireNotNull(it.windGustsKmh) }
@@ -116,14 +118,14 @@ object ActivityScorer {
         if (rain >= 3) limit(19, ForecastWarning.HEAVY_RAIN)
         else if (rain >= 1 || rainChance > 70) limit(39, ForecastWarning.RAIN)
         else if (rain >= 0.3 || rainChance > 50) limit(59, ForecastWarning.POSSIBLE_RAIN)
-        if (hours.any { requireNotNull(it.airTemperatureC) < 0 } || feelsLike < 0) {
+        if (hours.any { requireNotNull(it.airTemperatureC) < 0 } || apparentTemperatures.any { it < 0 }) {
             limit(39, ForecastWarning.FREEZING_TEMPERATURES)
-        } else if (feelsLike < 5) {
+        } else if (apparentTemperatures.any { it < 5 }) {
             limit(59, ForecastWarning.COLD)
         }
-        if (hours.any { requireNotNull(it.airTemperatureC) >= 35 } || feelsLike >= 35) {
+        if (hours.any { requireNotNull(it.airTemperatureC) >= 35 } || apparentTemperatures.any { it >= 35 }) {
             limit(39, ForecastWarning.EXTREME_HEAT)
-        } else if (feelsLike >= 32) {
+        } else if (apparentTemperatures.any { it >= 32 }) {
             limit(59, ForecastWarning.HOT)
         }
         if (clouds > 90) limit(89, ForecastWarning.OVERCAST)
@@ -133,7 +135,11 @@ object ActivityScorer {
         else if (uv >= 8) limit(89, ForecastWarning.VERY_HIGH_UV)
         weatherLimit(weatherCode)?.let { (maximum, warning) -> limit(maximum, warning) }
         val availablePoints = factors.sumOf { it.maximumPoints }
-        val normalized = (factors.sumOf { it.points } * 100.0 / availablePoints).roundToInt()
+        val earnedPoints = factors.sumOf { it.points }
+        val knownConditionsScore = (earnedPoints * 100.0 / availablePoints).roundToInt()
+        // Beach keeps unknown optional marine points visibly unknown instead of scaling
+        // the known weather portion to a potentially misleading 100/100.
+        val supported = if (activity == ActivityType.BEACH) earnedPoints else knownConditionsScore
         val coverage = if (activity == ActivityType.HIKING) MarineCoverage.NONE else MarineCoverage.combine(hours.map {
             val water = it.seaTemperatureC?.isFinite() == true
             val waves = it.waveHeightM?.let { v -> v.isFinite() && v >= 0 } == true
@@ -144,7 +150,7 @@ object ActivityScorer {
                 else -> MarineCoverage.NONE
             }
         })
-        return ConditionsScore(minOf(normalized, maximumScore), factors, warnings, maximumScore, coverage)
+        return ConditionsScore(minOf(supported, maximumScore), factors, warnings, maximumScore, coverage)
     }
 
     private fun complete(h: HourlyConditions): Boolean {
