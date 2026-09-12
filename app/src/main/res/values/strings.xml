@@ -10,9 +10,9 @@
     <string name="view_tomorrow">View tomorrow</string>
     <string name="main_towns">Main towns</string>
     <string name="best_other_locations">Best other locations</string>
-    <string name="rank_other_locations">Rank other locations by</string>
-    <string name="hourly">Hourly</string>
+    <string name="rank_by">Rank by</string>
     <string name="best_three_hours">Best 3 hours</string>
+    <string name="window_all_remaining_daylight">All remaining daylight</string>
     <string name="unavailable">Unavailable</string>
     <string name="daylight_hours">Daylight hours</string>
     <string name="no_daylight_hours">No daylight hours remaining or available.</string>

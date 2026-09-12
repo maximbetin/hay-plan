@@ -106,11 +106,11 @@ class ForecastPresentationTest {
         assertEquals("Sensación 23,0°C · Agua 20,0°C · Olas 0,5 m\n" +
             "Lluvia 10% · Rachas 18,0 km/h · Nubes 20%",
             cardConditions(summary, ActivityType.BEACH, coastal = true, language = AppLanguage.SPANISH))
-        assertEquals("Media: Excelente", strings.averageRating(Rating.EXCELLENT))
-        assertEquals("Media: Excelente · periodo adverso",
+        assertEquals("Excelente", strings.averageRating(Rating.EXCELLENT))
+        assertEquals("Excelente · periodo adverso",
             strings.averageRating(Rating.EXCELLENT, severePeriod = true))
         assertEquals("Todo el día", strings.rankingMode(RankingMode.WHOLE_DAY))
-        assertEquals("Mejor franja de 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))
+        assertEquals("Mejores 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))
         assertEquals("Tormenta · 18:00–20:00", strings.warningPeriod(ForecastWarningPeriod(
             ForecastWarning.THUNDERSTORM, date.atTime(18, 0), date.atTime(20, 0))))
     }

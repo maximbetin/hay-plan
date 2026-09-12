@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -300,20 +301,9 @@ fun HayPlanScreen(
                 modifier = Modifier.weight(1f), contentPadding = PaddingValues(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 forecastConfidenceLabel(date, state.now.toLocalDate())?.let { confidence -> item {
-                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                        Text(strings(confidence), Modifier.fillMaxWidth().padding(12.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    Text(strings(confidence), style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } }
-                if (opened == null && state.forecasts.isNotEmpty()) item {
-                    Text(localizedString(R.string.comfort_disclaimer),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (opened == null && state.forecasts.isNotEmpty() && !daylightFinished) item {
-                    RankingSelector(rankingMode, onRankingModeSelected)
-                }
                 if (state.forecasts.isEmpty()) item {
                     Text(strings(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh."))
                 }
@@ -336,20 +326,22 @@ fun HayPlanScreen(
                     }
                     if (!daylightFinished) {
                         if (sections.main.isNotEmpty()) item {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(localizedString(R.string.main_towns), Modifier.semantics { heading() },
-                                    style = MaterialTheme.typography.labelLarge)
-                                UpdatedLabel(state.forecasts.flatMap { it.forActivity(state.activity).sources }
-                                    .minOfOrNull { it.fetchedAt })
-                            }
+                            Text(localizedString(R.string.main_towns), Modifier.semantics { heading() },
+                                style = MaterialTheme.typography.labelLarge)
                         }
                         items(sections.main, key = { it.location.id }) { forecast ->
                             TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
                                 state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
                         }
                         if (sections.allOthers.isNotEmpty()) {
-                            item { Text(localizedString(R.string.best_other_locations),
-                                Modifier.semantics { heading() }, style = MaterialTheme.typography.labelLarge) }
+                            // The ranking choice only orders this section, so it lives under its heading.
+                            item {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(localizedString(R.string.best_other_locations),
+                                        Modifier.semantics { heading() }, style = MaterialTheme.typography.labelLarge)
+                                    RankingSelector(rankingMode, onRankingModeSelected)
+                                }
+                            }
                             items(if (showAll) sections.allOthers else sections.topOthers,
                                 key = { it.location.id }) { forecast ->
                                 TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
@@ -381,9 +373,22 @@ fun HayPlanScreen(
                 }
                 item {
                     val uriHandler = LocalUriHandler.current
-                TextButton(onClick = { uriHandler.openUri("https://open-meteo.com/") }) {
-                    Text("Open-Meteo · CC BY 4.0", style = MaterialTheme.typography.bodySmall)
-                }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (opened == null && state.forecasts.isNotEmpty()) {
+                            Text(localizedString(R.string.comfort_disclaimer),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (opened == null) UpdatedLabel(state.forecasts
+                                .flatMap { it.forActivity(state.activity).sources }.minOfOrNull { it.fetchedAt })
+                            TextButton(onClick = { uriHandler.openUri("https://open-meteo.com/") },
+                                contentPadding = PaddingValues(horizontal = 4.dp)) {
+                                Text("Open-Meteo · CC BY 4.0", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -401,18 +406,16 @@ private val SETTINGS_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:m
 @Composable
 private fun RankingSelector(selected: RankingMode, onSelected: (RankingMode) -> Unit) {
     val strings = LocalUiStrings.current
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(localizedString(R.string.rank_other_locations), style = MaterialTheme.typography.labelLarge,
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(localizedString(R.string.rank_by), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RankingMode.entries.forEach { mode ->
-                FilterChip(
-                    selected = selected == mode,
-                    onClick = { onSelected(mode) },
-                    label = { Text(strings.rankingMode(mode), Modifier.padding(vertical = 4.dp)) },
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        RankingMode.entries.forEach { mode ->
+            FilterChip(
+                selected = selected == mode,
+                onClick = { onSelected(mode) },
+                label = { Text(strings.rankingMode(mode), Modifier.padding(vertical = 4.dp)) },
+            )
         }
     }
 }
@@ -457,16 +460,16 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(forecast.location.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold)
-                Text("${localizedString(R.string.hourly)} ›", style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary)
+                Text("›", Modifier.clearAndSetSemantics { }, style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            CardReferenceLabel(forecast.location, activity, outlook)
             val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
             val cardWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
-            CompactRatingValue(outlook.day?.rating, outlook.day?.score, average = true,
-                showExactScore = scorePrecision == ScorePrecision.EXACT,
-                severePeriod = cardWarning?.priority == 3)
+            // A severe period is already carried by the red timed warning line below the rating.
+            CompactRatingValue(outlook.day?.rating, outlook.day?.score,
+                showExactScore = scorePrecision == ScorePrecision.EXACT)
             if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall)
+            CardReferenceLabel(forecast.location, activity, outlook)
             cardWarning?.let { warning ->
                 val warningText = primaryPeriod?.let(strings::warningPeriod) ?: strings(warning)
                 val warningDescription = localizedString(R.string.warning_description, warningText)
@@ -482,16 +485,23 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     overflow = TextOverflow.Ellipsis)
             }
             val window = outlook.bestWindow
-            if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason), style = MaterialTheme.typography.bodySmall)
-            else {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(localizedString(R.string.best_three_hours), Modifier.weight(1f),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val windowSummary = when (scorePrecision) {
-                        ScorePrecision.EXACT -> "${timeRange(window.start, window.end)} · ${window.score}/100"
-                        ScorePrecision.BAND -> "${timeRange(window.start, window.end)} · ${strings.rating(window.rating)}"
-                        ScorePrecision.HIDDEN -> strings.rating(window.rating)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(localizedString(R.string.best_three_hours), Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason),
+                    style = MaterialTheme.typography.bodySmall)
+                else {
+                    val windowSummary = when {
+                        // When only the window's hours remain, repeating the identical range and score reads as an error.
+                        scorePrecision != ScorePrecision.HIDDEN && windowCoversAllHours(outlook) ->
+                            localizedString(R.string.window_all_remaining_daylight)
+                        scorePrecision == ScorePrecision.EXACT ->
+                            "${timeRange(window.start, window.end)} · ${window.score}/100"
+                        scorePrecision == ScorePrecision.BAND ->
+                            "${timeRange(window.start, window.end)} · ${strings.rating(window.rating)}"
+                        else -> strings.rating(window.rating)
                     }
                     Text(windowSummary,
                         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
@@ -503,13 +513,24 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
     }
 }
 
+/**
+ * True when the best window is the whole assessed period with the same score, which only happens
+ * for the last daylight hours of today. Period limits can still lower the window below the day.
+ */
+private fun windowCoversAllHours(outlook: ActivityOutlook): Boolean {
+    val window = outlook.bestWindow ?: return false
+    val first = outlook.hourly.firstOrNull()?.time ?: return false
+    val last = outlook.hourly.last().time.plusHours(1)
+    return window.start == first.toLocalTime() && window.end == last.toLocalTime() &&
+        window.score == outlook.day?.score
+}
+
 @Composable
-private fun CompactRatingValue(rating: Rating?, score: Int?, average: Boolean = false,
-                               showExactScore: Boolean = true, severePeriod: Boolean = false) {
+private fun CompactRatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true) {
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(rating?.let { if (average) strings.averageRating(it, severePeriod) else strings.rating(it) }
+        Text(rating?.let { strings.rating(it) }
             ?: localizedString(R.string.unavailable), Modifier.weight(1f),
             style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
             color = color)
@@ -526,16 +547,18 @@ private fun CompactRatingValue(rating: Rating?, score: Int?, average: Boolean = 
 @Composable
 private fun CardReferenceLabel(location: HayPlanLocation, activity: ActivityType, outlook: ActivityOutlook) {
     val strings = LocalUiStrings.current
+    // Coverage is only worth a line when sea data is missing; full coverage is the coastal norm.
     val label = when {
         activity == ActivityType.BEACH && location.coast == null -> strings("Inland estimate · no beach")
+        activity == ActivityType.BEACH && outlook.marineCoverage == MarineCoverage.FULL ->
+            strings.seaSource(location.coast!!.name)
         activity == ActivityType.BEACH -> strings.seaSource(location.coast!!.name, outlook.marineCoverage)
         location.weatherReference != null -> strings.weatherSource(location.weatherReference)
         else -> null
     }
     label?.let {
         Text(it, style = MaterialTheme.typography.bodySmall,
-            color = if (activity == ActivityType.BEACH && location.coast == null)
-                MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

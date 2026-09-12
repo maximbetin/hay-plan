@@ -10,9 +10,9 @@
     <string name="view_tomorrow">Ver mañana</string>
     <string name="main_towns">Principales ciudades</string>
     <string name="best_other_locations">Mejores otros lugares</string>
-    <string name="rank_other_locations">Ordenar los otros lugares por</string>
-    <string name="hourly">Por horas</string>
-    <string name="best_three_hours">Mejor franja de 3 horas</string>
+    <string name="rank_by">Ordenar por</string>
+    <string name="best_three_hours">Mejores 3 horas</string>
+    <string name="window_all_remaining_daylight">Toda la luz restante</string>
     <string name="unavailable">No disponible</string>
     <string name="daylight_hours">Horas de luz</string>
     <string name="no_daylight_hours">No quedan horas de luz disponibles.</string>

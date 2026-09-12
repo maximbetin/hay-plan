@@ -61,7 +61,7 @@ internal class UiStrings(val language: AppLanguage) {
 
     fun rankingMode(mode: RankingMode): String = when (mode) {
         RankingMode.WHOLE_DAY -> if (language == AppLanguage.SPANISH) "Todo el día" else "Whole day"
-        RankingMode.BEST_WINDOW -> if (language == AppLanguage.SPANISH) "Mejor franja de 3 horas" else "Best 3 hours"
+        RankingMode.BEST_WINDOW -> if (language == AppLanguage.SPANISH) "Mejores 3 horas" else "Best 3 hours"
     }
 
     fun updated(value: String) = if (language == AppLanguage.SPANISH) "Actualizado: $value" else "Updated $value"
@@ -70,15 +70,14 @@ internal class UiStrings(val language: AppLanguage) {
     fun seaReference(name: String) = if (language == AppLanguage.SPANISH)
         "Referencia del mar: $name" else "Sea reference: $name"
     fun weatherSource(name: String) = if (language == AppLanguage.SPANISH) "Tiempo: $name" else "Weather: $name"
-    fun seaSource(name: String, coverage: MarineCoverage) = if (language == AppLanguage.SPANISH)
-        "Mar: $name · ${coverage(coverage)}" else "Sea: $name · ${coverage(coverage)}"
+    fun seaSource(name: String) = if (language == AppLanguage.SPANISH) "Mar: $name" else "Sea: $name"
+    fun seaSource(name: String, coverage: MarineCoverage) = "${seaSource(name)} · ${coverage(coverage)}"
 
+    /** The rating word carries the headline; the surrounding "average of N hours" copy gives the context. */
     fun averageRating(rating: Rating, severePeriod: Boolean = false): String {
-        val average = if (language == AppLanguage.SPANISH)
-            "Media: ${rating(rating)}" else "Average: ${rating(rating)}"
-        if (!severePeriod) return average
-        return if (language == AppLanguage.SPANISH) "$average · periodo adverso"
-            else "$average · severe period"
+        if (!severePeriod) return rating(rating)
+        return if (language == AppLanguage.SPANISH) "${rating(rating)} · periodo adverso"
+            else "${rating(rating)} · severe period"
     }
 
     fun warningPeriod(period: ForecastWarningPeriod): String {

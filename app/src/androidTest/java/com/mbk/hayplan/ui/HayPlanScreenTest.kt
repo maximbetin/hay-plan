@@ -50,7 +50,7 @@ class HayPlanScreenTest {
             }
         }
 
-        compose.onNodeWithText("Average: Excellent · severe period").assertIsDisplayed()
+        compose.onNodeWithText("Excellent").assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertIsDisplayed()
         compose.onNodeWithText("Best 3 hours").assertIsDisplayed()
@@ -153,7 +153,7 @@ class HayPlanScreenTest {
         }
 
         compose.onNodeWithContentDescription("Ajustes").assertHasClickAction()
-        compose.onNodeWithText("Ordenar los otros lugares por").assertIsDisplayed()
+        compose.onNodeWithText("Ordenar por").assertIsDisplayed()
         compose.onNodeWithText("Todo el día").assertIsSelected()
         compose.onNodeWithText("Mejores otros lugares").assertIsDisplayed()
         compose.onNodeWithContentDescription("Ajustes").performClick()
