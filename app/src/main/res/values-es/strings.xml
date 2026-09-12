@@ -14,7 +14,7 @@
     <string name="best_three_hours">Mejores 3 horas</string>
     <string name="window_all_remaining_daylight">Toda la luz restante</string>
     <string name="unavailable">No disponible</string>
-    <string name="daylight_hours">Horas de luz</string>
+    <string name="daylight_hours">Hora a hora</string>
     <string name="no_daylight_hours">No quedan horas de luz disponibles.</string>
     <string name="close">Cerrar</string>
     <string name="daylight_conditions">Tiempo durante el día</string>
@@ -26,8 +26,7 @@
     <string name="show_top_ten">Ver los 10 mejores</string>
     <string name="warning_description">Aviso: %1$s</string>
     <string name="notice_description">Aviso: %1$s</string>
-    <string name="comfort_score_details">Detalles de la puntuación de comodidad</string>
-    <string name="outlook_details">Detalles de la previsión</string>
+    <string name="details">Detalles</string>
     <string name="show_day_score_details">Mostrar detalles de la puntuación de comodidad del día</string>
     <string name="show_long_range_details">Mostrar detalles de la previsión a largo plazo</string>
     <string name="show_best_forecast">Mostrar la mejor franja de tres horas</string>
@@ -41,8 +40,7 @@
     <string name="notification_blocked">Las notificaciones están bloqueadas en los ajustes de Android</string>
     <string name="language">Idioma</string>
     <string name="weekly_outlook">Comodidad durante 7 días</string>
-    <string name="weekly_outlook_subtitle">Comodidad diurna · exacta a corto plazo y por rangos después</string>
-    <string name="today_uses_remaining_daylight">Hoy usa las horas de luz restantes; los días posteriores usan todas las horas de luz.</string>
+    <string name="today_uses_remaining_daylight">Hoy solo cuenta la luz restante.</string>
     <string name="weekly_outlook_day_description">%1$s: comodidad diurna %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; aviso: %1$s</string>
 

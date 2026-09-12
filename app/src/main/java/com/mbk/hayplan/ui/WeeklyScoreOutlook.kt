@@ -73,9 +73,6 @@ internal fun WeeklyScoreOutlook(
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(localizedString(R.string.weekly_outlook), style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold)
-        Text(localizedString(R.string.weekly_outlook_subtitle),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val contentWidth = maxWidth.coerceAtLeast(MINIMUM_CHART_WIDTH)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {

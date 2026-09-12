@@ -14,7 +14,7 @@
     <string name="best_three_hours">Best 3 hours</string>
     <string name="window_all_remaining_daylight">All remaining daylight</string>
     <string name="unavailable">Unavailable</string>
-    <string name="daylight_hours">Daylight hours</string>
+    <string name="daylight_hours">Hour by hour</string>
     <string name="no_daylight_hours">No daylight hours remaining or available.</string>
     <string name="close">Close</string>
     <string name="daylight_conditions">Daylight conditions</string>
@@ -26,8 +26,7 @@
     <string name="show_top_ten">Show top 10</string>
     <string name="warning_description">Warning: %1$s</string>
     <string name="notice_description">Notice: %1$s</string>
-    <string name="comfort_score_details">Comfort score details</string>
-    <string name="outlook_details">Outlook details</string>
+    <string name="details">Details</string>
     <string name="show_day_score_details">Show day comfort score details</string>
     <string name="show_long_range_details">Show long-range outlook details</string>
     <string name="show_best_forecast">Show best three-hour forecast</string>
@@ -41,8 +40,7 @@
     <string name="notification_blocked">Notifications are blocked in Android settings</string>
     <string name="language">Language</string>
     <string name="weekly_outlook">7-day comfort</string>
-    <string name="weekly_outlook_subtitle">Daylight comfort · exact near term, rating bands later</string>
-    <string name="today_uses_remaining_daylight">Today uses the remaining daylight hours; later days use the full daylight period.</string>
+    <string name="today_uses_remaining_daylight">Today counts remaining daylight only.</string>
     <string name="weekly_outlook_day_description">%1$s: daylight comfort %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; warning: %1$s</string>
 

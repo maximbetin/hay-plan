@@ -3,7 +3,6 @@ package com.mbk.hayplan.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +34,7 @@ private sealed interface DetailTarget {
     data class Hour(val time: LocalDateTime) : DetailTarget
 }
 
+/** Same reading order as an overview card: rating, context, conditions, warning, then the best window. */
 @Composable
 internal fun DayOverview(
     outlook: ActivityOutlook,
@@ -43,65 +43,73 @@ internal fun DayOverview(
     remainingToday: Boolean,
     coastal: Boolean,
     scorePrecision: ScorePrecision,
+    sourceLine: String?,
+    notices: @Composable () -> Unit,
     onDayClick: () -> Unit,
     onWindowClick: () -> Unit,
 ) {
     val strings = LocalUiStrings.current
     val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
     val dayWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button,
                 onClickLabel = localizedString(if (scorePrecision == ScorePrecision.HIDDEN)
                     R.string.show_long_range_details else R.string.show_day_score_details), onClick = onDayClick)
                 .semantics(mergeDescendants = true) {}
-                .padding(vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+                .padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(strings(label), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${localizedString(if (scorePrecision == ScorePrecision.HIDDEN)
-                    R.string.outlook_details else R.string.comfort_score_details)} ›",
+                Text("${localizedString(R.string.details)} ›",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary)
             }
-            RatingValue(outlook.day?.rating, outlook.day?.score, average = true,
-                showExactScore = scorePrecision == ScorePrecision.EXACT,
-                severePeriod = dayWarning?.priority == 3)
-            if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, outlook.marineCoverage, strings.language),
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            RatingValue(outlook.day?.rating, outlook.day?.score,
+                showExactScore = scorePrecision == ScorePrecision.EXACT)
             Text(outlook.day?.let {
                 localizedPlural(if (remainingToday) R.plurals.remaining_daylight_average
                     else R.plurals.daylight_average, it.assessedHours, it.assessedHours)
             } ?: strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            summary?.let { Text(dayWeatherHeadline(it, strings.language), style = MaterialTheme.typography.bodyMedium) }
+            sourceLine?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            cardConditions(summary, outlook.activity, coastal, strings.language)?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium)
+            }
             dayWarning?.let { warning ->
                 WarningText(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
             }
+            notices()
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button,
                 onClickLabel = localizedString(R.string.show_best_forecast), onClick = onWindowClick)
                 .semantics(mergeDescendants = true) {}
-                .padding(vertical = 8.dp),
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(localizedString(R.string.best_three_hours), style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 val window = outlook.bestWindow
                 if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason), style = MaterialTheme.typography.bodySmall)
                 else {
-                    Text(if (scorePrecision != ScorePrecision.HIDDEN) timeRange(window.start, window.end)
-                        else localizedString(R.string.long_range_timing_hidden),
+                    val wholePeriod = scorePrecision != ScorePrecision.HIDDEN && windowCoversAllHours(outlook)
+                    Text(when {
+                        scorePrecision == ScorePrecision.HIDDEN -> localizedString(R.string.long_range_timing_hidden)
+                        wholePeriod -> localizedString(R.string.window_all_remaining_daylight)
+                        else -> timeRange(window.start, window.end)
+                    },
                         style = if (scorePrecision != ScorePrecision.HIDDEN) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.bodyMedium,
                         fontWeight = if (scorePrecision != ScorePrecision.HIDDEN)
                             FontWeight.SemiBold else FontWeight.Normal)
-                    Text(if (scorePrecision == ScorePrecision.EXACT)
+                    // The whole-period case has the day's score directly above it.
+                    if (!wholePeriod) Text(if (scorePrecision == ScorePrecision.EXACT)
                         "${strings.rating(window.rating)} · ${window.score}/100"
                     else strings.rating(window.rating), style = MaterialTheme.typography.bodyMedium,
                         color = currentRatingColor(window.score), fontWeight = FontWeight.SemiBold)
@@ -109,7 +117,8 @@ internal fun DayOverview(
                         Text(beachCoverageLabel(true, window.marineCoverage, strings.language), style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Text("›", Modifier.clearAndSetSemantics { }, style = MaterialTheme.typography.headlineSmall)
+            Text("›", Modifier.clearAndSetSemantics { }, style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -129,14 +138,17 @@ internal fun OutlookDetails(
     selectedDate: LocalDate? = null,
     today: LocalDate? = null,
     onDateSelected: (LocalDate) -> Unit = {},
+    sourceLine: String? = null,
+    notices: @Composable () -> Unit = {},
 ) {
     val strings = LocalUiStrings.current
     var target by remember(selectionKey) { mutableStateOf<DetailTarget?>(null) }
     val summary = remember(outlook, hours, coastal) { dayWeatherSummary(outlook, hours, coastal) }
-    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
-            Box(Modifier.padding(18.dp)) {
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 DayOverview(outlook, label, summary, remainingToday, coastal, scorePrecision,
+                    sourceLine, notices,
                     onDayClick = { target = DetailTarget.Day },
                     onWindowClick = { target = DetailTarget.Window })
             }
@@ -144,14 +156,12 @@ internal fun OutlookDetails(
         if (selectedDate != null && today != null) {
             WeeklyScoreOutlook(weeklyOutlook, selectedDate, today, onDateSelected)
         }
-        Text(localizedString(R.string.daylight_hours), Modifier.semantics { heading() },
-            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        outlook.hourly.forEach { hour ->
-            HourRow(hour, if (scorePrecision != ScorePrecision.HIDDEN) outlook.bestWindow else null,
+        if (outlook.hourly.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(localizedString(R.string.daylight_hours), Modifier.semantics { heading() },
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            HourList(outlook, if (scorePrecision != ScorePrecision.HIDDEN) outlook.bestWindow else null,
                 outlook.marineCoverage == MarineCoverage.MIXED,
-                scorePrecision == ScorePrecision.EXACT) {
-                target = DetailTarget.Hour(hour.time)
-            }
+                scorePrecision == ScorePrecision.EXACT) { target = DetailTarget.Hour(it) }
         }
         if (outlook.hourly.isEmpty() &&
             outlook.dayUnavailableReason != DayUnavailableReason.MissingDaylightBounds) Text(
@@ -188,6 +198,21 @@ internal fun OutlookDetails(
     }
 }
 
+/** One surface of dense rows; the best window is a tinted run rather than a border on each hour. */
+@Composable
+private fun HourList(outlook: ActivityOutlook, best: BestWindow?, showCoverage: Boolean,
+                     showExactScore: Boolean, onClick: (LocalDateTime) -> Unit) {
+    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.padding(vertical = 4.dp)) {
+            outlook.hourly.forEachIndexed { index, hour ->
+                if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant)
+                HourRow(hour, best, showCoverage, showExactScore) { onClick(hour.time) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boolean,
                     showExactScore: Boolean, onClick: () -> Unit) {
@@ -196,27 +221,23 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
     val isBest = best != null && !time.isBefore(best.start) && time.isBefore(best.end)
     val score = hour.evaluation?.score
     val scoreColor = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
-    Surface(onClick = onClick, modifier = Modifier.semantics(mergeDescendants = true) {},
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = if (isBest) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) else null) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(time.format(TIME), style = MaterialTheme.typography.titleMedium)
-                Column(Modifier.weight(1f)) {
-                    Text(score?.let { strings.rating(ratingFor(it)) } ?: localizedString(R.string.unavailable),
-                        style = MaterialTheme.typography.bodyMedium, color = scoreColor)
-                    if (showCoverage) hour.evaluation?.let {
-                        Text(strings.coverage(it.marineCoverage), style = MaterialTheme.typography.labelSmall)
-                    }
-                    if (best?.start == time) Text(localizedString(R.string.best_three_hours),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+        .background(if (isBest) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent)
+        .semantics(mergeDescendants = true) {}
+        .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(time.format(TIME), Modifier.width(52.dp), style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(score?.let { strings.rating(ratingFor(it)) } ?: localizedString(R.string.unavailable),
+                    style = MaterialTheme.typography.bodyMedium, color = scoreColor)
+                if (best?.start == time) Text(localizedString(R.string.best_three_hours),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                if (showCoverage) hour.evaluation?.let {
+                    Text(strings.coverage(it.marineCoverage), style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (showExactScore) Text(score?.let { "$it/100" } ?: "—",
-                    fontWeight = FontWeight.SemiBold, color = scoreColor)
-                Text("›", Modifier.clearAndSetSemantics { })
             }
             if (showExactScore && score != null) Box(Modifier.fillMaxWidth().height(4.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(999.dp))
@@ -225,6 +246,9 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
                     .background(currentRatingColor(score), RoundedCornerShape(999.dp)))
             }
         }
+        if (showExactScore) Text(score?.let { "$it/100" } ?: "—",
+            fontWeight = FontWeight.SemiBold, color = scoreColor)
+        Text("›", Modifier.clearAndSetSemantics { }, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -236,12 +260,10 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
     Text(strings(label), Modifier.semantics { heading() },
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     val day = outlook.day
-    val severePeriod = (primaryWarningPeriod(outlook.warningPeriods)?.warning
-        ?: day?.warnings?.let(::primaryWarning))?.priority == 3
-    RatingValue(day?.rating, day?.score, average = true, showExactScore = showCalculationScores,
-        severePeriod = severePeriod)
-    if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, outlook.marineCoverage, strings.language),
-        style = MaterialTheme.typography.bodySmall)
+    RatingValue(day?.rating, day?.score, showExactScore = showCalculationScores)
+    if (outlook.activity == ActivityType.BEACH) coverageNote(coastal, outlook.marineCoverage, strings.language)?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall)
+    }
     summary?.let {
         Text(localizedString(R.string.daylight_conditions), Modifier.semantics { heading() },
             style = MaterialTheme.typography.titleMedium)
@@ -289,6 +311,8 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
             else "How is this comfort score calculated? ▾"))
     }
     if (!showCalculation) return
+    Text(localizedString(R.string.personal_score_note),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(strings(if (outlook.activity == ActivityType.BEACH)
         "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
             "Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, " +
@@ -311,11 +335,10 @@ private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showCal
         else localizedString(R.string.long_range_timing_hidden) } ?: localizedString(R.string.unavailable),
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     if (window == null) { Text(strings.windowUnavailable(outlook.windowUnavailableReason)); return }
-    RatingValue(window.rating, window.score, average = true, showExactScore = showCalculationScores)
-    if (outlook.activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, window.marineCoverage, strings.language),
-        style = MaterialTheme.typography.bodySmall)
-    Text(strings("Average of these three hourly scores, with any limits for the whole period applied."),
-        style = MaterialTheme.typography.bodySmall)
+    RatingValue(window.rating, window.score, showExactScore = showCalculationScores)
+    if (outlook.activity == ActivityType.BEACH) coverageNote(coastal, window.marineCoverage, strings.language)?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall)
+    }
     if (!showCalculationScores) Text(localizedString(R.string.long_range_scores_hidden),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     // Values summarize the period; the score itself uses its individual hourly scores.
@@ -325,6 +348,8 @@ private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showCal
     } else window.warnings.forEach {
         WarningText(strings(it), it)
     }
+    Text(strings("Average of these three hourly scores, with any limits for the whole period applied."),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -337,8 +362,9 @@ private fun HourInspection(hour: HourlyAssessment?, time: LocalDateTime, activit
     RatingValue(evaluation?.let { ratingFor(it.score) }, evaluation?.score,
         showExactScore = showExactScore)
     if (evaluation == null) { Text(localizedString(R.string.incomplete_hour)); return }
-    if (activity == ActivityType.BEACH) Text(beachCoverageLabel(coastal, evaluation.marineCoverage, strings.language),
-        style = MaterialTheme.typography.bodySmall)
+    if (activity == ActivityType.BEACH) coverageNote(coastal, evaluation.marineCoverage, strings.language)?.let {
+        Text(it, style = MaterialTheme.typography.bodySmall)
+    }
     evaluation.factors.forEach { FactorRow(it, showPoints = showExactScore) }
     if (showExactScore) {
         if (activity == ActivityType.BEACH && evaluation.availablePoints < 100) {
@@ -365,8 +391,6 @@ private fun HourInspection(hour: HourlyAssessment?, time: LocalDateTime, activit
 @Composable
 private fun SuitabilityNote(activity: ActivityType, coastal: Boolean) {
     val strings = LocalUiStrings.current
-    Text(localizedString(R.string.personal_score_note),
-        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(strings(if (activity == ActivityType.HIKING) "Town and nearby-area weather, not exact trail or elevation conditions."
         else if (coastal) "Only available sea data is used. Local shelter, beach flags and currents are not assessed."
         else "Weather for outdoor leisure; pool temperatures and river conditions are not assessed."),
@@ -394,13 +418,12 @@ private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
 }
 
 @Composable
-internal fun RatingValue(rating: Rating?, score: Int?, average: Boolean = false,
-                         showExactScore: Boolean = true, severePeriod: Boolean = false) {
+internal fun RatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true) {
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(rating?.let { if (average) strings.averageRating(it, severePeriod) else strings.rating(it) }
+        Text(rating?.let { strings.rating(it) }
             ?: localizedString(R.string.unavailable), Modifier.weight(1f),
             style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
             color = color)

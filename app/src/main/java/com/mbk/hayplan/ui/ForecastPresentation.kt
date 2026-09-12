@@ -8,6 +8,8 @@ import com.mbk.hayplan.domain.DayUnavailableReason
 import com.mbk.hayplan.domain.Rating
 import com.mbk.hayplan.domain.ratingFor
 import com.mbk.hayplan.data.HayPlanLocation
+import com.mbk.hayplan.data.LocationCatalog
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -161,6 +163,39 @@ internal fun scoreBandMidpoint(score: Int): Int = when (ratingFor(score)) {
     Rating.GOOD -> 50
     Rating.VERY_GOOD -> 75
     Rating.EXCELLENT -> 95
+}
+
+/** Only facts a reader could not assume: no beach, a non-town weather reference, or missing sea data. */
+internal fun sourceLabel(
+    location: HayPlanLocation,
+    activity: ActivityType,
+    coverage: MarineCoverage,
+    strings: UiStrings,
+): String? = when {
+    activity == ActivityType.BEACH && location.coast == null -> strings("Inland estimate · no beach")
+    activity == ActivityType.BEACH && coverage == MarineCoverage.FULL -> strings.seaSource(location.coast!!.name)
+    activity == ActivityType.BEACH -> strings.seaSource(location.coast!!.name, coverage)
+    location.weatherReference != null -> strings.weatherSource(location.weatherReference)
+    else -> null
+}
+
+/** Coverage worth a line inside explanations: anything other than the coastal full-data norm. */
+internal fun coverageNote(coastal: Boolean, coverage: MarineCoverage, language: AppLanguage): String? =
+    if (coastal && coverage == MarineCoverage.FULL) null else beachCoverageLabel(coastal, coverage, language)
+
+internal fun updatedLabel(updatedAt: Instant, strings: UiStrings): String = strings.updated(
+    updatedAt.atZone(LocationCatalog.zone).format(DateTimeFormatter.ofPattern("dd/MM HH:mm", Locale.ENGLISH)))
+
+/**
+ * True when the best window is the whole assessed period with the same score, which only happens
+ * for the last daylight hours of today. Period limits can still lower the window below the day.
+ */
+internal fun windowCoversAllHours(outlook: ActivityOutlook): Boolean {
+    val window = outlook.bestWindow ?: return false
+    val first = outlook.hourly.firstOrNull()?.time ?: return false
+    val last = outlook.hourly.last().time.plusHours(1)
+    return window.start == first.toLocalTime() && window.end == last.toLocalTime() &&
+        window.score == outlook.day?.score
 }
 
 internal fun beachCoverageLabel(

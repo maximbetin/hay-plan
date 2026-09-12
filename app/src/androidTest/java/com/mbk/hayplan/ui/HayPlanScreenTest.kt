@@ -121,7 +121,7 @@ class HayPlanScreenTest {
         compose.onNodeWithText("08:00–11:00 · Excellent").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("100/100").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithText("Later place").performClick()
-        compose.onNodeWithText("Comfort score details ›").performClick()
+        compose.onNodeWithText("Details ›").performClick()
         compose.onNodeWithText("100/100").assertIsDisplayed()
     }
 

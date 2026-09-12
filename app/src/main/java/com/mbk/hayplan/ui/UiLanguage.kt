@@ -65,20 +65,10 @@ internal class UiStrings(val language: AppLanguage) {
     }
 
     fun updated(value: String) = if (language == AppLanguage.SPANISH) "Actualizado: $value" else "Updated $value"
-    fun weatherReference(name: String) = if (language == AppLanguage.SPANISH)
-        "Referencia del tiempo: $name" else "Weather reference: $name"
-    fun seaReference(name: String) = if (language == AppLanguage.SPANISH)
-        "Referencia del mar: $name" else "Sea reference: $name"
     fun weatherSource(name: String) = if (language == AppLanguage.SPANISH) "Tiempo: $name" else "Weather: $name"
     fun seaSource(name: String) = if (language == AppLanguage.SPANISH) "Mar: $name" else "Sea: $name"
     fun seaSource(name: String, coverage: MarineCoverage) = "${seaSource(name)} · ${coverage(coverage)}"
 
-    /** The rating word carries the headline; the surrounding "average of N hours" copy gives the context. */
-    fun averageRating(rating: Rating, severePeriod: Boolean = false): String {
-        if (!severePeriod) return rating(rating)
-        return if (language == AppLanguage.SPANISH) "${rating(rating)} · periodo adverso"
-            else "${rating(rating)} · severe period"
-    }
 
     fun warningPeriod(period: ForecastWarningPeriod): String {
         val warning = invoke(period.warning).removeSuffix(".")
@@ -109,7 +99,7 @@ internal class UiStrings(val language: AppLanguage) {
         "No forecasts available. Try Refresh." to "No hay previsiones. Pulsa Actualizar.",
         "Unknown" to "Desconocido",
         "Inland estimate · no beach" to "Opción de interior · sin playa",
-        "Daylight overall" to "Día completo", "Remaining daylight" to "Horas de luz restantes",
+        "Daylight overall" to "Día completo", "Remaining daylight" to "Luz restante",
         "Air temperature" to "Temperatura del aire",
         "Wind" to "Viento", "Wind gusts" to "Rachas de viento", "Rain chance" to "Probabilidad de lluvia",
         "Rainfall" to "Lluvia", "Feels like" to "Sensación térmica", "Humidity" to "Humedad",

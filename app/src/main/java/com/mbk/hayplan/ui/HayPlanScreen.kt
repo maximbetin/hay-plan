@@ -358,17 +358,18 @@ fun HayPlanScreen(
                     }
                 } else {
                     item {
-                        WeatherReferenceLabel(opened.location)
-                        if (state.activity == ActivityType.BEACH) CoastalReferenceLabel(opened.location)
-                        UpdatedLabel(opened.forActivity(state.activity))
-                        DataNotice(opened.forActivity(state.activity), state.nowInstant)
-                    }
-                    item {
-                        OutlookDetails(outlooks.getValue(opened.location.id), opened.forActivity(state.activity).hours,
+                        val data = opened.forActivity(state.activity)
+                        val outlook = outlooks.getValue(opened.location.id)
+                        val sourceLine = listOfNotNull(
+                            sourceLabel(opened.location, state.activity, outlook.marineCoverage, strings),
+                            data.sources.minOfOrNull { it.fetchedAt }?.let { updatedLabel(it, strings) },
+                        ).joinToString(" · ").ifEmpty { null }
+                        OutlookDetails(outlook, data.hours,
                             period, "${opened.location.id}/$date/${state.activity}", remaining,
                             forecastContextLabel(opened.location, state.activity, date, language),
                             opened.location.coast != null, precision,
-                            weeklyOutlook, date, state.now.toLocalDate(), onDateSelected)
+                            weeklyOutlook, date, state.now.toLocalDate(), onDateSelected,
+                            sourceLine = sourceLine, notices = { DataNotice(data, state.nowInstant) })
                     }
                 }
                 item {
@@ -513,18 +514,6 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
     }
 }
 
-/**
- * True when the best window is the whole assessed period with the same score, which only happens
- * for the last daylight hours of today. Period limits can still lower the window below the day.
- */
-private fun windowCoversAllHours(outlook: ActivityOutlook): Boolean {
-    val window = outlook.bestWindow ?: return false
-    val first = outlook.hourly.firstOrNull()?.time ?: return false
-    val last = outlook.hourly.last().time.plusHours(1)
-    return window.start == first.toLocalTime() && window.end == last.toLocalTime() &&
-        window.score == outlook.day?.score
-}
-
 @Composable
 private fun CompactRatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true) {
     val strings = LocalUiStrings.current
@@ -546,16 +535,7 @@ private fun CompactRatingValue(rating: Rating?, score: Int?, showExactScore: Boo
 
 @Composable
 private fun CardReferenceLabel(location: HayPlanLocation, activity: ActivityType, outlook: ActivityOutlook) {
-    val strings = LocalUiStrings.current
-    // Coverage is only worth a line when sea data is missing; full coverage is the coastal norm.
-    val label = when {
-        activity == ActivityType.BEACH && location.coast == null -> strings("Inland estimate · no beach")
-        activity == ActivityType.BEACH && outlook.marineCoverage == MarineCoverage.FULL ->
-            strings.seaSource(location.coast!!.name)
-        activity == ActivityType.BEACH -> strings.seaSource(location.coast!!.name, outlook.marineCoverage)
-        location.weatherReference != null -> strings.weatherSource(location.weatherReference)
-        else -> null
-    }
+    val label = sourceLabel(location, activity, outlook.marineCoverage, LocalUiStrings.current)
     label?.let {
         Text(it, style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -564,25 +544,7 @@ private fun CardReferenceLabel(location: HayPlanLocation, activity: ActivityType
 }
 
 @Composable
-private fun WeatherReferenceLabel(location: HayPlanLocation) {
-    val strings = LocalUiStrings.current
-    location.weatherReference?.let {
-        Text(strings.weatherReference(it), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun CoastalReferenceLabel(location: HayPlanLocation) {
-    val strings = LocalUiStrings.current
-    location.coast?.let {
-        Text(strings.seaReference(it.name), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun DataNotice(data: ActivityForecastData, now: Instant) {
+internal fun DataNotice(data: ActivityForecastData, now: Instant) {
     val strings = LocalUiStrings.current
     val warnings = buildList<Pair<String, Boolean>> {
         addAll(data.errors.map { strings(it) to true })
@@ -600,16 +562,9 @@ private fun DataNotice(data: ActivityForecastData, now: Instant) {
 }
 
 @Composable
-private fun UpdatedLabel(data: ActivityForecastData) {
-    UpdatedLabel(data.sources.minOfOrNull { it.fetchedAt })
-}
-
-@Composable
 private fun UpdatedLabel(updatedAt: Instant?) {
-    val strings = LocalUiStrings.current
     updatedAt?.let {
-        Text(strings.updated(it.atZone(LocationCatalog.zone)
-            .format(DateTimeFormatter.ofPattern("dd/MM HH:mm", Locale.ENGLISH))),
+        Text(updatedLabel(it, LocalUiStrings.current),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
