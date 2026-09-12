@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,8 +72,8 @@ internal fun WeeklyScoreOutlook(
         )
     }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(localizedString(R.string.weekly_outlook), style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold)
+        Text(localizedString(R.string.weekly_outlook), Modifier.semantics { heading() },
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val contentWidth = maxWidth.coerceAtLeast(MINIMUM_CHART_WIDTH)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {

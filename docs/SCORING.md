@@ -197,7 +197,7 @@ shelter, tides, rip currents, elevation differences, trail surfaces and route ha
 are outside this version. Long-range windows are tentative and labelled as an outlook
 in the UI.
 
-## Daily outing notification
+## Daily plan notification
 
 The optional notification evaluates today's remaining daylight with the same `DayPlanner`
 results shown in the app. Oviedo always considers Hiking. Gijón recommends Beach only when

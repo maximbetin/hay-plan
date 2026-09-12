@@ -219,7 +219,7 @@ fun HayPlanScreen(
     BackHandler(enabled = opened != null, onBack = onBack)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+            Row(Modifier.fillMaxWidth().padding(start = if (opened != null) 6.dp else 18.dp, top = 8.dp, end = 6.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 if (opened != null) IconButton(onClick = onBack) {
                     Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = localizedString(R.string.back))
@@ -280,13 +280,8 @@ fun HayPlanScreen(
                 ActivityType.entries.forEach { activity ->
                     FilterChip(selected = state.activity == activity,
                         onClick = { onActivitySelected(activity) },
-                        label = { Text(strings.activity(activity), Modifier.padding(vertical = 5.dp)) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = if (activity == ActivityType.BEACH)
-                                MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = if (activity == ActivityType.BEACH)
-                                MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                        ),
+                        label = { ChipLabel(strings.activity(activity)) },
+                        colors = choiceChipColors(),
                         modifier = Modifier.weight(1f))
                 }
             }
@@ -326,8 +321,7 @@ fun HayPlanScreen(
                     }
                     if (!daylightFinished) {
                         if (sections.main.isNotEmpty()) item {
-                            Text(localizedString(R.string.main_towns), Modifier.semantics { heading() },
-                                style = MaterialTheme.typography.labelLarge)
+                            SectionHeading(localizedString(R.string.main_towns))
                         }
                         items(sections.main, key = { it.location.id }) { forecast ->
                             TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
@@ -337,8 +331,7 @@ fun HayPlanScreen(
                             // The ranking choice only orders this section, so it lives under its heading.
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(localizedString(R.string.best_other_locations),
-                                        Modifier.semantics { heading() }, style = MaterialTheme.typography.labelLarge)
+                                    SectionHeading(localizedString(R.string.best_other_locations))
                                     RankingSelector(rankingMode, onRankingModeSelected)
                                 }
                             }
@@ -415,7 +408,8 @@ private fun RankingSelector(selected: RankingMode, onSelected: (RankingMode) -> 
             FilterChip(
                 selected = selected == mode,
                 onClick = { onSelected(mode) },
-                label = { Text(strings.rankingMode(mode), Modifier.padding(vertical = 4.dp)) },
+                label = { ChipLabel(strings.rankingMode(mode)) },
+                colors = choiceChipColors(),
             )
         }
     }
@@ -433,14 +427,31 @@ private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.dates, key = { it.toString() }) { date ->
             FilterChip(selected = date == state.selectedDate, onClick = { onDateSelected(date) },
-                label = { Text(formatDate(date, state.now.toLocalDate(), strings.language),
-                    Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.SemiBold) },
+                label = { ChipLabel(formatDate(date, state.now.toLocalDate(), strings.language)) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     selectedLabelColor = MaterialTheme.colorScheme.onSurface,
                 ))
         }
     }
+}
+
+/** Dates stay neutral because they are position, not a choice; activity and ranking share one selected tint. */
+@Composable
+private fun choiceChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+)
+
+@Composable
+private fun ChipLabel(text: String) {
+    Text(text, Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+private fun SectionHeading(text: String) {
+    Text(text, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold)
 }
 
 @Composable

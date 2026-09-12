@@ -104,7 +104,7 @@ class DailyPlanWorker(context: Context, parameters: WorkerParameters) : Coroutin
         ) return
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         if (!manager.areNotificationsEnabled()) return
-        val channelName = if (language == AppLanguage.SPANISH) "Plan diario" else "Daily outing plan"
+        val channelName = if (language == AppLanguage.SPANISH) "Plan diario" else "Daily plan"
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_DEFAULT))
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

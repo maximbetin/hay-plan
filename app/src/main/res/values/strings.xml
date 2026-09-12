@@ -33,7 +33,7 @@
     <string name="more_conditions">More conditions</string>
     <string name="fewer_conditions">Fewer conditions</string>
     <string name="incomplete_hour">Forecast data is incomplete for this hour.</string>
-    <string name="daily_notification">Daily outing notification</string>
+    <string name="daily_notification">Daily plan notification</string>
     <string name="daily_notification_time">Time · %1$s</string>
     <string name="daily_notification_around">Around %1$s · Asturias time</string>
     <string name="notification_permission_required">Permission required when enabled</string>
