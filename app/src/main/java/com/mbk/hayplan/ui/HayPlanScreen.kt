@@ -10,10 +10,17 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -188,34 +195,14 @@ fun HayPlanScreen(
         }, dailyNotification.time.hour, dailyNotification.time.minute, true).show()
     }
     val opened = state.opened
-    val date = state.selectedDate ?: state.now.toLocalDate()
-    val remaining = date == state.now.toLocalDate()
+    // Chips follow the selection instantly; content follows the plan, which may lag a frame while scoring runs.
+    val plan = state.plan
+    val date = plan?.date ?: state.planDate
+    val activity = plan?.activity ?: state.activity
+    val outlooks = plan?.outlooks.orEmpty()
     val precision = scorePrecision(date, state.now.toLocalDate())
-    val period = if (remaining) "Remaining daylight" else "Daylight overall"
-    val weeklyOutlook = remember(opened, state.dates, state.now, state.activity) {
-        opened?.let {
-            sevenDayOutlook(it.forActivity(state.activity).hours, state.dates, state.now, state.activity)
-        }.orEmpty()
-    }
-    // Cards and details share these exact objects, including the selected best window.
-    val outlooks = remember(state.forecasts, date, state.now, state.activity) {
-        state.forecasts.associate { forecast ->
-            forecast.location.id to DayPlanner.forDate(
-                forecast.forActivity(state.activity).hours, date, state.now, state.activity)
-        }
-    }
-    val ranked = remember(state.forecasts, outlooks, rankingMode, precision) {
-        rankLocations(state.forecasts, outlooks, rankingMode,
-            coarseScores = precision != ScorePrecision.EXACT)
-    }
-    val sections = remember(ranked) { locationSections(ranked) }
-    val daylightFinished = daylightHasEnded(date, state.now, outlooks.values)
-    val tomorrow = state.dates.firstOrNull { it.isAfter(date) }
-    var showAll by rememberSaveable(date, state.activity, rankingMode) { mutableStateOf(false) }
     val overviewScroll = rememberLazyListState()
-    val detailScroll = rememberLazyListState()
-    LaunchedEffect(date, state.activity) { overviewScroll.scrollToItem(0); detailScroll.scrollToItem(0) }
-    LaunchedEffect(opened?.location?.id) { detailScroll.scrollToItem(0) }
+    LaunchedEffect(date, activity) { overviewScroll.scrollToItem(0) }
     BackHandler(enabled = opened != null, onBack = onBack)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -277,10 +264,10 @@ fun HayPlanScreen(
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActivityType.entries.forEach { activity ->
-                    FilterChip(selected = state.activity == activity,
-                        onClick = { onActivitySelected(activity) },
-                        label = { ChipLabel(strings.activity(activity)) },
+                ActivityType.entries.forEach { option ->
+                    FilterChip(selected = state.activity == option,
+                        onClick = { onActivitySelected(option) },
+                        label = { ChipLabel(strings.activity(option)) },
                         colors = choiceChipColors(),
                         modifier = Modifier.weight(1f))
                 }
@@ -292,100 +279,171 @@ fun HayPlanScreen(
                     Text(strings(it), Modifier.fillMaxWidth().padding(16.dp))
                 }
             }
-            LazyColumn(state = if (opened == null) overviewScroll else detailScroll,
-                modifier = Modifier.weight(1f), contentPadding = PaddingValues(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                forecastConfidenceLabel(date, state.now.toLocalDate())?.let { confidence -> item {
-                    Text(strings(confidence), style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } }
-                if (state.forecasts.isEmpty()) item {
-                    Text(strings(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh."))
-                }
-                if (opened == null) {
-                    if (daylightFinished) item {
-                        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(localizedString(R.string.no_daylight_remains),
-                                    Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold)
-                                Text(localizedString(R.string.choose_tomorrow),
-                                    style = MaterialTheme.typography.bodyMedium)
-                                tomorrow?.let { next ->
-                                    TextButton(onClick = { onDateSelected(next) }) {
-                                        Text(localizedString(R.string.view_tomorrow))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (!daylightFinished) {
-                        if (sections.main.isNotEmpty()) item {
-                            SectionHeading(localizedString(R.string.main_towns))
-                        }
-                        items(sections.main, key = { it.location.id }) { forecast ->
-                            TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
-                                state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
-                        }
-                        if (sections.allOthers.isNotEmpty()) {
-                            // The ranking choice only orders this section, so it lives under its heading.
-                            item {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    SectionHeading(localizedString(R.string.best_other_locations))
-                                    RankingSelector(rankingMode, onRankingModeSelected)
-                                }
-                            }
-                            items(if (showAll) sections.allOthers else sections.topOthers,
-                                key = { it.location.id }) { forecast ->
-                                TownCard(forecast, outlooks.getValue(forecast.location.id), state.activity,
-                                    state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
-                            }
-                        }
-                        if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
-                            TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (showAll) localizedString(R.string.show_top_ten) else localizedPlural(
-                                    R.plurals.show_all_other_locations, sections.allOthers.size,
-                                    sections.allOthers.size))
-                            }
-                        }
-                    }
-                } else {
-                    item {
-                        val data = opened.forActivity(state.activity)
-                        val outlook = outlooks.getValue(opened.location.id)
-                        val sourceLine = listOfNotNull(
-                            sourceLabel(opened.location, state.activity, outlook.marineCoverage, strings),
-                            data.sources.minOfOrNull { it.fetchedAt }?.let { updatedLabel(it, strings) },
-                        ).joinToString(" · ").ifEmpty { null }
-                        OutlookDetails(outlook, data.hours,
-                            period, "${opened.location.id}/$date/${state.activity}", remaining,
-                            forecastContextLabel(opened.location, state.activity, date, language),
-                            opened.location.coast != null, precision,
-                            weeklyOutlook, date, state.now.toLocalDate(), onDateSelected,
-                            sourceLine = sourceLine, notices = { DataNotice(data, state.nowInstant) })
-                    }
-                }
-                item {
-                    val uriHandler = LocalUriHandler.current
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (opened == null && state.forecasts.isNotEmpty()) {
-                            Text(localizedString(R.string.comfort_disclaimer),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            if (opened == null) UpdatedLabel(state.forecasts
-                                .flatMap { it.forActivity(state.activity).sources }.minOfOrNull { it.fetchedAt })
-                            TextButton(onClick = { uriHandler.openUri("https://open-meteo.com/") },
-                                contentPadding = PaddingValues(horizontal = 4.dp)) {
-                                Text("Open-Meteo · CC BY 4.0", style = MaterialTheme.typography.bodySmall)
-                            }
+            // The detail slides over the overview so a card tap answers at once, and the overview keeps its scroll.
+            AnimatedContent(
+                targetState = opened?.location?.id,
+                modifier = Modifier.weight(1f),
+                transitionSpec = {
+                    if (targetState != null) slideInHorizontally { it / 3 } + fadeIn() togetherWith fadeOut()
+                    else fadeIn() togetherWith slideOutHorizontally { it / 3 } + fadeOut()
+                },
+                label = "location",
+            ) { openedId ->
+                val detail = openedId?.let { id -> state.forecasts.find { it.location.id == id } }
+                if (detail == null) OverviewList(state, plan, outlooks, date, activity, precision, rankingMode,
+                    overviewScroll, onDateSelected, onLocationSelected, onRankingModeSelected)
+                else DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision,
+                    language, onDateSelected)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverviewList(
+    state: HayPlanUiState,
+    plan: DayPlan?,
+    outlooks: Map<String, ActivityOutlook>,
+    date: LocalDate,
+    activity: ActivityType,
+    precision: ScorePrecision,
+    rankingMode: RankingMode,
+    scroll: LazyListState,
+    onDateSelected: (LocalDate) -> Unit,
+    onLocationSelected: (String) -> Unit,
+    onRankingModeSelected: (RankingMode) -> Unit,
+) {
+    val strings = LocalUiStrings.current
+    val today = state.now.toLocalDate()
+    val ranked = remember(plan, rankingMode, precision) {
+        if (plan == null) emptyList() else rankLocations(state.forecasts.filter { it.location.id in outlooks },
+            outlooks, rankingMode, coarseScores = precision != ScorePrecision.EXACT)
+    }
+    val sections = remember(ranked) { locationSections(ranked) }
+    val daylightFinished = daylightHasEnded(date, state.now, outlooks.values)
+    val tomorrow = state.dates.firstOrNull { it.isAfter(date) }
+    var showAll by rememberSaveable(date, activity, rankingMode) { mutableStateOf(false) }
+    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        forecastConfidenceLabel(date, today)?.let { confidence -> item {
+            Text(strings(confidence), style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }
+        if (state.forecasts.isEmpty()) item {
+            Text(strings(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh."))
+        }
+        if (daylightFinished) item {
+            Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(localizedString(R.string.no_daylight_remains),
+                        Modifier.semantics { heading() }, style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold)
+                    Text(localizedString(R.string.choose_tomorrow),
+                        style = MaterialTheme.typography.bodyMedium)
+                    tomorrow?.let { next ->
+                        TextButton(onClick = { onDateSelected(next) }) {
+                            Text(localizedString(R.string.view_tomorrow))
                         }
                     }
                 }
             }
+        } else {
+            if (sections.main.isNotEmpty()) item {
+                SectionHeading(localizedString(R.string.main_towns))
+            }
+            items(sections.main, key = { it.location.id }) { forecast ->
+                TownCard(forecast, outlooks.getValue(forecast.location.id), activity,
+                    state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
+            }
+            if (sections.allOthers.isNotEmpty()) {
+                // The ranking choice only orders this section, so it lives under its heading.
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SectionHeading(localizedString(R.string.best_other_locations))
+                        RankingSelector(rankingMode, onRankingModeSelected)
+                    }
+                }
+                items(if (showAll) sections.allOthers else sections.topOthers,
+                    key = { it.location.id }) { forecast ->
+                    TownCard(forecast, outlooks.getValue(forecast.location.id), activity,
+                        state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
+                }
+            }
+            if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
+                TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (showAll) localizedString(R.string.show_top_ten) else localizedPlural(
+                        R.plurals.show_all_other_locations, sections.allOthers.size,
+                        sections.allOthers.size))
+                }
+            }
         }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (state.forecasts.isNotEmpty()) {
+                    Text(localizedString(R.string.comfort_disclaimer),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    UpdatedLabel(state.forecasts
+                        .flatMap { it.forActivity(activity).sources }.minOfOrNull { it.fetchedAt })
+                    AttributionLink()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailPane(
+    state: HayPlanUiState,
+    opened: LocationForecast,
+    outlook: ActivityOutlook?,
+    date: LocalDate,
+    activity: ActivityType,
+    precision: ScorePrecision,
+    language: AppLanguage,
+    onDateSelected: (LocalDate) -> Unit,
+) {
+    val strings = LocalUiStrings.current
+    val today = state.now.toLocalDate()
+    val remaining = date == today
+    val coastal = opened.location.coast != null
+    val label = if (remaining) "Remaining daylight" else "Daylight overall"
+    val data = opened.forActivity(activity)
+    val weeklyOutlook = state.weekly
+        ?.takeIf { it.locationId == opened.location.id && it.activity == activity }?.outlooks.orEmpty()
+    val target = remember(opened.location.id, date, activity) { mutableStateOf<DetailTarget?>(null) }
+    val summary = remember(outlook, data.hours, coastal) { outlook?.let { dayWeatherSummary(it, data.hours, coastal) } }
+    val scroll = rememberLazyListState()
+    LaunchedEffect(date, activity) { scroll.scrollToItem(0) }
+    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp)) {
+        forecastConfidenceLabel(date, today)?.let { confidence -> item {
+            Text(strings(confidence), Modifier.padding(bottom = 14.dp), style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } }
+        if (outlook != null) {
+            val sourceLine = listOfNotNull(
+                sourceLabel(opened.location, activity, outlook.marineCoverage, strings),
+                data.sources.minOfOrNull { it.fetchedAt }?.let { updatedLabel(it, strings) },
+            ).joinToString(" · ").ifEmpty { null }
+            outlookDetails(outlook, summary, label, remaining, coastal, precision,
+                weeklyOutlook, date, today, onDateSelected, sourceLine,
+                notices = { DataNotice(data, state.nowInstant) }, target = target)
+        }
+        item { Box(Modifier.padding(top = 14.dp)) { AttributionLink() } }
+    }
+    if (outlook != null) DetailSheet(target, outlook, summary, label,
+        forecastContextLabel(opened.location, activity, date, language), coastal, precision)
+}
+
+@Composable
+private fun AttributionLink() {
+    val uriHandler = LocalUriHandler.current
+    TextButton(onClick = { uriHandler.openUri("https://open-meteo.com/") },
+        contentPadding = PaddingValues(horizontal = 4.dp)) {
+        Text("Open-Meteo · CC BY 4.0", style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -591,6 +649,6 @@ private fun HayPlanScreenPreview() {
     }
     HayPlanTheme {
         HayPlanScreen(HayPlanUiState(forecasts = forecasts, dates = listOf(date), selectedDate = date,
-            now = date.atStartOfDay(), isLoading = false))
+            now = date.atStartOfDay(), isLoading = false).planned())
     }
 }

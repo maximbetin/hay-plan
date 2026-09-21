@@ -112,4 +112,35 @@ class LocationSelectionTest {
             }
         }
     }
+
+    @Test fun `first selection skips today once its daylight has passed`() {
+        val forecasts = listOf(forecast(oviedo), forecast(oviedo, date.plusDays(1)))
+        val evening = date.atTime(14, 0).atZone(LocationCatalog.zone).toInstant()
+        val afterSunset = HayPlanUiState(forecasts = forecasts).atTime(evening)
+        assertEquals(date.plusDays(1), afterSunset.selectedDate)
+        assertEquals(listOf(date, date.plusDays(1)), afterSunset.dates)
+        val morning = date.atTime(9, 0).atZone(LocationCatalog.zone).toInstant()
+        assertEquals(date, HayPlanUiState(forecasts = forecasts).atTime(morning).selectedDate)
+        // An explicit choice of today is kept even after sunset.
+        assertEquals(date, HayPlanUiState(forecasts = forecasts, selectedDate = date).atTime(evening).selectedDate)
+    }
+
+    @Test fun `planning scores every location once per selection and reuses matching plans`() {
+        val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(oviedo)),
+            dates = listOf(date), selectedDate = date, now = date.atStartOfDay())
+        assertTrue(state.needsPlanning)
+        val planned = state.planned()
+        assertFalse(planned.needsPlanning)
+        assertEquals(setOf("gijon", "oviedo"), planned.plan!!.outlooks.keys)
+        assertNull(planned.weekly)
+        assertSame(planned, planned.planned())
+        val opened = planned.openLocation("gijon")
+        assertTrue(opened.needsPlanning)
+        val withWeekly = opened.planned()
+        assertSame(planned.plan, withWeekly.plan)
+        assertEquals("gijon", withWeekly.weekly!!.locationId)
+        val switched = withWeekly.selectActivity(ActivityType.HIKING).planned()
+        assertEquals(ActivityType.HIKING, switched.plan!!.activity)
+        assertEquals(ActivityType.HIKING, switched.weekly!!.activity)
+    }
 }

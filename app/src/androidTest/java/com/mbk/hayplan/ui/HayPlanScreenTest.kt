@@ -1,9 +1,14 @@
 package com.mbk.hayplan.ui
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -24,6 +29,19 @@ import java.time.LocalDate
 class HayPlanScreenTest {
     @get:Rule val compose = createComposeRule()
 
+    /** Hosts the screen with the one callback these tests use, so tapping a card opens its detail. */
+    private fun show(initial: HayPlanUiState, language: AppLanguage = AppLanguage.ENGLISH) {
+        compose.setContent {
+            var state by remember { mutableStateOf(initial.planned()) }
+            CompositionLocalProvider(LocalUiStrings provides UiStrings(language)) {
+                HayPlanTheme {
+                    HayPlanScreen(state, language = language,
+                        onLocationSelected = { state = state.openLocation(it).planned() })
+                }
+            }
+        }
+    }
+
     @Test fun severeWarningRemainsVisibleBesideAnExcellentDay() {
         val date = LocalDate.of(2026, 9, 3)
         val hours = (8..19).map { hour ->
@@ -41,19 +59,19 @@ class HayPlanScreenTest {
             HayPlanLocation("test", "Test place", "Asturias", Coordinates(43.5, -5.5)),
             ActivityForecastData(hours),
         )
-        compose.setContent {
-            HayPlanTheme {
-                HayPlanScreen(HayPlanUiState(
-                    forecasts = listOf(forecast), dates = listOf(date), selectedDate = date,
-                    activity = ActivityType.HIKING, now = date.atStartOfDay(), isLoading = false,
-                ))
-            }
-        }
+        show(HayPlanUiState(
+            forecasts = listOf(forecast),
+            dates = listOf(date),
+            selectedDate = date,
+            activity = ActivityType.HIKING,
+            now = date.atStartOfDay(),
+            isLoading = false,
+        ))
 
         compose.onNodeWithText("Excellent").assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertIsDisplayed()
-        compose.onNodeWithText("Best 3 hours").assertIsDisplayed()
+        compose.onNode(hasText("Best 3 hours") and hasText("Excellent")).assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertHasClickAction().assertIsSelected()
         compose.onNodeWithContentDescription("Settings").assertHasClickAction()
         compose.onNodeWithContentDescription("Warning: Thunderstorm · 19:00–20:00").assertIsDisplayed()
@@ -76,16 +94,18 @@ class HayPlanScreenTest {
             HayPlanLocation("future", "Future place", "Asturias", Coordinates(43.5, -5.5)),
             ActivityForecastData(hours),
         )
-        compose.setContent {
-            HayPlanTheme {
-                HayPlanScreen(HayPlanUiState(
-                    forecasts = listOf(forecast), dates = listOf(date), selectedDate = date,
-                    now = today.atStartOfDay(), isLoading = false,
-                ))
-            }
-        }
+        show(HayPlanUiState(
+            forecasts = listOf(forecast),
+            dates = listOf(date),
+            selectedDate = date,
+            now = today.atStartOfDay(),
+            isLoading = false,
+        ))
 
         compose.onNodeWithText("Long-range outlook · lower confidence").assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText("96/100").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithText("08:00–11:00").fetchSemanticsNodes().isEmpty())
+        compose.onNodeWithText("Future place").performClick()
         compose.onNodeWithText("Timing not shown for long-range outlooks").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("96/100").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("08:00–11:00").fetchSemanticsNodes().isEmpty())
@@ -94,7 +114,7 @@ class HayPlanScreenTest {
     @Test fun laterOutlookUsesBandsUntilCalculationDetailsAreOpened() {
         val today = LocalDate.of(2026, 9, 3)
         val date = today.plusDays(3)
-        val hours = (8..10).map { hour ->
+        val hours = (8..14).map { hour ->
             HourlyConditions(
                 time = date.atTime(hour, 0), isDaylight = true,
                 airTemperatureC = 20.0, apparentTemperatureC = 20.0,
@@ -108,14 +128,14 @@ class HayPlanScreenTest {
             HayPlanLocation("later", "Later place", "Asturias", Coordinates(43.5, -5.5)),
             ActivityForecastData(hours),
         )
-        compose.setContent {
-            HayPlanTheme {
-                HayPlanScreen(HayPlanUiState(
-                    forecasts = listOf(forecast), dates = listOf(date), selectedDate = date,
-                    activity = ActivityType.HIKING, now = today.atStartOfDay(), isLoading = false,
-                ))
-            }
-        }
+        show(HayPlanUiState(
+            forecasts = listOf(forecast),
+            dates = listOf(date),
+            selectedDate = date,
+            activity = ActivityType.HIKING,
+            now = today.atStartOfDay(),
+            isLoading = false,
+        ))
 
         compose.onNodeWithText("Later outlook · forecast may change").assertIsDisplayed()
         compose.onNodeWithText("08:00–11:00 · Excellent").assertIsDisplayed()
@@ -141,16 +161,13 @@ class HayPlanScreenTest {
             HayPlanLocation("spanish", "Lugar", "Asturias", Coordinates(43.5, -5.5)),
             ActivityForecastData(hours),
         )
-        compose.setContent {
-            CompositionLocalProvider(LocalUiStrings provides UiStrings(AppLanguage.SPANISH)) {
-                HayPlanTheme {
-                    HayPlanScreen(HayPlanUiState(
-                        forecasts = listOf(forecast), dates = listOf(date), selectedDate = date,
-                        now = date.atStartOfDay(), isLoading = false,
-                    ), language = AppLanguage.SPANISH)
-                }
-            }
-        }
+        show(HayPlanUiState(
+            forecasts = listOf(forecast),
+            dates = listOf(date),
+            selectedDate = date,
+            now = date.atStartOfDay(),
+            isLoading = false,
+        ), language = AppLanguage.SPANISH)
 
         compose.onNodeWithContentDescription("Ajustes").assertHasClickAction()
         compose.onNodeWithText("Ordenar por").assertIsDisplayed()

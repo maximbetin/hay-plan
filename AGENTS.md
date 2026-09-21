@@ -26,6 +26,10 @@
 - Open-Meteo requests batch at most five coordinates while preserving individual cache
   entries, validation, stale fallback, and single-coordinate recovery.
 - Dates 3-6 are labelled as later outlooks; day 7 onward is labelled long-range.
+- Scoring for the selected date runs off the main thread in `HayPlanViewModel` (`HayPlanUiState.planned()`);
+  the screen renders `state.plan` and never calls `DayPlanner` itself. Tests that build a state
+  directly call `.planned()`.
+- When no daylight remains today, the initial date selection is tomorrow; an explicit choice of today is kept.
 - Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
   followed by the ten highest-ranked remaining locations with no duplicates.
 - Daily notifications are opt-in, default to approximately 09:00 Europe/Madrid, and request
@@ -53,9 +57,10 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 111 JVM tests, zero failures; Android lint reports no issues.
-- `compileDebugAndroidTestKotlin` compiles the Compose regression test but does not run it.
-  Run connected/instrumented tests only when an emulator or phone is available.
+- Current baseline: 121 JVM tests and 4 instrumented Compose tests, zero failures; Android lint reports no issues.
+- `compileDebugAndroidTestKotlin` only compiles the Compose tests. Run `connectedDebugAndroidTest`
+  when an emulator or phone is available (the `Pixel_10` AVD on Android 16 works; Espresso is pinned
+  to 3.7 because the transitive 3.5 crashes its idle check there).
 - Use `git diff --check` and keep the working tree free of generated artifacts.
 - A push to `main` triggers `.github/workflows/android.yml` and publishes a latest APK.
   Never push when the user asks not to trigger a release.

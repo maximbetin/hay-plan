@@ -75,4 +75,6 @@ dependencies {
     androidTestImplementation(composeBom)
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // ui-test-junit4 pulls Espresso 3.5, whose idle check crashes on Android 16 emulators.
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }

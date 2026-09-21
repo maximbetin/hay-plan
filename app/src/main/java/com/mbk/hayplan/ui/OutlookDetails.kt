@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -28,7 +30,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-private sealed interface DetailTarget {
+internal sealed interface DetailTarget {
     data object Day : DetailTarget
     data object Window : DetailTarget
     data class Hour(val time: LocalDateTime) : DetailTarget
@@ -123,88 +125,100 @@ internal fun DayOverview(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun OutlookDetails(
+/**
+ * Detail content as lazy items, so opening a location composes only the rows on screen.
+ * [target] is shared with [DetailSheet], which the caller places outside the list.
+ */
+internal fun LazyListScope.outlookDetails(
     outlook: ActivityOutlook,
-    hours: List<HourlyConditions>,
+    summary: DayWeatherSummary?,
     label: String,
-    selectionKey: String,
     remainingToday: Boolean,
-    contextLabel: String,
     coastal: Boolean,
     scorePrecision: ScorePrecision,
-    weeklyOutlook: List<DatedOutlook> = emptyList(),
-    selectedDate: LocalDate? = null,
-    today: LocalDate? = null,
-    onDateSelected: (LocalDate) -> Unit = {},
-    sourceLine: String? = null,
-    notices: @Composable () -> Unit = {},
+    weeklyOutlook: List<DatedOutlook>,
+    selectedDate: LocalDate,
+    today: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
+    sourceLine: String?,
+    notices: @Composable () -> Unit,
+    target: MutableState<DetailTarget?>,
 ) {
-    val strings = LocalUiStrings.current
-    var target by remember(selectionKey) { mutableStateOf<DetailTarget?>(null) }
-    val summary = remember(outlook, hours, coastal) { dayWeatherSummary(outlook, hours, coastal) }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
+    item(key = "overview") {
+        Surface(Modifier.padding(bottom = 14.dp), shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
             Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 DayOverview(outlook, label, summary, remainingToday, coastal, scorePrecision,
                     sourceLine, notices,
-                    onDayClick = { target = DetailTarget.Day },
-                    onWindowClick = { target = DetailTarget.Window })
+                    onDayClick = { target.value = DetailTarget.Day },
+                    onWindowClick = { target.value = DetailTarget.Window })
             }
         }
-        if (selectedDate != null && today != null) {
-            WeeklyScoreOutlook(weeklyOutlook, selectedDate, today, onDateSelected)
-        }
-        if (outlook.hourly.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(localizedString(R.string.daylight_hours), Modifier.semantics { heading() },
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            HourList(outlook, if (scorePrecision != ScorePrecision.HIDDEN) outlook.bestWindow else null,
-                outlook.marineCoverage == MarineCoverage.MIXED,
-                scorePrecision == ScorePrecision.EXACT) { target = DetailTarget.Hour(it) }
-        }
-        if (outlook.hourly.isEmpty() &&
-            outlook.dayUnavailableReason != DayUnavailableReason.MissingDaylightBounds) Text(
-            localizedString(R.string.no_daylight_hours),
-            style = MaterialTheme.typography.bodyMedium)
     }
-    val selected = target
-    if (selected != null) {
-        ModalBottomSheet(
-            onDismissRequest = { target = null },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            // Keep place/activity/date visible even while scrolling a long explanation.
-            Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(contextLabel, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = { target = null }) { Text(localizedString(R.string.close)) }
+    if (weeklyOutlook.size >= 2) item(key = "weekly") {
+        Box(Modifier.padding(bottom = 14.dp)) { WeeklyScoreOutlook(weeklyOutlook, selectedDate, today, onDateSelected) }
+    }
+    if (outlook.hourly.isNotEmpty()) {
+        item(key = "hours-heading") {
+            Text(localizedString(R.string.daylight_hours), Modifier.padding(bottom = 6.dp).semantics { heading() },
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+        hourRows(outlook, if (scorePrecision != ScorePrecision.HIDDEN) outlook.bestWindow else null,
+            outlook.marineCoverage == MarineCoverage.MIXED,
+            scorePrecision == ScorePrecision.EXACT) { target.value = DetailTarget.Hour(it) }
+    } else if (outlook.dayUnavailableReason != DayUnavailableReason.MissingDaylightBounds) item {
+        Text(localizedString(R.string.no_daylight_hours), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun DetailSheet(
+    target: MutableState<DetailTarget?>,
+    outlook: ActivityOutlook,
+    summary: DayWeatherSummary?,
+    label: String,
+    contextLabel: String,
+    coastal: Boolean,
+    scorePrecision: ScorePrecision,
+) {
+    val selected = target.value ?: return
+    ModalBottomSheet(
+        onDismissRequest = { target.value = null },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        // Keep place/activity/date visible even while scrolling a long explanation.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(contextLabel, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { target.value = null }) { Text(localizedString(R.string.close)) }
+        }
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            when (selected) {
+                DetailTarget.Day -> DayInspection(outlook, label, summary, coastal,
+                    scorePrecision != ScorePrecision.HIDDEN)
+                DetailTarget.Window -> WindowInspection(outlook, coastal,
+                    scorePrecision != ScorePrecision.HIDDEN)
+                is DetailTarget.Hour -> HourInspection(outlook.hourly.find { it.time == selected.time },
+                    selected.time, outlook.activity, coastal,
+                    scorePrecision != ScorePrecision.HIDDEN)
             }
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                when (selected) {
-                    DetailTarget.Day -> DayInspection(outlook, label, summary, coastal,
-                        scorePrecision != ScorePrecision.HIDDEN)
-                    DetailTarget.Window -> WindowInspection(outlook, coastal,
-                        scorePrecision != ScorePrecision.HIDDEN)
-                    is DetailTarget.Hour -> HourInspection(outlook.hourly.find { it.time == selected.time },
-                        selected.time, outlook.activity, coastal,
-                        scorePrecision != ScorePrecision.HIDDEN)
-                }
-                SuitabilityNote(outlook.activity, coastal)
-                Spacer(Modifier.height(16.dp))
-            }
+            SuitabilityNote(outlook.activity, coastal)
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
-/** One surface of dense rows; the best window is a tinted run rather than a border on each hour. */
-@Composable
-private fun HourList(outlook: ActivityOutlook, best: BestWindow?, showCoverage: Boolean,
-                     showExactScore: Boolean, onClick: (LocalDateTime) -> Unit) {
-    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(vertical = 4.dp)) {
-            outlook.hourly.forEachIndexed { index, hour ->
+/** Dense rows on one visual surface; the best window is a tinted run rather than a border on each hour. */
+private fun LazyListScope.hourRows(outlook: ActivityOutlook, best: BestWindow?, showCoverage: Boolean,
+                                   showExactScore: Boolean, onClick: (LocalDateTime) -> Unit) {
+    val last = outlook.hourly.lastIndex
+    itemsIndexed(outlook.hourly, key = { _, hour -> hour.time.toString() }) { index, hour ->
+        val shape = RoundedCornerShape(
+            topStart = if (index == 0) 22.dp else 0.dp, topEnd = if (index == 0) 22.dp else 0.dp,
+            bottomStart = if (index == last) 22.dp else 0.dp, bottomEnd = if (index == last) 22.dp else 0.dp)
+        Surface(shape = shape, color = MaterialTheme.colorScheme.surface) {
+            Column(Modifier.padding(top = if (index == 0) 4.dp else 0.dp, bottom = if (index == last) 4.dp else 0.dp)) {
                 if (index > 0) HorizontalDivider(Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant)
                 HourRow(hour, best, showCoverage, showExactScore) { onClick(hour.time) }

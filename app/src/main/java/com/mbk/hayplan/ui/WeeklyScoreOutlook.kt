@@ -32,7 +32,7 @@ import java.time.LocalDateTime
 import java.time.format.TextStyle
 import java.util.Locale
 
-internal data class DatedOutlook(val date: LocalDate, val outlook: ActivityOutlook)
+data class DatedOutlook(val date: LocalDate, val outlook: ActivityOutlook)
 
 internal fun sevenDayOutlook(
     hours: List<HourlyConditions>,
