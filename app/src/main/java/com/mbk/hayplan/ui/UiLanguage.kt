@@ -95,14 +95,10 @@ internal class UiStrings(val language: AppLanguage) {
         private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         private val DECIMAL_POINT = Regex("(?<=\\d)\\.(?=\\d)")
         private val fixed = mapOf(
-            "Updating…" to "Actualizando…", "Language" to "Idioma", "English" to "Inglés",
-            "Loading forecasts…" to "Cargando previsiones…",
             "Long-range outlook · lower confidence" to "Previsión a largo plazo · menor fiabilidad",
             "Later outlook · forecast may change" to "Previsión posterior · puede cambiar",
-            "No forecasts available. Try Refresh." to "No hay previsiones. Pulsa Actualizar.",
             "Unknown" to "Desconocido",
             "Inland estimate · no beach" to "Opción de interior · sin playa",
-            "Daylight overall" to "Día completo", "Remaining daylight" to "Luz restante",
             "Air temperature" to "Temperatura del aire",
             "Wind" to "Viento", "Wind gusts" to "Rachas de viento", "Rain chance" to "Probabilidad de lluvia",
             "Rainfall" to "Lluvia", "Feels like" to "Sensación térmica", "Humidity" to "Humedad",
@@ -114,29 +110,12 @@ internal class UiStrings(val language: AppLanguage) {
             "Partly cloudy" to "Sol y nubes", "Overcast" to "Nublado", "Fog" to "Niebla",
             "Drizzle" to "Llovizna", "Rain showers" to "Chubascos", "Snow" to "Nieve",
             "Snow showers" to "Chubascos de nieve", "Thunderstorm" to "Tormenta", "Mixed conditions" to "Tiempo variable",
-            "How is this comfort score calculated? ▾" to "¿Cómo se calcula esta puntuación de comodidad? ▾",
-            "Hide comfort score calculation ▴" to "Ocultar cálculo de la puntuación de comodidad ▴",
-            "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation." to
-                "La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora se puntúa sobre 100 y se aplican los límites necesarios. Toca una hora para ver el cálculo.",
-            "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, then applies any condition limits. Tap an hour to see its inputs and calculation." to
-                "La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora suma hasta 70 puntos del tiempo más los puntos disponibles del mar, siempre sobre 100 puntos posibles, y después se aplican los límites necesarios. Toca una hora para ver el cálculo.",
-            "Average of these three hourly scores, with any limits for the whole period applied." to
-                "Media de esas tres horas, con los límites que correspondan.",
-            "Town and nearby-area weather, not exact trail or elevation conditions." to
-                "Tiempo previsto para la localidad y sus alrededores, no para una ruta o altitud concretas.",
-            "Only available sea data is used. Local shelter, beach flags and currents are not assessed." to
-                "Solo se usan los datos del mar disponibles. No se tienen en cuenta las zonas resguardadas, las banderas ni las corrientes.",
-            "Weather for outdoor leisure; pool temperatures and river conditions are not assessed." to
-                "Tiempo para actividades al aire libre; no incluye la temperatura de las piscinas ni el estado de los ríos.",
             "No forecast for this date." to "No hay previsión para esta fecha.", "No hours remaining." to "No quedan horas de luz.",
             "Daylight times unavailable for this date." to "No están disponibles las horas de luz para esta fecha.",
             "No complete three-hour window" to "No hay una franja completa de tres horas",
             "Weather forecast unavailable." to "No hay previsión del tiempo.",
             "Beach weather unavailable · using town weather" to "No hay previsión para la playa · se usa el tiempo de la localidad",
             "Sea forecast unavailable · using weather only" to "No hay datos del mar · se usa solo el tiempo",
-            "Refresh failed · saved forecast" to "No se ha podido actualizar · se usa la previsión guardada",
-            "Forecast may be outdated" to "La previsión puede no estar actualizada",
-            "Couldn't save forecast" to "No se ha podido guardar la previsión",
             "Couldn't load forecasts. Try Refresh." to "No se han podido cargar las previsiones. Pulsa Actualizar.",
             "Couldn't refresh forecasts. Please try again." to "No se ha podido actualizar. Inténtalo de nuevo.",
             "Rough waves." to "Olas fuertes.",

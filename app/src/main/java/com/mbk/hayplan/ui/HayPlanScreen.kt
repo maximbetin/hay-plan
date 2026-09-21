@@ -244,7 +244,7 @@ fun HayPlanScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         AppLanguage.entries.forEach { option ->
                             DropdownMenuItem(
-                                text = { Text(strings(option.displayName)) },
+                                text = { Text(option.displayName) },
                                 leadingIcon = { RadioButton(selected = language == option, onClick = null) },
                                 onClick = {
                                     onLanguageSelected(option)
@@ -328,7 +328,7 @@ private fun OverviewList(
                 fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } }
         if (state.forecasts.isEmpty()) item {
-            Text(strings(if (state.isLoading) "Loading forecasts…" else "No forecasts available. Try Refresh."))
+            Text(localizedString(if (state.isLoading) R.string.loading_forecasts else R.string.no_forecasts))
         }
         if (daylightFinished) item {
             Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.primaryContainer) {
@@ -407,7 +407,7 @@ private fun DetailPane(
     val today = state.now.toLocalDate()
     val remaining = date == today
     val coastal = opened.location.coast != null
-    val label = if (remaining) "Remaining daylight" else "Daylight overall"
+    val label = if (remaining) R.string.remaining_daylight else R.string.daylight_overall
     val data = opened.forActivity(activity)
     val weeklyOutlook = state.weekly
         ?.takeIf { it.locationId == opened.location.id && it.activity == activity }?.outlooks.orEmpty()
@@ -583,12 +583,11 @@ internal fun DataNotice(data: ActivityForecastData, now: Instant) {
     val strings = LocalUiStrings.current
     val warnings = buildList<Pair<String, Boolean>> {
         addAll(data.errors.map { strings(it) to true })
-        if (data.sources.any { it.refreshFailed }) add("Refresh failed · saved forecast" to false)
-        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add("Forecast may be outdated" to false)
-        if (data.sources.any { it.persistenceFailed }) add("Couldn't save forecast" to false)
+        if (data.sources.any { it.refreshFailed }) add(localizedString(R.string.refresh_failed) to false)
+        if (data.sources.any { !ForecastCache.isFresh(it.fetchedAt, now) }) add(localizedString(R.string.forecast_outdated) to false)
+        if (data.sources.any { it.persistenceFailed }) add(localizedString(R.string.save_failed) to false)
     }
-    warnings.forEach { (message, error) ->
-        val text = strings(message)
+    warnings.forEach { (text, error) ->
         val description = localizedString(R.string.notice_description, text)
         Text(text, Modifier.semantics { contentDescription = description },
             style = MaterialTheme.typography.bodySmall,

@@ -47,8 +47,10 @@
   light/dark contrast, 48dp touch targets, and non-color status labels.
 - Warnings, source issues, and unavailable reasons are typed. Do not introduce behavior
   that compares translated or English display sentences.
-- The remaining `UiStrings` mapping is presentation-only; migrate it incrementally rather
-  than mixing new business logic into strings.
+- Text rendered only by composables lives in `strings.xml` (`localizedString`). The remaining
+  `UiStrings` map translates domain-emitted English (warnings, factor labels, unit suffixes) and
+  the pure presentation helpers that JVM tests cover; migrate it incrementally rather than mixing
+  new business logic into strings.
 
 ## Verification
 

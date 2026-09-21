@@ -1,5 +1,6 @@
 package com.mbk.hayplan.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
@@ -41,7 +42,7 @@ internal sealed interface DetailTarget {
 @Composable
 internal fun DayOverview(
     outlook: ActivityOutlook,
-    label: String,
+    @StringRes label: Int,
     summary: DayWeatherSummary?,
     remainingToday: Boolean,
     coastal: Boolean,
@@ -64,7 +65,7 @@ internal fun DayOverview(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(strings(label), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
+                Text(localizedString(label), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${localizedString(R.string.details)} ›",
                     style = MaterialTheme.typography.labelLarge,
@@ -133,7 +134,7 @@ internal fun DayOverview(
 internal fun LazyListScope.outlookDetails(
     outlook: ActivityOutlook,
     summary: DayWeatherSummary?,
-    label: String,
+    @StringRes label: Int,
     remainingToday: Boolean,
     coastal: Boolean,
     scorePrecision: ScorePrecision,
@@ -176,7 +177,7 @@ internal fun DetailSheet(
     target: MutableState<DetailTarget?>,
     outlook: ActivityOutlook,
     summary: DayWeatherSummary?,
-    label: String,
+    @StringRes label: Int,
     contextLabel: String,
     coastal: Boolean,
     scorePrecision: ScorePrecision,
@@ -264,11 +265,11 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
 }
 
 @Composable
-private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayWeatherSummary?,
+private fun DayInspection(outlook: ActivityOutlook, @StringRes label: Int, summary: DayWeatherSummary?,
                           coastal: Boolean, showCalculationScores: Boolean) {
     val strings = LocalUiStrings.current
     var showAllConditions by rememberSaveable { mutableStateOf(false) }
-    Text(strings(label), Modifier.semantics { heading() },
+    Text(localizedString(label), Modifier.semantics { heading() },
         style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     val day = outlook.day
     RatingValue(day?.rating, day?.score, showExactScore = showCalculationScores)
@@ -318,19 +319,14 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
     HorizontalDivider()
     var showCalculation by rememberSaveable { mutableStateOf(false) }
     TextButton(onClick = { showCalculation = !showCalculation }) {
-        Text(strings(if (showCalculation) "Hide comfort score calculation ▴"
-            else "How is this comfort score calculated? ▾"))
+        Text(localizedString(if (showCalculation) R.string.hide_score_calculation
+            else R.string.show_score_calculation))
     }
     if (!showCalculation) return
     Text(localizedString(R.string.personal_score_note),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(strings(if (outlook.activity == ActivityType.BEACH)
-        "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
-            "Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, " +
-            "then applies any condition limits. Tap an hour to see its inputs and calculation."
-        else "The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. " +
-            "Each hour uses its available factors, scales their points to 100, then applies any condition limits. " +
-            "Tap an hour to see its inputs and calculation."),
+    Text(localizedString(if (outlook.activity == ActivityType.BEACH) R.string.score_calculation_beach
+        else R.string.score_calculation_hiking),
         style = MaterialTheme.typography.bodySmall)
     Text(Rating.entries.joinToString(" · ") { "${strings.rating(it)} ${ratingRange(it)}" },
         style = MaterialTheme.typography.bodySmall)
@@ -359,7 +355,7 @@ private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showCal
     } else window.warnings.forEach {
         WarningLine(strings(it), it)
     }
-    Text(strings("Average of these three hourly scores, with any limits for the whole period applied."),
+    Text(localizedString(R.string.window_calculation),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
@@ -401,10 +397,11 @@ private fun HourInspection(hour: HourlyAssessment?, time: LocalDateTime, activit
 
 @Composable
 private fun SuitabilityNote(activity: ActivityType, coastal: Boolean) {
-    val strings = LocalUiStrings.current
-    Text(strings(if (activity == ActivityType.HIKING) "Town and nearby-area weather, not exact trail or elevation conditions."
-        else if (coastal) "Only available sea data is used. Local shelter, beach flags and currents are not assessed."
-        else "Weather for outdoor leisure; pool temperatures and river conditions are not assessed."),
+    Text(localizedString(when {
+        activity == ActivityType.HIKING -> R.string.suitability_hiking
+        coastal -> R.string.suitability_coastal
+        else -> R.string.suitability_inland
+    }),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
