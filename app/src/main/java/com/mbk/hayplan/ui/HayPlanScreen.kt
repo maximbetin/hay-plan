@@ -16,7 +16,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -292,8 +291,7 @@ fun HayPlanScreen(
                 val detail = openedId?.let { id -> state.forecasts.find { it.location.id == id } }
                 if (detail == null) OverviewList(state, plan, outlooks, date, activity, precision, rankingMode,
                     overviewScroll, onDateSelected, onLocationSelected, onRankingModeSelected)
-                else DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision,
-                    language, onDateSelected)
+                else DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision, language)
             }
         }
     }
@@ -404,7 +402,6 @@ private fun DetailPane(
     activity: ActivityType,
     precision: ScorePrecision,
     language: AppLanguage,
-    onDateSelected: (LocalDate) -> Unit,
 ) {
     val strings = LocalUiStrings.current
     val today = state.now.toLocalDate()
@@ -429,7 +426,7 @@ private fun DetailPane(
                 data.sources.minOfOrNull { it.fetchedAt }?.let { updatedLabel(it, strings) },
             ).joinToString(" · ").ifEmpty { null }
             outlookDetails(outlook, summary, label, remaining, coastal, precision,
-                weeklyOutlook, date, today, onDateSelected, sourceLine,
+                weeklyOutlook, date, today, sourceLine,
                 notices = { DataNotice(data, state.nowInstant) }, target = target)
         }
         item { Box(Modifier.padding(top = 14.dp)) { AttributionLink() } }
@@ -512,44 +509,32 @@ private fun SectionHeading(text: String) {
         fontWeight = FontWeight.SemiBold)
 }
 
+/** Name and one rating pill, then only what changes a decision: conditions, the best window, a warning. */
 @Composable
 private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activity: ActivityType,
                      now: Instant, scorePrecision: ScorePrecision, onOpen: () -> Unit) {
     val strings = LocalUiStrings.current
     val data = forecast.forActivity(activity)
-    val summary = remember(outlook, data.hours, forecast.location.coast) {
-        dayWeatherSummary(outlook, data.hours, forecast.location.coast != null)
-    }
+    val coastal = forecast.location.coast != null
+    val summary = remember(outlook, data.hours, coastal) { dayWeatherSummary(outlook, data.hours, coastal) }
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = outlook.day?.score?.let { BorderStroke(1.dp, currentRatingColor(it).copy(alpha = 0.35f)) },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(forecast.location.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold)
+                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                RatingValue(outlook.day?.rating, outlook.day?.score,
+                    showExactScore = scorePrecision == ScorePrecision.EXACT, compact = true)
                 Text("›", Modifier.clearAndSetSemantics { }, style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
-            val cardWarning = primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning)
-            // A severe period is already carried by the red timed warning line below the rating.
-            CompactRatingValue(outlook.day?.rating, outlook.day?.score,
-                showExactScore = scorePrecision == ScorePrecision.EXACT)
-            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall)
-            CardReferenceLabel(forecast.location, activity, outlook)
-            cardWarning?.let { warning ->
-                val warningText = primaryPeriod?.let(strings::warningPeriod) ?: strings(warning)
-                val warningDescription = localizedString(R.string.warning_description, warningText)
-                Text(warningText, Modifier.semantics { contentDescription = warningDescription },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (warning.priority >= 3) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.tertiary,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            cardConditions(summary, activity, forecast.location.coast != null, strings.language)?.let {
+            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason),
+                style = MaterialTheme.typography.bodySmall)
+            cardConditions(summary, activity, coastal, strings.language)?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
@@ -568,47 +553,28 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                         scorePrecision != ScorePrecision.HIDDEN && windowCoversAllHours(outlook) ->
                             localizedString(R.string.window_all_remaining_daylight)
                         scorePrecision == ScorePrecision.EXACT ->
-                            "${timeRange(window.start, window.end)} · ${window.score}/100"
+                            "${timeRange(window.start, window.end)} · ${window.score}"
                         scorePrecision == ScorePrecision.BAND ->
                             "${timeRange(window.start, window.end)} · ${strings.rating(window.rating)}"
                         else -> strings.rating(window.rating)
                     }
-                    Text(windowSummary,
-                        style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
-                        color = currentRatingColor(window.score))
+                    Text(windowSummary, style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold, color = currentRatingColor(window.score))
                 }
             }
+            val primaryPeriod = primaryWarningPeriod(outlook.warningPeriods)
+            (primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning))?.let { warning ->
+                WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
+            }
+            // Only sources a reader could not assume belong on the card; the norm is stated in the detail.
+            if (activity == ActivityType.BEACH && (!coastal || outlook.marineCoverage != MarineCoverage.FULL))
+                sourceLabel(forecast.location, activity, outlook.marineCoverage, strings)?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis)
+                }
             DataNotice(data, now)
         }
-    }
-}
-
-@Composable
-private fun CompactRatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true) {
-    val strings = LocalUiStrings.current
-    val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(rating?.let { strings.rating(it) }
-            ?: localizedString(R.string.unavailable), Modifier.weight(1f),
-            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-            color = color)
-        if (showExactScore) {
-            Surface(shape = RoundedCornerShape(999.dp),
-                color = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant) {
-                Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color)
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardReferenceLabel(location: HayPlanLocation, activity: ActivityType, outlook: ActivityOutlook) {
-    val label = sourceLabel(location, activity, outlook.marineCoverage, LocalUiStrings.current)
-    label?.let {
-        Text(it, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 

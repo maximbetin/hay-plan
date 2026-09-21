@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -82,7 +83,7 @@ internal fun DayOverview(
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }
             dayWarning?.let { warning ->
-                WarningText(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
+                WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
             }
             notices()
         }
@@ -139,7 +140,6 @@ internal fun LazyListScope.outlookDetails(
     weeklyOutlook: List<DatedOutlook>,
     selectedDate: LocalDate,
     today: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
     sourceLine: String?,
     notices: @Composable () -> Unit,
     target: MutableState<DetailTarget?>,
@@ -155,7 +155,7 @@ internal fun LazyListScope.outlookDetails(
         }
     }
     if (weeklyOutlook.size >= 2) item(key = "weekly") {
-        Box(Modifier.padding(bottom = 14.dp)) { WeeklyScoreOutlook(weeklyOutlook, selectedDate, today, onDateSelected) }
+        Box(Modifier.padding(bottom = 14.dp)) { WeeklyScoreOutlook(weeklyOutlook, selectedDate, today) }
     }
     if (outlook.hourly.isNotEmpty()) {
         item(key = "hours-heading") {
@@ -235,32 +235,29 @@ private fun HourRow(hour: HourlyAssessment, best: BestWindow?, showCoverage: Boo
     val isBest = best != null && !time.isBefore(best.start) && time.isBefore(best.end)
     val score = hour.evaluation?.score
     val scoreColor = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
+    val rating = score?.let { strings.rating(ratingFor(it)) } ?: localizedString(R.string.unavailable)
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
         .background(if (isBest) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else Color.Transparent)
         .semantics(mergeDescendants = true) {}
-        .padding(horizontal = 16.dp, vertical = 8.dp),
+        .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(time.format(TIME), Modifier.width(52.dp), style = MaterialTheme.typography.titleMedium)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(score?.let { strings.rating(ratingFor(it)) } ?: localizedString(R.string.unavailable),
-                    style = MaterialTheme.typography.bodyMedium, color = scoreColor)
-                if (best?.start == time) Text(localizedString(R.string.best_three_hours),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                if (showCoverage) hour.evaluation?.let {
-                    Text(strings.coverage(it.marineCoverage), style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            if (showExactScore && score != null) Box(Modifier.fillMaxWidth().height(4.dp)
+            val tags = listOfNotNull(
+                localizedString(R.string.best_three_hours).takeIf { best?.start == time },
+                hour.evaluation?.takeIf { showCoverage }?.let { strings.coverage(it.marineCoverage) },
+            )
+            if (tags.isNotEmpty()) Text(tags.joinToString(" · "), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // The bar carries the rating visually; screen readers get the word instead.
+            if (showExactScore && score != null) Box(Modifier.fillMaxWidth().height(6.dp)
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(999.dp))
-                .clearAndSetSemantics { }) {
+                .semantics { contentDescription = rating }) {
                 Box(Modifier.fillMaxWidth(score / 100f).fillMaxHeight()
                     .background(currentRatingColor(score), RoundedCornerShape(999.dp)))
-            }
+            } else Text(rating, style = MaterialTheme.typography.bodyMedium, color = scoreColor)
         }
-        if (showExactScore) Text(score?.let { "$it/100" } ?: "—",
+        if (showExactScore && score != null) Text("$score", style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold, color = scoreColor)
         Text("›", Modifier.clearAndSetSemantics { }, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -301,16 +298,16 @@ private fun DayInspection(outlook: ActivityOutlook, label: String, summary: DayW
         val rated = outlook.hourly.count { it.evaluation != null }
         Text(localizedPlural(R.plurals.hours_rated, outlook.hourly.size, rated, outlook.hourly.size))
         outlook.warningPeriods.forEach {
-            WarningText(strings.warningPeriod(it), it.warning)
+            WarningLine(strings.warningPeriod(it), it.warning)
         }
         return
     }
     Text(localizedPlural(R.plurals.good_daylight_hours, day.assessedHours,
         day.goodHours, day.assessedHours))
     if (day.warningPeriods.isNotEmpty()) day.warningPeriods.forEach {
-        WarningText(strings.warningPeriod(it), it.warning)
+        WarningLine(strings.warningPeriod(it), it.warning)
     } else day.warnings.forEach {
-        WarningText(strings(it), it)
+        WarningLine(strings(it), it)
     }
     if (!showCalculationScores) {
         Text(localizedString(R.string.long_range_scores_hidden),
@@ -358,9 +355,9 @@ private fun WindowInspection(outlook: ActivityOutlook, coastal: Boolean, showCal
     // Values summarize the period; the score itself uses its individual hourly scores.
     window.factors.forEach { FactorRow(it, showPoints = false) }
     if (window.warningPeriods.isNotEmpty()) window.warningPeriods.forEach {
-        WarningText(strings.warningPeriod(it), it.warning)
+        WarningLine(strings.warningPeriod(it), it.warning)
     } else window.warnings.forEach {
-        WarningText(strings(it), it)
+        WarningLine(strings(it), it)
     }
     Text(strings("Average of these three hourly scores, with any limits for the whole period applied."),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -399,7 +396,7 @@ private fun HourInspection(hour: HourlyAssessment?, time: LocalDateTime, activit
             color = MaterialTheme.colorScheme.error)
     } else Text(localizedString(R.string.long_range_scores_hidden),
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    evaluation.warnings.forEach { WarningText(strings(it), it) }
+    evaluation.warnings.forEach { WarningLine(strings(it), it) }
 }
 
 @Composable
@@ -431,37 +428,46 @@ private fun FactorRow(factor: FactorResult, showPoints: Boolean) {
     }
 }
 
+/** One statement of a score: the rating word and, when exact, the number. Cards use the compact pill. */
 @Composable
-internal fun RatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true) {
+internal fun RatingValue(rating: Rating?, score: Int?, showExactScore: Boolean = true, compact: Boolean = false) {
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
+    val container = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant
+    val word = rating?.let { strings.rating(it) } ?: localizedString(R.string.unavailable)
+    if (compact) {
+        Surface(shape = RoundedCornerShape(999.dp), color = container) {
+            Text(if (showExactScore && score != null) "$word · $score" else word,
+                Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color)
+        }
+        return
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(rating?.let { strings.rating(it) }
-            ?: localizedString(R.string.unavailable), Modifier.weight(1f),
-            style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
-            color = color)
-        if (showExactScore) {
-            Surface(shape = RoundedCornerShape(999.dp),
-                color = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant) {
-                Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
-            }
+        Text(word, Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold, color = color)
+        if (showExactScore) Surface(shape = RoundedCornerShape(999.dp), color = container) {
+            Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
         }
     }
 }
 
 private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 internal fun timeRange(start: LocalTime, end: LocalTime) = "${start.format(TIME)}–${end.format(TIME)}"
+/** Severe warnings read in the error colour; the icon marks the rest without borrowing a rating colour. */
 @Composable
-private fun warningColor(warning: ForecastWarning): Color =
-    if (warning.priority >= 3) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
-
-@Composable
-private fun WarningText(text: String, warning: ForecastWarning) {
+internal fun WarningLine(text: String, warning: ForecastWarning) {
+    val severe = warning.priority >= 3
     val description = localizedString(R.string.warning_description, text)
-    Text(text, Modifier.semantics { contentDescription = description },
-        style = MaterialTheme.typography.bodySmall, color = warningColor(warning))
+    Row(Modifier.semantics(mergeDescendants = true) { contentDescription = description },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(painterResource(R.drawable.ic_warning), contentDescription = null, Modifier.size(16.dp),
+            tint = if (severe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium,
+            color = if (severe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+    }
 }
 internal fun ratingColor(score: Int, darkTheme: Boolean = false) = when {
     score >= 90 -> if (darkTheme) Color(0xFF75D8C8) else Color(0xFF087A63)

@@ -112,8 +112,8 @@ internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType,
                             language: AppLanguage = AppLanguage.ENGLISH): String? {
     if (summary == null) return null
     val strings = UiStrings(language)
-    fun value(label: String) = strings(summary.values.first { it.label == label }.value
-        .removeSuffix(" max").removeSuffix(" avg"))
+    fun value(label: String) = strings(compactValue(summary.values.first { it.label == label }.value
+        .removeSuffix(" max").removeSuffix(" avg")))
     return if (language == AppLanguage.SPANISH && activity == ActivityType.BEACH && coastal) {
         "Sensación ${value("Feels like")} · Agua ${value("Water temperature")} · Olas ${value("Waves")}\n" +
             "Lluvia ${value("Rain chance")} · Rachas ${value("Wind gusts")} · Nubes ${value("Cloud cover")}"
@@ -128,6 +128,15 @@ internal fun cardConditions(summary: DayWeatherSummary?, activity: ActivityType,
             "Clouds ${value("Cloud cover")} · UV ${value("UV index")}"
     }
 }
+
+/** Cards round temperatures and wind to whole units; the inspection sheet keeps the decimals. */
+internal fun compactValue(value: String): String {
+    val rounded = WHOLE_UNIT_VALUE.replace(value) { match -> match.groupValues[1].toDouble().roundToInt().toString() }
+    return SAME_ENDS_RANGE.replace(rounded, "$1")
+}
+
+private val WHOLE_UNIT_VALUE = Regex("(\\d+\\.\\d+)(?=(–\\d+\\.\\d+)?(°C| km/h))")
+private val SAME_ENDS_RANGE = Regex("(\\d+)–\\1(?=°C)")
 
 internal fun forecastConfidenceLabel(date: LocalDate, today: LocalDate): String? = when {
     isLongRangeOutlook(date, today) -> "Long-range outlook · lower confidence"

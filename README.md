@@ -15,7 +15,7 @@ Older builds signed with another key require uninstalling first, which removes l
 ## Use
 
 1. Choose a date and **Beach** or **Hiking**, then rank the other locations by the whole day or their best three-hour opportunity. Gijón, Oviedo, and Avilés appear first in that fixed order, followed by the ten highest-ranked remaining locations without duplicates. After sunset the app opens on tomorrow; today stays available in the date strip.
-2. Each card shows its comfort rating, essential conditions, timed important warnings, and separate best three-hour window. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
+2. Each card shows its comfort rating, essential conditions rounded to whole degrees, its best three-hour window and the most important timed warning. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
 3. Tap a location for hourly results and score explanations. Date and activity changes keep that location open.
 4. Use **Refresh** to bypass the one-hour forecast cache. If updating fails, saved data is used for at most 12 hours and clearly labelled.
 5. The app follows English or Spanish system language by default. Open **Settings** to override it; the choice is saved on the phone. Light and dark system themes are supported.
@@ -34,7 +34,8 @@ Santa Marina (Ribadesella), La Palmera (Candás), Primera y Segunda de Luarca,
 and [Rodiles](https://www.turismoasturias.es/es/descubre/costa/playas/playa-de-rodiles) (Villaviciosa).
 Oviedo, Cangas de Onís, Somiedo, and Redes use labelled weather-only estimates for
 outdoor leisure, not pool or river forecasts. Somiedo uses **Pola de Somiedo** weather;
-Redes uses **Campo de Caso**. These references are shown on cards and details.
+Redes uses **Campo de Caso**. These references are shown in the location detail; cards only
+flag inland estimates and missing sea data.
 Hiking uses town and nearby-area weather for walks and ordinary local routes, not an exact
 trail, mountain or elevation forecast. Scores include apparent temperature, rain amount and
 chance, sustained wind and gusts, cloud cover, humidity, visibility, UV and severe weather.

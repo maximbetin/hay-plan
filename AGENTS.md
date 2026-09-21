@@ -41,6 +41,8 @@
 ## UI and localization
 
 - Preserve the compact phone-first flow: date, activity, ranked cards, then details.
+- A score is stated once per place: `RatingValue` (compact pill on cards, headline in details). Warnings use
+  `WarningLine`, never a rating colour. The date strip is the only date control; the 7-day chart is read-only.
 - Maintain English and Spanish behavior, system-language default, decimal localization,
   light/dark contrast, 48dp touch targets, and non-color status labels.
 - Warnings, source issues, and unavailable reasons are typed. Do not introduce behavior

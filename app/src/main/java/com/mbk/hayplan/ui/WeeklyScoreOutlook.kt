@@ -6,10 +6,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +49,6 @@ internal fun WeeklyScoreOutlook(
     points: List<DatedOutlook>,
     selectedDate: LocalDate,
     today: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
 ) {
     if (points.size < 2) return
     val strings = LocalUiStrings.current
@@ -110,31 +107,22 @@ internal fun WeeklyScoreOutlook(
                             }
                         }
                     }
-                    Row(Modifier.fillMaxWidth()) {
+                    // Labels only: the date strip above is the one place to change the day.
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                         points.forEach { point ->
-                            val warning = point.outlook.severeGraphWarning()
                             val selected = point.date == selectedDate
-                            TextButton(
-                                onClick = { onDateSelected(point.date) },
-                                modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.textButtonColors(
-                                    containerColor = if (selected) MaterialTheme.colorScheme.surfaceVariant
-                                        else Color.Transparent,
-                                ),
-                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(compactDate(point.date, strings.language),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                        maxLines = 1)
-                                    if (warning != null) {
-                                        Text("!", style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.error)
-                                    }
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(compactDate(point.date, strings.language),
+                                    Modifier.background(if (selected) MaterialTheme.colorScheme.surfaceVariant
+                                        else Color.Transparent, RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1)
+                                if (point.outlook.severeGraphWarning() != null) {
+                                    Text("!", style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
@@ -156,9 +144,10 @@ private fun compactDate(date: LocalDate, language: AppLanguage): String {
     return "$weekday ${date.dayOfMonth}"
 }
 
+/** Only warnings that would change the plan get a marker; lesser ones already lower the bar. */
 private fun ActivityOutlook.severeGraphWarning() =
     (primaryWarningPeriod(warningPeriods)?.warning ?: day?.warnings?.let(::primaryWarning))
-        ?.takeIf { it.priority >= 2 }
+        ?.takeIf { it.priority >= 3 }
 
 private val BAR_SHAPE = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BAR_WIDTH = 24.dp

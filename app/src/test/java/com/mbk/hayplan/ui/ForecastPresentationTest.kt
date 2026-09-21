@@ -83,10 +83,14 @@ class ForecastPresentationTest {
 
     @Test fun `card conditions are compact and inland Beach is explicit`() {
         val result = summary((8..10).map(::hour))!!
-        assertEquals("Feels 23.0°C · Rain 10% · Gusts 18.0 km/h\nClouds 20% · UV 4.0",
+        assertEquals("Feels 23°C · Rain 10% · Gusts 18 km/h\nClouds 20% · UV 4.0",
             cardConditions(result, ActivityType.BEACH, coastal = false))
-        assertEquals("Feels 23.0°C · Water 20.0°C · Waves 0.5 m\nRain 10% · Gusts 18.0 km/h · Clouds 20%",
+        assertEquals("Feels 23°C · Water 20°C · Waves 0.5 m\nRain 10% · Gusts 18 km/h · Clouds 20%",
             cardConditions(result, ActivityType.BEACH, coastal = true))
+        assertEquals("20–23°C", compactValue("20.2–23.4°C"))
+        assertEquals("19°C", compactValue("19.3–19.4°C"))
+        assertEquals("38 km/h", compactValue("38.2 km/h"))
+        assertEquals("1.1 m", compactValue("1.1 m"))
         assertEquals("Inland estimate · no beach", beachCoverageLabel(false, MarineCoverage.NONE))
         assertEquals(MarineCoverage.FULL.label, beachCoverageLabel(true, MarineCoverage.FULL))
     }
@@ -103,8 +107,8 @@ class ForecastPresentationTest {
         val summary = summary((8..10).map(::hour))!!
         assertEquals("Sensación 23,0°C · Prob. lluvia 10% máx.\nRachas 18,0 km/h máx. · Nubes 20% media",
             dayWeatherHeadline(summary, AppLanguage.SPANISH))
-        assertEquals("Sensación 23,0°C · Agua 20,0°C · Olas 0,5 m\n" +
-            "Lluvia 10% · Rachas 18,0 km/h · Nubes 20%",
+        assertEquals("Sensación 23°C · Agua 20°C · Olas 0,5 m\n" +
+            "Lluvia 10% · Rachas 18 km/h · Nubes 20%",
             cardConditions(summary, ActivityType.BEACH, coastal = true, language = AppLanguage.SPANISH))
         assertEquals("Todo el día", strings.rankingMode(RankingMode.WHOLE_DAY))
         assertEquals("Mejores 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))

@@ -68,10 +68,10 @@ class HayPlanScreenTest {
             isLoading = false,
         ))
 
-        compose.onNodeWithText("Excellent").assertIsDisplayed()
+        compose.onNodeWithText("Excellent", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertIsDisplayed()
-        compose.onNode(hasText("Best 3 hours") and hasText("Excellent")).assertIsDisplayed()
+        compose.onNode(hasText("Best 3 hours") and hasText("Excellent", substring = true)).assertIsDisplayed()
         compose.onNodeWithText("Whole day").assertHasClickAction().assertIsSelected()
         compose.onNodeWithContentDescription("Settings").assertHasClickAction()
         compose.onNodeWithContentDescription("Warning: Thunderstorm · 19:00–20:00").assertIsDisplayed()
