@@ -15,7 +15,7 @@ Older builds signed with another key require uninstalling first, which removes l
 ## Use
 
 1. Choose **Beach** or **Walk** (in Spanish, *Playita* and *Paseíto*) and a date. Locations rank by their whole-day comfort; Gijón, Oviedo, and Avilés appear first in that fixed order, followed by the ten highest-ranked remaining locations without duplicates. After sunset the app opens on tomorrow; today stays available in the date strip.
-2. Choose **Week**, the first chip in the date strip, to see every location across the next seven days as coloured cells, with the best place and day called out on top. If nothing looks Good, it offers the other activity. Tap a cell to open that place on that day; Back returns to the week.
+2. The app opens on **Week**, the first chip in the date strip, showing every location across the next seven days as coloured cells, with the best place and day called out on top. If nothing looks Good, it offers the other activity. Tap a cell to open that place on that day; Back returns to the week.
 3. Each card shows its comfort rating, essential conditions rounded to whole degrees, its best three-hour window and the most important timed warning. Coastal Beach cards show air and water temperatures plus waves; inland estimates are clearly labelled.
 4. Tap a location for its 7-day chart, hourly results with the best three hours highlighted, and score explanations. Tap the place name to switch to another location without going back. Date and activity changes keep that location open.
 5. Use **Refresh** to bypass the one-hour forecast cache. If updating fails, saved data is used for at most 12 hours and clearly labelled.

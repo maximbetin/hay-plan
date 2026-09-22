@@ -64,14 +64,16 @@ those main towns; Show all reveals any remainder. Beach cards continue to label 
 references and inland estimates explicitly. Changing date or activity collapses the
 overview to ten other locations; activity changes within details keep the selected location open.
 
-The Week view scores today through day six for every location. Each row ranks by that
-location's best day, compared in rating bands with sea-data coverage breaking Beach ties,
-because later days show no exact scores; the main towns still come first. Its headline picks
-the single best place and day by the same band-and-coverage order, preferring the earliest
-day and then row order on a tie, and still states that day's primary warning. When nothing
-reaches Good it says so and offers the other activity. After today's daylight ends, today's
-column is omitted. Cells show exact scores for days zero to two and bands for days three to
-six, with "!" marking the same severe warnings as the detail chart.
+The Week view scores today through day six for every location. Each location's best day is
+chosen by rating band, then sea-data coverage, then the exact score where one is shown (days
+zero to two), then the earliest date, so a hidden later-day score never beats a visible one.
+Rows rank by that best day (main towns still come first) and the headline is the best of all
+of them, so it matches the rows; it still states that day's primary warning. In Beach mode,
+inland places rank last, are faded, and never headline. The headline covers both activities: the selected
+one opens its best day, the other is a one-tap switch, and either says "Nothing Good this
+week" when no day reaches Good. After today's daylight ends, today's column is omitted.
+Cells show exact scores for days zero to two and one to five rating dots for days three to
+six; "!" marks a severe warning only on a cell rated Good or better, where colour would hide it.
 
 Today through day two display exact scores on cards and hourly rows. Days three through
 six show rating bands there; opening a calculation still reveals the exact heuristic score.

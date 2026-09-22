@@ -7,12 +7,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -55,10 +58,19 @@ internal fun WeekOverview(
             days.find { it.date == date }?.outlook?.dayUnavailableReason == DayUnavailableReason.NoHoursRemaining
         }
     }
-    val sections = remember(week) {
-        locationSections(rankLocationsForWeek(state.forecasts.filter { it.location.id in outlooks }, outlooks))
+    val sections = remember(week, today) {
+        locationSections(rankLocationsForWeek(state.forecasts.filter { it.location.id in outlooks }, outlooks,
+            activity, today))
     }
-    val highlight = remember(sections) { weekHighlight(sections.all, outlooks) }
+    val highlight = remember(sections) { weekHighlight(sections.all, outlooks, activity, today) }
+    val otherWeek = state.otherWeek?.takeIf { it.activity != activity }
+    val otherHighlight = remember(otherWeek, today) {
+        otherWeek?.let { other ->
+            val forecasts = state.forecasts.filter { it.location.id in other.outlooks }
+            weekHighlight(rankLocationsForWeek(forecasts, other.outlooks, other.activity, today),
+                other.outlooks, other.activity, today)
+        }
+    }
     var showAll by rememberSaveable(activity) { mutableStateOf(false) }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -67,18 +79,19 @@ internal fun WeekOverview(
         }
         if (week != null && dates.isNotEmpty()) {
             item(key = "highlight") {
-                WeekHighlightCard(highlight, activity, today, onDayOpened, onActivitySelected)
+                WeekHighlights(highlight, otherWeek?.let { it.activity to otherHighlight }, activity, today,
+                    onDayOpened, onActivitySelected)
             }
             stickyHeader(key = "days") { WeekHeader(dates, today) }
             if (sections.main.isNotEmpty()) item { WeekSectionHeading(localizedString(R.string.main_towns)) }
             items(sections.main, key = { it.location.id }) { forecast ->
-                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, onDayOpened)
+                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, noBeach(forecast, activity), onDayOpened)
             }
             if (sections.allOthers.isNotEmpty()) item {
                 WeekSectionHeading(localizedString(R.string.best_other_locations))
             }
             items(if (showAll) sections.allOthers else sections.topOthers, key = { it.location.id }) { forecast ->
-                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, onDayOpened)
+                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, noBeach(forecast, activity), onDayOpened)
             }
             if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
                 TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
@@ -96,50 +109,67 @@ internal fun WeekOverview(
     }
 }
 
-/** The answer before the grid: where and when is best, or that nothing is worth it and the other activity may be. */
+/**
+ * The answer before the grid, for both activities: the selected one leads and opens its best day; the other
+ * sits below as a one-tap switch, so "no beach this week, but a fine walk" reads at a glance.
+ */
 @Composable
-private fun WeekHighlightCard(
+private fun WeekHighlights(
     highlight: WeekHighlight?,
+    other: Pair<ActivityType, WeekHighlight?>?,
     activity: ActivityType,
     today: LocalDate,
     onDayOpened: (String, LocalDate) -> Unit,
     onActivitySelected: (ActivityType) -> Unit,
 ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(localizedString(R.string.week_best), style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val good = highlight?.takeIf { (it.outlook.day?.rating ?: Rating.POOR) >= Rating.GOOD }
+        Card(onClick = { good?.let { onDayOpened(it.location.location.id, it.date) } },
+            enabled = good != null,
+            modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            HighlightRow(activity, good, today, showWarning = true)
+        }
+        other?.let { (otherActivity, otherHighlight) ->
+            Surface(onClick = { onActivitySelected(otherActivity) }, shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                HighlightRow(otherActivity,
+                    otherHighlight?.takeIf { (it.outlook.day?.rating ?: Rating.POOR) >= Rating.GOOD }, today,
+                    showWarning = false)
+            }
+        }
+    }
+}
+
+/** One activity's week in a line: its icon, then the best place and day with its rating, or that nothing is Good. */
+@Composable
+private fun HighlightRow(activity: ActivityType, highlight: WeekHighlight?, today: LocalDate, showWarning: Boolean) {
     val strings = LocalUiStrings.current
     val day = highlight?.outlook?.day
-    if (highlight == null || day == null || day.rating < Rating.GOOD) {
-        val other = ActivityType.entries.first { it != activity }
-        Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(localizedString(R.string.week_nothing_good, strings.activity(activity)), Modifier.weight(1f),
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(painterResource(activity.icon), contentDescription = strings.activity(activity), Modifier.size(24.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (highlight == null || day == null) {
+                Text(localizedString(R.string.week_nothing_good),
                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                TextButton(onClick = { onActivitySelected(other) }) {
-                    Text(localizedString(R.string.week_try_activity, strings.activity(other)))
+                return@Column
+            }
+            Text("${highlight.location.location.name} · ${formatDate(highlight.date, today, strings.language)}",
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (showWarning) {
+                val primaryPeriod = primaryWarningPeriod(highlight.outlook.warningPeriods)
+                (primaryPeriod?.warning ?: day.warnings.let(::primaryWarning))?.let { warning ->
+                    WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
                 }
             }
         }
-        return
-    }
-    Card(onClick = { onDayOpened(highlight.location.location.id, highlight.date) },
-        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(localizedString(R.string.week_best), style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("${highlight.location.location.name} · ${formatDate(highlight.date, today, strings.language)}",
-                    Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer)
-                RatingValue(day.rating, day.score,
-                    showExactScore = scorePrecision(highlight.date, today) == ScorePrecision.EXACT, compact = true)
-            }
-            val primaryPeriod = primaryWarningPeriod(highlight.outlook.warningPeriods)
-            (primaryPeriod?.warning ?: day.warnings.let(::primaryWarning))?.let { warning ->
-                WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
-            }
-        }
+        if (highlight != null && day != null) RatingValue(day.rating, day.score,
+            showExactScore = scorePrecision(highlight.date, today) == ScorePrecision.EXACT, compact = true)
     }
 }
 
@@ -176,10 +206,13 @@ private fun WeekRow(
     days: List<DatedOutlook>,
     dates: List<LocalDate>,
     today: LocalDate,
+    noBeach: Boolean,
     onDayOpened: (String, LocalDate) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(forecast.location.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
+    // An inland Beach score is only an estimate, so the row fades rather than competing with real beaches.
+    Column(Modifier.alpha(if (noBeach) 0.45f else 1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(if (noBeach) "${forecast.location.name} · ${LocalUiStrings.current("Inland estimate · no beach")}"
+            else forecast.location.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CELL_GAP)) {
             dates.forEach { date ->
@@ -190,7 +223,10 @@ private fun WeekRow(
     }
 }
 
-/** Colour carries the glance; the score or band and a "!" for severe warnings carry it without colour. */
+/**
+ * Colour carries the glance. Without colour, sooner days show their score and later days one to five dots for
+ * the rating; "!" appears only where a good-looking day hides a severe warning.
+ */
 @Composable
 private fun WeekCell(
     place: String,
@@ -204,6 +240,7 @@ private fun WeekCell(
     val day = point?.outlook?.day
     val exact = scorePrecision(date, today) == ScorePrecision.EXACT
     val warning = point?.outlook?.severeGraphWarning()
+    val hiddenHazard = warning != null && day != null && day.rating >= Rating.GOOD
     val scoreDescription = day?.let { strings.rating(it.rating) + if (exact) ", ${it.score}/100" else "" }
         ?: localizedString(R.string.unavailable)
     val description = localizedString(R.string.week_cell_description, place,
@@ -214,13 +251,21 @@ private fun WeekCell(
         color = day?.let { currentRatingContainerColor(it.score) } ?: MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.fillMaxSize().clearAndSetSemantics { }, verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(day?.let { if (exact) "${it.score}" else scoreBand(it.score) } ?: "—",
-                style = if (exact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, textAlign = TextAlign.Center,
-                color = day?.let { currentRatingColor(it.score) } ?: MaterialTheme.colorScheme.onSurfaceVariant)
-            if (warning != null) Text("!", style = MaterialTheme.typography.labelSmall,
+            val ink = day?.let { currentRatingOnContainerColor(it.score) } ?: MaterialTheme.colorScheme.onSurfaceVariant
+            if (day != null && !exact) RatingDots(day.rating, ink)
+            else Text(day?.let { "${it.score}" } ?: "—", style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, textAlign = TextAlign.Center, color = ink)
+            if (hiddenHazard) Text("!", style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
         }
+    }
+}
+
+/** One dot per rating step, so later days compare at a glance without implying an exact score. */
+@Composable
+private fun RatingDots(rating: Rating, color: androidx.compose.ui.graphics.Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(rating.ordinal + 1) { Box(Modifier.size(5.dp).background(color, CircleShape)) }
     }
 }
 

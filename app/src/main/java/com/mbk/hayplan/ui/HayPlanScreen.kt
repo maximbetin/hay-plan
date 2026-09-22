@@ -279,6 +279,8 @@ fun HayPlanScreen(
                     FilterChip(selected = state.activity == option,
                         onClick = { onActivitySelected(option) },
                         label = { ChipLabel(strings.activity(option)) },
+                        leadingIcon = { Icon(painterResource(option.icon), contentDescription = null,
+                            Modifier.size(18.dp)) },
                         colors = choiceChipColors(),
                         modifier = Modifier.weight(1f))
                 }
@@ -588,15 +590,15 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
             }
+            // The best hours are a highlight: worth a line only when they are worth going for.
             val window = outlook.bestWindow
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
+            if (window != null && window.rating >= Rating.GOOD) Row(Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Text(localizedString(R.string.best_three_hours), Modifier.weight(1f),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (window == null) Text(strings.windowUnavailable(outlook.windowUnavailableReason),
-                    style = MaterialTheme.typography.bodySmall)
-                else {
+                run {
                     val windowSummary = when {
                         // When only the window's hours remain, repeating the identical range and score reads as an error.
                         scorePrecision != ScorePrecision.HIDDEN && windowCoversAllHours(outlook) ->
@@ -665,4 +667,10 @@ private fun HayPlanScreenPreview() {
         HayPlanScreen(HayPlanUiState(forecasts = forecasts, dates = listOf(date), selectedDate = date,
             now = date.atStartOfDay(), isLoading = false).planned())
     }
+}
+
+/** A picture for each activity, so the choice reads without the (playful, per-language) name. */
+internal val ActivityType.icon: Int get() = when (this) {
+    ActivityType.BEACH -> R.drawable.ic_beach
+    ActivityType.HIKING -> R.drawable.ic_walk
 }

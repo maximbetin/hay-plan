@@ -49,6 +49,8 @@ data class HayPlanUiState(
     val message: String? = null,
     val plan: DayPlan? = null,
     val week: WeekPlan? = null,
+    /** The other activity's week, so the grid can say how it compares and switching needs no rescoring. */
+    val otherWeek: WeekPlan? = null,
     /** The overview shows the week grid instead of one date's ranking; kept while a detail opened from it is shown. */
     val weekView: Boolean = false,
 ) {
@@ -87,7 +89,18 @@ data class HayPlanUiState(
     /** True when [plan] or [week] no longer describe the current selection. */
     val needsPlanning: Boolean get() = forecasts.isNotEmpty() && (
         plan == null || plan.date != planDate || plan.activity != activity || plan.now != now ||
-            week == null || week.activity != activity || week.now != now || week.dates != weekDates())
+            !current(week, activity) || !current(otherWeek, otherActivity))
+
+    private val otherActivity: ActivityType get() = ActivityType.entries.first { it != activity }
+
+    private fun current(plan: WeekPlan?, activity: ActivityType) =
+        plan != null && plan.activity == activity && plan.now == now && plan.dates == weekDates()
+
+    private fun weekFor(activity: ActivityType): WeekPlan = listOfNotNull(week, otherWeek)
+        .firstOrNull { current(it, activity) }
+        ?: WeekPlan(activity, now, weekDates(), forecasts.associate { forecast ->
+            forecast.location.id to sevenDayOutlook(forecast.forActivity(activity).hours, weekDates(), now, activity)
+        })
 
     private fun weekDates(): List<LocalDate> = sevenDayDates(dates, now)
 
@@ -95,18 +108,14 @@ data class HayPlanUiState(
     fun planned(): HayPlanUiState {
         if (!needsPlanning) return this
         val date = planDate
-        val weekDates = weekDates()
-        val week = week?.takeIf { it.activity == activity && it.now == now && it.dates == weekDates }
-            ?: WeekPlan(activity, now, weekDates, forecasts.associate { forecast ->
-                forecast.location.id to sevenDayOutlook(forecast.forActivity(activity).hours, weekDates, now, activity)
-            })
+        val week = weekFor(activity)
         // Days inside the week reuse its outlooks, so cards, grid and details show the exact same objects.
         val plan = plan?.takeIf { it.date == date && it.activity == activity && it.now == now }
             ?: DayPlan(date, activity, now, forecasts.associate { forecast ->
                 forecast.location.id to (week.outlooks[forecast.location.id]?.find { it.date == date }?.outlook
                     ?: DayPlanner.forDate(forecast.forActivity(activity).hours, date, now, activity))
             })
-        return copy(plan = plan, week = week)
+        return copy(plan = plan, week = week, otherWeek = weekFor(otherActivity))
     }
 }
 
@@ -115,7 +124,8 @@ class HayPlanViewModel(
     private val clock: Clock = Clock.systemUTC(),
     private val planningDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
-    var uiState by mutableStateOf(HayPlanUiState())
+    // The week grid is the first screen: it answers "where and when" before any single day.
+    var uiState by mutableStateOf(HayPlanUiState(weekView = true))
         private set
     private var loadJob: Job? = null
     private var planJob: Job? = null

@@ -2,6 +2,7 @@ package com.mbk.hayplan.ui
 
 import com.mbk.hayplan.data.LocationForecast
 import com.mbk.hayplan.domain.ActivityOutlook
+import com.mbk.hayplan.domain.ActivityType
 import com.mbk.hayplan.domain.MarineCoverage
 import com.mbk.hayplan.domain.ratingFor
 import java.time.LocalDate
@@ -40,33 +41,48 @@ internal fun rankLocations(
         .thenBy { it.location.id },
 )
 
-/** How good a day looks at a glance: its rating band, then how much sea data backs it. */
-private val glanceOrder = compareBy<ActivityOutlook> { rankingValue(it.day?.score, coarse = true) }
-    .thenBy { coverageValue(it.day?.marineCoverage) }
+/**
+ * How good a day looks at a glance: its rating band, how much sea data backs it, then the exact score
+ * where one is shown (days 0-2), so the sooner, more certain and visibly higher day wins; earliest on a tie.
+ */
+private fun glanceOrder(today: LocalDate) = compareBy<DatedOutlook> { rankingValue(it.outlook.day?.score, coarse = true) }
+    .thenBy { coverageValue(it.outlook.day?.marineCoverage) }
+    .thenBy { point -> point.outlook.day?.score?.takeIf { scorePrecision(point.date, today) == ScorePrecision.EXACT } ?: -1 }
+    .thenByDescending { it.date }
 
-/** One location's best day of the week: highest rating band and evidence, earliest date on a tie. */
-internal fun bestDay(days: List<DatedOutlook>): DatedOutlook? =
-    days.filter { it.outlook.day != null }.maxWithOrNull(
-        compareBy<DatedOutlook, ActivityOutlook>(glanceOrder) { it.outlook }.thenByDescending { it.date })
+/** One location's best day of the week by [glanceOrder]. */
+internal fun bestDay(days: List<DatedOutlook>, today: LocalDate): DatedOutlook? =
+    days.filter { it.outlook.day != null }.maxWithOrNull(glanceOrder(today))
 
-/** Week rows rank by each location's best day, in rating bands because later days show no exact scores. */
+/** Beach at an inland place is only an estimate: such rows sink to the bottom and never headline the week. */
+internal fun noBeach(forecast: LocationForecast, activity: ActivityType) =
+    activity == ActivityType.BEACH && forecast.location.coast == null
+
+/** Week rows rank by each location's best day, so the headline is the first row that can hold it. */
 internal fun rankLocationsForWeek(
     forecasts: List<LocationForecast>,
     week: Map<String, List<DatedOutlook>>,
-): List<LocationForecast> = rankLocations(forecasts,
-    week.mapNotNull { (id, days) -> bestDay(days)?.let { id to it.outlook } }.toMap(), coarseScores = true)
+    activity: ActivityType,
+    today: LocalDate,
+): List<LocationForecast> {
+    val best = forecasts.associateWith { forecast -> week[forecast.location.id]?.let { bestDay(it, today) } }
+    return forecasts.sortedWith(compareBy<LocationForecast> { noBeach(it, activity) }
+        .thenByDescending(nullsFirst(glanceOrder(today))) { best[it] }
+        .thenBy { it.location.id })
+}
 
 internal data class WeekHighlight(val location: LocationForecast, val date: LocalDate, val outlook: ActivityOutlook)
 
-/**
- * The single best place and day of the week by what the grid shows, preferring the sooner, more certain day;
- * remaining ties follow [ordered] so the answer matches the rows below it.
- */
-internal fun weekHighlight(ordered: List<LocationForecast>, week: Map<String, List<DatedOutlook>>): WeekHighlight? =
-    ordered.mapNotNull { forecast ->
-        week[forecast.location.id]?.let(::bestDay)?.let { WeekHighlight(forecast, it.date, it.outlook) }
-    }.maxWithOrNull(compareBy<WeekHighlight, ActivityOutlook>(glanceOrder) { it.outlook }
-        .thenByDescending { it.date }.thenBy { -ordered.indexOf(it.location) })
+/** The single best place and day of the week by what the grid shows; ties follow [ordered]. */
+internal fun weekHighlight(
+    ordered: List<LocationForecast>,
+    week: Map<String, List<DatedOutlook>>,
+    activity: ActivityType,
+    today: LocalDate,
+): WeekHighlight? = ordered.filterNot { noBeach(it, activity) }.mapNotNull { forecast ->
+    week[forecast.location.id]?.let { bestDay(it, today) }?.let { WeekHighlight(forecast, it.date, it.outlook) }
+}.maxWithOrNull(compareBy<WeekHighlight, DatedOutlook>(glanceOrder(today)) { DatedOutlook(it.date, it.outlook) }
+    .thenBy { -ordered.indexOf(it.location) })
 
 private fun rankingValue(score: Int?, coarse: Boolean): Int = when {
     score == null -> -1

@@ -142,6 +142,9 @@ class LocationSelectionTest {
         val switched = opened.selectActivity(ActivityType.HIKING).planned()
         assertEquals(ActivityType.HIKING, switched.plan!!.activity)
         assertEquals(ActivityType.HIKING, switched.week!!.activity)
+        // Both activities' weeks are scored once, so switching only swaps them.
+        assertSame(planned.otherWeek, switched.week)
+        assertSame(planned.week, switched.otherWeek)
     }
 
     @Test fun `week view returns to the grid from a cell and a date chip leaves it`() {

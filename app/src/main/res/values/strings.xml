@@ -45,8 +45,7 @@
     <string name="weekly_outlook_warning_suffix">; warning: %1$s</string>
     <string name="week">Week</string>
     <string name="week_best">Best this week</string>
-    <string name="week_nothing_good">Nothing looks Good for %1$s this week</string>
-    <string name="week_try_activity">See %1$s</string>
+    <string name="week_nothing_good">Nothing Good this week</string>
     <string name="week_cell_description">%1$s, %2$s: %3$s%4$s</string>
     <string name="change_place">Change place</string>
     <string name="choose_place">Choose a place</string>

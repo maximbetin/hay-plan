@@ -33,9 +33,12 @@
 - Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
   followed by the ten highest-ranked remaining locations with no duplicates. The day list ranks by
   day score only (the best window is a card highlight, never a sort key); the Week grid ranks by
-  each location's best day in rating bands and headlines the single best place and day.
+  each location's best day (band, sea coverage, visible exact score, earliest) and headlines the best
+  of them; inland places never headline Beach. See `docs/SCORING.md`.
 - `HayPlanUiState.planned()` scores the week (today to day 6) for every location in one pass, and
-  day plans inside it reuse those outlooks, so the grid, cards and detail chart share objects.
+  day plans inside it reuse those outlooks, so the grid, cards and detail chart share objects. It also
+  keeps the other activity's week (`otherWeek`), so switching activity swaps the two without rescoring.
+- Cards show "Best 3 hours" only when that window is rated Good or better.
 - Daily notifications are opt-in, default to approximately 09:00 Europe/Madrid, and request
   notification permission only when enabled. Oviedo considers Walk; Gijón prefers a
   complete, fully marine-informed Very Good Beach window and otherwise considers Walk.
@@ -44,14 +47,14 @@
 
 ## UI and localization
 
-- Preserve the compact phone-first flow: date (or Week), activity, ranked cards or the week grid,
-  then details. In details the place name opens a picker to switch location in place.
+- Preserve the compact phone-first flow: the app opens on the Week grid (Week is the first date chip),
+  activity, ranked cards or the week grid, then details. The grid's headline shows both activities. In details the place name opens a picker to switch location in place.
 - Activity names: English "Beach" and "Walk"; Spanish "Playita" and "Paseíto" (deliberately playful).
 - A score is stated once per place: `RatingValue` (compact pill on cards, headline in details). Warnings use
   `WarningLine`, never a rating colour. The date strip (its first chip is Week) and week grid cells choose the date; the detail
   7-day chart is read-only.
 - Maintain English and Spanish behavior, system-language default, decimal localization,
-  light/dark contrast, 48dp touch targets, and non-color status labels.
+  light/dark contrast, 48dp touch targets, and non-color status labels (week cells: numbers, rating dots, "!" for hidden hazards).
 - Warnings, source issues, and unavailable reasons are typed. Do not introduce behavior
   that compares translated or English display sentences.
 - Text rendered only by composables lives in `strings.xml` (`localizedString`). The remaining

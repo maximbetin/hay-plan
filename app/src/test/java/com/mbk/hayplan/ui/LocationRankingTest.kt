@@ -78,14 +78,18 @@ class LocationRankingTest {
     private fun day(score: Int?) = ActivityOutlook(ActivityType.HIKING,
         score?.let { DayRating(ratingFor(it), it, 4, 4, emptyList()) }, null)
 
-    @Test fun `a location's best day is its highest score and the earliest on a tie`() {
+    @Test fun `a location's best day is the visibly highest and the sooner, exact day on a tie`() {
         val days = listOf(DatedOutlook(date, day(50)), DatedOutlook(date.plusDays(1), day(null)),
-            DatedOutlook(date.plusDays(2), day(70)), DatedOutlook(date.plusDays(3), day(70)))
-        assertEquals(date.plusDays(2), bestDay(days)!!.date)
-        assertNull(bestDay(listOf(DatedOutlook(date, day(null)))))
+            DatedOutlook(date.plusDays(2), day(70)), DatedOutlook(date.plusDays(3), day(88)))
+        // Day 3 shows only its band, so its hidden 88 never beats the 70 the user can see.
+        assertEquals(date.plusDays(2), bestDay(days, date)!!.date)
+        assertEquals(date, bestDay(listOf(DatedOutlook(date, day(65)), DatedOutlook(date.plusDays(1), day(65))), date)!!.date)
+        assertEquals(date.plusDays(1),
+            bestDay(listOf(DatedOutlook(date, day(65)), DatedOutlook(date.plusDays(1), day(80))), date)!!.date)
+        assertNull(bestDay(listOf(DatedOutlook(date, day(null))), date))
     }
 
-    @Test fun `week rows rank by best day in bands and the highlight prefers the sooner equally rated day`() {
+    @Test fun `week rows and the highlight agree on the best place and day`() {
         val steady = forecast("a-steady", 20.0)
         val peak = forecast("b-peak", 20.0)
         val none = forecast("c-none", 20.0)
@@ -94,15 +98,14 @@ class LocationRankingTest {
             "b-peak" to listOf(DatedOutlook(date, day(10)), DatedOutlook(date.plusDays(1), day(85))),
             "c-none" to listOf(DatedOutlook(date, day(null))),
         )
-        // 62 and 85 share the Very Good band, so the deterministic id order decides the rows.
-        val ordered = rankLocationsForWeek(listOf(none, peak, steady), week)
-        assertEquals(listOf(steady, peak, none), ordered)
-        // Hidden points within a band never beat a sooner, equally rated day.
-        val highlight = weekHighlight(ordered, week)!!
-        assertSame(steady, highlight.location)
-        assertEquals(date, highlight.date)
-        assertSame(peak, weekHighlight(listOf(peak, none), week)!!.location)
-        assertNull(weekHighlight(listOf(none), week))
+        val ordered = rankLocationsForWeek(listOf(none, peak, steady), week, ActivityType.HIKING, date)
+        assertEquals(listOf(peak, steady, none), ordered)
+        val highlight = weekHighlight(ordered, week, ActivityType.HIKING, date)!!
+        assertSame(peak, highlight.location)
+        assertEquals(date.plusDays(1), highlight.date)
+        assertNull(weekHighlight(listOf(none), week, ActivityType.HIKING, date))
+        // These test places have no coast, so none of them may headline a Beach week.
+        assertNull(weekHighlight(ordered, week, ActivityType.BEACH, date))
     }
 
     @Test fun `banded ranking ignores hidden point differences within a rating`() {

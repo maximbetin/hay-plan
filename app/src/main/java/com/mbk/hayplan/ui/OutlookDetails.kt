@@ -431,12 +431,13 @@ internal fun RatingValue(rating: Rating?, score: Int?, showExactScore: Boolean =
     val strings = LocalUiStrings.current
     val color = score?.let { currentRatingColor(it) } ?: MaterialTheme.colorScheme.onSurface
     val container = score?.let { currentRatingContainerColor(it) } ?: MaterialTheme.colorScheme.surfaceVariant
+    val onContainer = score?.let { currentRatingOnContainerColor(it) } ?: MaterialTheme.colorScheme.onSurface
     val word = rating?.let { strings.rating(it) } ?: localizedString(R.string.unavailable)
     if (compact) {
         Surface(shape = RoundedCornerShape(999.dp), color = container) {
             Text(if (showExactScore && score != null) "$word · $score" else word,
                 Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = color)
+                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = onContainer)
         }
         return
     }
@@ -446,7 +447,7 @@ internal fun RatingValue(rating: Rating?, score: Int?, showExactScore: Boolean =
             fontWeight = FontWeight.Bold, color = color)
         if (showExactScore) Surface(shape = RoundedCornerShape(999.dp), color = container) {
             Text(score?.let { "$it/100" } ?: "—", Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = onContainer)
         }
     }
 }
@@ -466,21 +467,26 @@ internal fun WarningLine(text: String, warning: ForecastWarning) {
             color = if (severe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
     }
 }
+// A clearly ordered ramp, red to deep green, so neighbouring ratings never read as the same colour.
 internal fun ratingColor(score: Int, darkTheme: Boolean = false) = when {
-    score >= 90 -> if (darkTheme) Color(0xFF75D8C8) else Color(0xFF087A63)
-    score >= 60 -> if (darkTheme) Color(0xFF9AD39F) else Color(0xFF39734B)
-    score >= 40 -> if (darkTheme) Color(0xFFFFCC65) else Color(0xFF8A6500)
-    score >= 20 -> if (darkTheme) Color(0xFFFFB77B) else Color(0xFFA85D16)
-    else -> if (darkTheme) Color(0xFFFFB4A9) else Color(0xFFA34235)
+    score >= 90 -> if (darkTheme) Color(0xFF8EE6AE) else Color(0xFF17693A)
+    score >= 60 -> if (darkTheme) Color(0xFFC4E68A) else Color(0xFF4A7A12)
+    score >= 40 -> if (darkTheme) Color(0xFFFFD86B) else Color(0xFF6E5200)
+    score >= 20 -> if (darkTheme) Color(0xFFFFBE8A) else Color(0xFF8F4608)
+    else -> if (darkTheme) Color(0xFFFFB4A9) else Color(0xFF8E2A1E)
 }
 
 internal fun ratingContainerColor(score: Int, darkTheme: Boolean = false) = when {
-    score >= 90 -> if (darkTheme) Color(0xFF174D43) else Color(0xFFD7F3EC)
-    score >= 60 -> if (darkTheme) Color(0xFF294B31) else Color(0xFFE0F0E2)
-    score >= 40 -> if (darkTheme) Color(0xFF554500) else Color(0xFFFFF0C2)
-    score >= 20 -> if (darkTheme) Color(0xFF5B3518) else Color(0xFFFCE4CA)
-    else -> if (darkTheme) Color(0xFF5F2B27) else Color(0xFFF9DDD8)
+    score >= 90 -> if (darkTheme) Color(0xFF1E7A45) else Color(0xFF1F7A43)
+    score >= 60 -> if (darkTheme) Color(0xFF355420) else Color(0xFFCDEBB5)
+    score >= 40 -> if (darkTheme) Color(0xFF5A4700) else Color(0xFFFFE9A3)
+    score >= 20 -> if (darkTheme) Color(0xFF66380F) else Color(0xFFFFCFA3)
+    else -> if (darkTheme) Color(0xFF6E2A24) else Color(0xFFF7C1B9)
 }
+
+/** Text drawn on a [ratingContainerColor] fill: Excellent's fill is dark enough to need light text. */
+internal fun ratingOnContainerColor(score: Int, darkTheme: Boolean = false) =
+    if (score >= 90) (if (darkTheme) Color(0xFFE6FFEC) else Color.White) else ratingColor(score, darkTheme)
 
 internal fun factorColor(outcome: FactorOutcome, darkTheme: Boolean = false) = when (outcome) {
     FactorOutcome.POSITIVE -> if (darkTheme) Color(0xFF75D8C8) else Color(0xFF087A63)
@@ -490,6 +496,9 @@ internal fun factorColor(outcome: FactorOutcome, darkTheme: Boolean = false) = w
 
 @Composable
 internal fun currentRatingColor(score: Int) = ratingColor(score, isSystemInDarkTheme())
+
+@Composable
+internal fun currentRatingOnContainerColor(score: Int) = ratingOnContainerColor(score, isSystemInDarkTheme())
 
 @Composable
 internal fun currentRatingContainerColor(score: Int) = ratingContainerColor(score, isSystemInDarkTheme())
