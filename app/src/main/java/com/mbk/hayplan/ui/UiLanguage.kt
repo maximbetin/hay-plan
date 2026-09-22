@@ -55,13 +55,9 @@ internal class UiStrings(val language: AppLanguage) {
     }
 
     fun activity(activity: ActivityType) = when (activity) {
-        ActivityType.BEACH -> if (language == AppLanguage.SPANISH) "Playa" else activity.label
-        ActivityType.HIKING -> if (language == AppLanguage.SPANISH) "Senderismo" else activity.label
-    }
-
-    fun rankingMode(mode: RankingMode): String = when (mode) {
-        RankingMode.WHOLE_DAY -> if (language == AppLanguage.SPANISH) "Todo el día" else "Whole day"
-        RankingMode.BEST_WINDOW -> if (language == AppLanguage.SPANISH) "Mejores 3 horas" else "Best 3 hours"
+        // Playful Andalusian diminutives, deliberately only in Spanish.
+        ActivityType.BEACH -> if (language == AppLanguage.SPANISH) "Playita" else activity.label
+        ActivityType.HIKING -> if (language == AppLanguage.SPANISH) "Paseíto" else activity.label
     }
 
     fun updated(value: String) = if (language == AppLanguage.SPANISH) "Actualizado: $value" else "Updated $value"

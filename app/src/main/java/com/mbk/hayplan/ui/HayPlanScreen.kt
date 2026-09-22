@@ -18,6 +18,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -36,7 +37,10 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -71,9 +75,6 @@ fun HayPlanApp() {
     var language by remember {
         mutableStateOf(if (preferences.contains("language"))
             AppLanguage.fromCode(preferences.getString("language", null)) else AppLanguage.fromSystem())
-    }
-    var rankingMode by remember {
-        mutableStateOf(RankingMode.fromCode(preferences.getString("ranking_mode", null)))
     }
     var dailyNotification by remember { mutableStateOf(DailyNotificationPreferences.read(context)) }
     var notificationsAllowed by remember { mutableStateOf(canPostNotifications(context)) }
@@ -113,18 +114,15 @@ fun HayPlanApp() {
         HayPlanScreen(
             state = model.uiState,
             onDateSelected = model::selectDate,
+            onWeekSelected = model::showWeek,
+            onDayOpened = model::openDay,
             onActivitySelected = model::selectActivity,
             onLocationSelected = model::openLocation,
             onBack = model::closeLocation,
             onRefresh = model::refresh,
             language = language,
-            rankingMode = rankingMode,
             dailyNotification = dailyNotification,
             notificationsAllowed = notificationsAllowed,
-            onRankingModeSelected = { selected ->
-                preferences.edit { putString("ranking_mode", selected.code) }
-                rankingMode = selected
-            },
             onDailyNotificationEnabled = { enabled ->
                 if (!enabled) {
                     val updated = DailyNotificationPreferences.setEnabled(context, false)
@@ -165,15 +163,15 @@ fun HayPlanApp() {
 fun HayPlanScreen(
     state: HayPlanUiState,
     onDateSelected: (LocalDate) -> Unit = {},
+    onWeekSelected: () -> Unit = {},
+    onDayOpened: (String, LocalDate) -> Unit = { _, _ -> },
     onActivitySelected: (ActivityType) -> Unit = {},
     onLocationSelected: (String) -> Unit = {},
     onBack: () -> Unit = {},
     onRefresh: () -> Unit = {},
     language: AppLanguage = AppLanguage.ENGLISH,
-    rankingMode: RankingMode = RankingMode.WHOLE_DAY,
     dailyNotification: DailyNotificationSettings = DailyNotificationSettings(),
     notificationsAllowed: Boolean = true,
-    onRankingModeSelected: (RankingMode) -> Unit = {},
     onDailyNotificationEnabled: (Boolean) -> Unit = {},
     onDailyNotificationTimeSelected: (LocalTime) -> Unit = {},
     onLanguageSelected: (AppLanguage) -> Unit = {},
@@ -201,7 +199,10 @@ fun HayPlanScreen(
     val outlooks = plan?.outlooks.orEmpty()
     val precision = scorePrecision(date, state.now.toLocalDate())
     val overviewScroll = rememberLazyListState()
+    val weekScroll = rememberLazyListState()
     LaunchedEffect(date, activity) { overviewScroll.scrollToItem(0) }
+    LaunchedEffect(activity) { weekScroll.scrollToItem(0) }
+    var choosingPlace by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = opened != null, onBack = onBack)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -210,10 +211,21 @@ fun HayPlanScreen(
                 if (opened != null) IconButton(onClick = onBack) {
                     Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = localizedString(R.string.back))
                 }
-                Text(opened?.location?.name ?: localizedString(R.string.app_name),
-                    Modifier.weight(1f).semantics { heading() },
-                    style = if (opened == null) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (opened == null) Text(localizedString(R.string.app_name), Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                // The place name is the switcher, so another town is one tap away without going back.
+                else Box(Modifier.weight(1f)) {
+                    val changePlace = localizedString(R.string.change_place)
+                    TextButton(onClick = { choosingPlace = true }, contentPadding = PaddingValues(horizontal = 6.dp),
+                        modifier = Modifier.semantics { onClick(label = changePlace) { choosingPlace = true; true } }) {
+                        Text(opened.location.name, Modifier.weight(1f, fill = false).semantics { heading() },
+                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(" ▾", Modifier.clearAndSetSemantics { },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 Box {
                     IconButton(onClick = { showSettings = true }) {
                         Icon(painterResource(R.drawable.ic_settings), contentDescription = localizedString(R.string.settings))
@@ -259,7 +271,7 @@ fun HayPlanScreen(
                     else Icon(painterResource(R.drawable.ic_refresh), contentDescription = localizedString(R.string.refresh))
                 }
             }
-            DateStrip(state, onDateSelected)
+            DateStrip(state, onDateSelected, onWeekSelected)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -289,9 +301,60 @@ fun HayPlanScreen(
                 label = "location",
             ) { openedId ->
                 val detail = openedId?.let { id -> state.forecasts.find { it.location.id == id } }
-                if (detail == null) OverviewList(state, plan, outlooks, date, activity, precision, rankingMode,
-                    overviewScroll, onDateSelected, onLocationSelected, onRankingModeSelected)
-                else DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision, language)
+                when {
+                    detail != null ->
+                        DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision, language)
+                    state.weekView -> WeekOverview(state, activity, weekScroll, onDayOpened, onActivitySelected) {
+                        overviewFooter(state, activity)
+                    }
+                    else -> OverviewList(state, plan, outlooks, date, activity, precision,
+                        overviewScroll, onDateSelected, onLocationSelected)
+                }
+            }
+        }
+    }
+    if (choosingPlace && opened != null && plan != null) {
+        PlacePicker(state, plan, precision, opened.location.id,
+            onDismiss = { choosingPlace = false },
+            onSelected = { id -> choosingPlace = false; onLocationSelected(id) })
+    }
+}
+
+/** Every place in overview order with its score for the shown day; picking one swaps the detail in place. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlacePicker(
+    state: HayPlanUiState,
+    plan: DayPlan,
+    precision: ScorePrecision,
+    currentId: String,
+    onDismiss: () -> Unit,
+    onSelected: (String) -> Unit,
+) {
+    val places = remember(plan, precision) {
+        locationSections(rankLocations(state.forecasts.filter { it.location.id in plan.outlooks },
+            plan.outlooks, coarseScores = precision != ScorePrecision.EXACT)).all
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(localizedString(R.string.choose_place), Modifier.padding(horizontal = 22.dp).semantics { heading() },
+            style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        LazyColumn(contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 24.dp)) {
+            items(places, key = { it.location.id }) { forecast ->
+                val day = plan.outlooks[forecast.location.id]?.day
+                val current = forecast.location.id == currentId
+                Surface(onClick = { onSelected(forecast.location.id) }, shape = RoundedCornerShape(14.dp),
+                    color = if (current) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { selected = current }) {
+                    Row(Modifier.heightIn(min = 52.dp).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(forecast.location.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        RatingValue(day?.rating, day?.score,
+                            showExactScore = precision == ScorePrecision.EXACT, compact = true)
+                    }
+                }
             }
         }
     }
@@ -305,22 +368,20 @@ private fun OverviewList(
     date: LocalDate,
     activity: ActivityType,
     precision: ScorePrecision,
-    rankingMode: RankingMode,
     scroll: LazyListState,
     onDateSelected: (LocalDate) -> Unit,
     onLocationSelected: (String) -> Unit,
-    onRankingModeSelected: (RankingMode) -> Unit,
 ) {
     val strings = LocalUiStrings.current
     val today = state.now.toLocalDate()
-    val ranked = remember(plan, rankingMode, precision) {
+    val ranked = remember(plan, precision) {
         if (plan == null) emptyList() else rankLocations(state.forecasts.filter { it.location.id in outlooks },
-            outlooks, rankingMode, coarseScores = precision != ScorePrecision.EXACT)
+            outlooks, coarseScores = precision != ScorePrecision.EXACT)
     }
     val sections = remember(ranked) { locationSections(ranked) }
     val daylightFinished = daylightHasEnded(date, state.now, outlooks.values)
     val tomorrow = state.dates.firstOrNull { it.isAfter(date) }
-    var showAll by rememberSaveable(date, activity, rankingMode) { mutableStateOf(false) }
+    var showAll by rememberSaveable(date, activity) { mutableStateOf(false) }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         forecastConfidenceLabel(date, today)?.let { confidence -> item {
@@ -354,13 +415,7 @@ private fun OverviewList(
                     state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
             }
             if (sections.allOthers.isNotEmpty()) {
-                // The ranking choice only orders this section, so it lives under its heading.
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SectionHeading(localizedString(R.string.best_other_locations))
-                        RankingSelector(rankingMode, onRankingModeSelected)
-                    }
-                }
+                item { SectionHeading(localizedString(R.string.best_other_locations)) }
                 items(if (showAll) sections.allOthers else sections.topOthers,
                     key = { it.location.id }) { forecast ->
                     TownCard(forecast, outlooks.getValue(forecast.location.id), activity,
@@ -375,20 +430,22 @@ private fun OverviewList(
                 }
             }
         }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                if (state.forecasts.isNotEmpty()) {
-                    Text(localizedString(R.string.comfort_disclaimer),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    UpdatedLabel(state.forecasts
-                        .flatMap { it.forActivity(activity).sources }.minOfOrNull { it.fetchedAt })
-                    AttributionLink()
-                }
-            }
+        overviewFooter(state, activity)
+    }
+}
+
+private fun LazyListScope.overviewFooter(state: HayPlanUiState, activity: ActivityType) = item(key = "footer") {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (state.forecasts.isNotEmpty()) {
+            Text(localizedString(R.string.comfort_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            UpdatedLabel(state.forecasts
+                .flatMap { it.forActivity(activity).sources }.minOfOrNull { it.fetchedAt })
+            AttributionLink()
         }
     }
 }
@@ -409,8 +466,7 @@ private fun DetailPane(
     val coastal = opened.location.coast != null
     val label = if (remaining) R.string.remaining_daylight else R.string.daylight_overall
     val data = opened.forActivity(activity)
-    val weeklyOutlook = state.weekly
-        ?.takeIf { it.locationId == opened.location.id && it.activity == activity }?.outlooks.orEmpty()
+    val weeklyOutlook = state.week?.takeIf { it.activity == activity }?.outlooks?.get(opened.location.id).orEmpty()
     val target = remember(opened.location.id, date, activity) { mutableStateOf<DetailTarget?>(null) }
     val summary = remember(outlook, data.hours, coastal) { outlook?.let { dayWeatherSummary(it, data.hours, coastal) } }
     val scroll = rememberLazyListState()
@@ -453,35 +509,28 @@ private fun canPostNotifications(context: android.content.Context): Boolean {
 private val SETTINGS_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
 @Composable
-private fun RankingSelector(selected: RankingMode, onSelected: (RankingMode) -> Unit) {
-    val strings = LocalUiStrings.current
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(localizedString(R.string.rank_by), style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        RankingMode.entries.forEach { mode ->
-            FilterChip(
-                selected = selected == mode,
-                onClick = { onSelected(mode) },
-                label = { ChipLabel(strings.rankingMode(mode)) },
-                colors = choiceChipColors(),
-            )
-        }
-    }
-}
-
-@Composable
-private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit) {
+private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit, onWeekSelected: () -> Unit) {
     val strings = LocalUiStrings.current
     val scroll = rememberLazyListState()
-    LaunchedEffect(state.selectedDate) {
-        val index = state.dates.indexOf(state.selectedDate)
-        if (index >= 0 && scroll.layoutInfo.visibleItemsInfo.none { it.index == index }) scroll.animateScrollToItem(index)
+    // The grid is an overview; once a place is open, the strip shows the day that place is showing.
+    val weekShown = state.weekView && state.openedLocationId == null
+    LaunchedEffect(state.selectedDate, weekShown) {
+        // Item 0 is the Week chip, so each date sits one position later.
+        val index = if (weekShown) 0 else state.dates.indexOf(state.selectedDate).takeIf { it >= 0 }?.plus(1)
+        if (index != null && scroll.layoutInfo.visibleItemsInfo.none { it.index == index }) scroll.animateScrollToItem(index)
     }
     LazyRow(state = scroll, contentPadding = PaddingValues(horizontal = 18.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (state.dates.isNotEmpty()) item(key = "week") {
+            FilterChip(selected = weekShown, onClick = onWeekSelected,
+                label = { ChipLabel(localizedString(R.string.week)) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                ))
+        }
         items(state.dates, key = { it.toString() }) { date ->
-            FilterChip(selected = date == state.selectedDate, onClick = { onDateSelected(date) },
+            FilterChip(selected = !weekShown && date == state.selectedDate, onClick = { onDateSelected(date) },
                 label = { ChipLabel(formatDate(date, state.now.toLocalDate(), strings.language)) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -491,7 +540,7 @@ private fun DateStrip(state: HayPlanUiState, onDateSelected: (LocalDate) -> Unit
     }
 }
 
-/** Dates stay neutral because they are position, not a choice; activity and ranking share one selected tint. */
+/** Dates stay neutral because they are position, not a choice; activity uses the selected tint. */
 @Composable
 private fun choiceChipColors() = FilterChipDefaults.filterChipColors(
     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,

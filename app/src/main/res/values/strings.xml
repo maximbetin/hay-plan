@@ -10,7 +10,6 @@
     <string name="view_tomorrow">View tomorrow</string>
     <string name="main_towns">Main towns</string>
     <string name="best_other_locations">Best other locations</string>
-    <string name="rank_by">Rank by</string>
     <string name="best_three_hours">Best 3 hours</string>
     <string name="window_all_remaining_daylight">All remaining daylight</string>
     <string name="unavailable">Unavailable</string>
@@ -44,6 +43,13 @@
     <string name="today_uses_remaining_daylight">Today counts remaining daylight only.</string>
     <string name="weekly_outlook_day_description">%1$s: daylight comfort %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; warning: %1$s</string>
+    <string name="week">Week</string>
+    <string name="week_best">Best this week</string>
+    <string name="week_nothing_good">Nothing looks Good for %1$s this week</string>
+    <string name="week_try_activity">See %1$s</string>
+    <string name="week_cell_description">%1$s, %2$s: %3$s%4$s</string>
+    <string name="change_place">Change place</string>
+    <string name="choose_place">Choose a place</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Show the other %1$d location</item>

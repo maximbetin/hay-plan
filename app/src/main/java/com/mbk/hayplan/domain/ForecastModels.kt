@@ -48,7 +48,7 @@ data class FactorResult(
 
 enum class ActivityType(val label: String) {
     BEACH("Beach"),
-    HIKING("Hiking"),
+    HIKING("Walk"),
 }
 
 enum class MarineCoverage(val label: String) {

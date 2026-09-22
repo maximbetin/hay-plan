@@ -32,17 +32,19 @@ import java.util.Locale
 
 data class DatedOutlook(val date: LocalDate, val outlook: ActivityOutlook)
 
+/** Today through day 6: the long-range days after them are too uncertain to compare at a glance. */
+internal fun sevenDayDates(dates: List<LocalDate>, now: LocalDateTime): List<LocalDate> = dates.asSequence()
+    .filterNot { it.isBefore(now.toLocalDate()) }
+    .takeWhile { !isLongRangeOutlook(it, now.toLocalDate()) }
+    .take(7)
+    .toList()
+
 internal fun sevenDayOutlook(
     hours: List<HourlyConditions>,
     dates: List<LocalDate>,
     now: LocalDateTime,
     activity: ActivityType,
-): List<DatedOutlook> = dates.asSequence()
-    .filterNot { it.isBefore(now.toLocalDate()) }
-    .takeWhile { !isLongRangeOutlook(it, now.toLocalDate()) }
-    .take(7)
-    .map { DatedOutlook(it, DayPlanner.forDate(hours, it, now, activity)) }
-    .toList()
+): List<DatedOutlook> = sevenDayDates(dates, now).map { DatedOutlook(it, DayPlanner.forDate(hours, it, now, activity)) }
 
 @Composable
 internal fun WeeklyScoreOutlook(
@@ -107,7 +109,7 @@ internal fun WeeklyScoreOutlook(
                             }
                         }
                     }
-                    // Labels only: the date strip above is the one place to change the day.
+                    // Labels only: the date strip above changes the day shown here.
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                         points.forEach { point ->
                             val selected = point.date == selectedDate
@@ -138,14 +140,14 @@ internal fun WeeklyScoreOutlook(
     }
 }
 
-private fun compactDate(date: LocalDate, language: AppLanguage): String {
+internal fun compactDate(date: LocalDate, language: AppLanguage): String {
     val locale = if (language == AppLanguage.SPANISH) Locale.forLanguageTag("es-ES") else Locale.ENGLISH
     val weekday = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).removeSuffix(".")
     return "$weekday ${date.dayOfMonth}"
 }
 
 /** Only warnings that would change the plan get a marker; lesser ones already lower the bar. */
-private fun ActivityOutlook.severeGraphWarning() =
+internal fun ActivityOutlook.severeGraphWarning() =
     (primaryWarningPeriod(warningPeriods)?.warning ?: day?.warnings?.let(::primaryWarning))
         ?.takeIf { it.priority >= 3 }
 

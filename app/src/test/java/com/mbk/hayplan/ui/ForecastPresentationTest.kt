@@ -99,7 +99,9 @@ class ForecastPresentationTest {
         val strings = UiStrings(AppLanguage.SPANISH)
         assertEquals("Hoy · 03/09", formatDate(date, date, AppLanguage.SPANISH))
         assertEquals("Mañana · 04/09", formatDate(date.plusDays(1), date, AppLanguage.SPANISH))
-        assertEquals("Senderismo", strings.activity(ActivityType.HIKING))
+        assertEquals("Paseíto", strings.activity(ActivityType.HIKING))
+        assertEquals("Playita", strings.activity(ActivityType.BEACH))
+        assertEquals("Walk", UiStrings(AppLanguage.ENGLISH).activity(ActivityType.HIKING))
         assertEquals("Excelente", strings.rating(Rating.EXCELLENT))
         assertEquals("Tiempo y mar", strings.coverage(MarineCoverage.FULL))
         assertEquals("Viento muy fuerte.", strings("Very strong wind."))
@@ -110,8 +112,6 @@ class ForecastPresentationTest {
         assertEquals("Sensación 23°C · Agua 20°C · Olas 0,5 m\n" +
             "Lluvia 10% · Rachas 18 km/h · Nubes 20%",
             cardConditions(summary, ActivityType.BEACH, coastal = true, language = AppLanguage.SPANISH))
-        assertEquals("Todo el día", strings.rankingMode(RankingMode.WHOLE_DAY))
-        assertEquals("Mejores 3 horas", strings.rankingMode(RankingMode.BEST_WINDOW))
         assertEquals("Tormenta · 18:00–20:00", strings.warningPeriod(ForecastWarningPeriod(
             ForecastWarning.THUNDERSTORM, date.atTime(18, 0), date.atTime(20, 0))))
     }

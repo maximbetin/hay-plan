@@ -36,7 +36,10 @@ class HayPlanScreenTest {
             CompositionLocalProvider(LocalUiStrings provides UiStrings(language)) {
                 HayPlanTheme {
                     HayPlanScreen(state, language = language,
-                        onLocationSelected = { state = state.openLocation(it).planned() })
+                        onLocationSelected = { state = state.openLocation(it).planned() },
+                        onWeekSelected = { state = state.showWeek().planned() },
+                        onDayOpened = { id, date -> state = state.openDay(id, date).planned() },
+                        onBack = { state = state.copy(openedLocationId = null) })
                 }
             }
         }
@@ -70,11 +73,48 @@ class HayPlanScreenTest {
 
         compose.onNodeWithText("Excellent", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
-        compose.onNodeWithText("Whole day").assertIsDisplayed()
         compose.onNode(hasText("Best 3 hours") and hasText("Excellent", substring = true)).assertIsDisplayed()
-        compose.onNodeWithText("Whole day").assertHasClickAction().assertIsSelected()
+        assertTrue(compose.onAllNodesWithText("Rank by").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithContentDescription("Settings").assertHasClickAction()
         compose.onNodeWithContentDescription("Warning: Thunderstorm · 19:00–20:00").assertIsDisplayed()
+    }
+
+    @Test fun weekGridOpensADayAndBackReturnsToTheGrid() {
+        val today = LocalDate.of(2026, 9, 3)
+        val dates = (0L..2L).map(today::plusDays)
+        val hours = dates.flatMap { date ->
+            (8..10).map { hour ->
+                HourlyConditions(
+                    time = date.atTime(hour, 0), isDaylight = true,
+                    airTemperatureC = 20.0, apparentTemperatureC = 20.0,
+                    precipitationProbabilityPercent = 0, precipitationMm = 0.0,
+                    cloudCoverPercent = 0, windSpeedKmh = 5.0, windGustsKmh = 10.0,
+                    relativeHumidityPercent = 60, visibilityM = 20_000.0,
+                    weatherCode = 0, uvIndex = 3.0, seaTemperatureC = null, waveHeightM = null,
+                )
+            }
+        }
+        val forecast = LocationForecast(
+            HayPlanLocation("week", "Week place", "Asturias", Coordinates(43.5, -5.5)),
+            ActivityForecastData(hours),
+        )
+        show(HayPlanUiState(
+            forecasts = listOf(forecast),
+            dates = dates,
+            selectedDate = today,
+            activity = ActivityType.HIKING,
+            now = today.atStartOfDay(),
+            isLoading = false,
+        ))
+
+        compose.onNodeWithText("Week").performClick()
+        compose.onNodeWithText("Week").assertIsSelected()
+        compose.onNodeWithText("Best this week").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Week place, Sat 05/09: Excellent, 100/100").performClick()
+        compose.onNodeWithText("Sat 05/09").assertIsSelected()
+        compose.onNodeWithText("Hour by hour").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("Best this week").assertIsDisplayed()
     }
 
     @Test fun longRangeOutlookHidesExactScoresAndBestWindowTiming() {
@@ -170,8 +210,8 @@ class HayPlanScreenTest {
         ), language = AppLanguage.SPANISH)
 
         compose.onNodeWithContentDescription("Ajustes").assertHasClickAction()
-        compose.onNodeWithText("Ordenar por").assertIsDisplayed()
-        compose.onNodeWithText("Todo el día").assertIsSelected()
+        compose.onNodeWithText("Playita").assertIsSelected()
+        compose.onNodeWithText("Paseíto").assertHasClickAction()
         compose.onNodeWithText("Mejores otros lugares").assertIsDisplayed()
         compose.onNodeWithContentDescription("Ajustes").performClick()
         compose.onNodeWithText("Notificación diaria de planes").assertHasClickAction().assertIsDisplayed()

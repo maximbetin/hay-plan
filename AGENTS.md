@@ -19,8 +19,8 @@
 - Marine inputs are optional for the visible normalized Beach score. Beach ranking uses
   `evidenceScore` so absent optional inputs cannot improve a location's ordering.
 - Always surface `primaryWarning`; a high day average must not hide severe conditions.
-- Coastal Beach mode uses the named coast reference for weather and marine data. Hiking
-  uses the town/reference weather point. Town weather is an explicit Beach fallback only.
+- Coastal Beach mode uses the named coast reference for weather and marine data. Walk
+  (`ActivityType.HIKING`) uses the town/reference weather point. Town weather is an explicit Beach fallback only.
 - Cached data is fresh for one hour and may be used after a failed refresh for no more
   than 12 hours. Failed sources retry after 15 minutes.
 - Open-Meteo requests batch at most five coordinates while preserving individual cache
@@ -31,18 +31,25 @@
   directly call `.planned()`.
 - When no daylight remains today, the initial date selection is tomorrow; an explicit choice of today is kept.
 - Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
-  followed by the ten highest-ranked remaining locations with no duplicates.
+  followed by the ten highest-ranked remaining locations with no duplicates. The day list ranks by
+  day score only (the best window is a card highlight, never a sort key); the Week grid ranks by
+  each location's best day in rating bands and headlines the single best place and day.
+- `HayPlanUiState.planned()` scores the week (today to day 6) for every location in one pass, and
+  day plans inside it reuse those outlooks, so the grid, cards and detail chart share objects.
 - Daily notifications are opt-in, default to approximately 09:00 Europe/Madrid, and request
-  notification permission only when enabled. Oviedo considers Hiking; Gijón prefers a
-  complete, fully marine-informed Very Good Beach window and otherwise considers Hiking.
+  notification permission only when enabled. Oviedo considers Walk; Gijón prefers a
+  complete, fully marine-informed Very Good Beach window and otherwise considers Walk.
 - Preserve the explicit limitations: the score estimates comfort, not safety, and does
   not assess beach flags, currents, tides, water quality, exact trails, or elevation.
 
 ## UI and localization
 
-- Preserve the compact phone-first flow: date, activity, ranked cards, then details.
+- Preserve the compact phone-first flow: date (or Week), activity, ranked cards or the week grid,
+  then details. In details the place name opens a picker to switch location in place.
+- Activity names: English "Beach" and "Walk"; Spanish "Playita" and "Paseíto" (deliberately playful).
 - A score is stated once per place: `RatingValue` (compact pill on cards, headline in details). Warnings use
-  `WarningLine`, never a rating colour. The date strip is the only date control; the 7-day chart is read-only.
+  `WarningLine`, never a rating colour. The date strip (its first chip is Week) and week grid cells choose the date; the detail
+  7-day chart is read-only.
 - Maintain English and Spanish behavior, system-language default, decimal localization,
   light/dark contrast, 48dp touch targets, and non-color status labels.
 - Warnings, source issues, and unavailable reasons are typed. Do not introduce behavior
@@ -61,7 +68,7 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 121 JVM tests and 4 instrumented Compose tests, zero failures; Android lint reports no issues.
+- Current baseline: 122 JVM tests and 5 instrumented Compose tests, zero failures; Android lint reports no issues.
 - `compileDebugAndroidTestKotlin` only compiles the Compose tests. Run `connectedDebugAndroidTest`
   when an emulator or phone is available (the `Pixel_10` AVD on Android 16 works; Espresso is pinned
   to 3.7 because the transitive 3.5 crashes its idle check there).

@@ -10,7 +10,6 @@
     <string name="view_tomorrow">Ver mañana</string>
     <string name="main_towns">Principales ciudades</string>
     <string name="best_other_locations">Mejores otros lugares</string>
-    <string name="rank_by">Ordenar por</string>
     <string name="best_three_hours">Mejores 3 horas</string>
     <string name="window_all_remaining_daylight">Toda la luz restante</string>
     <string name="unavailable">No disponible</string>
@@ -43,6 +42,13 @@
     <string name="today_uses_remaining_daylight">Hoy solo cuenta la luz restante.</string>
     <string name="weekly_outlook_day_description">%1$s: comodidad diurna %2$s%3$s</string>
     <string name="weekly_outlook_warning_suffix">; aviso: %1$s</string>
+    <string name="week">Semana</string>
+    <string name="week_best">Lo mejor de la semana</string>
+    <string name="week_nothing_good">Esta semana nada pinta bien para %1$s</string>
+    <string name="week_try_activity">Ver %1$s</string>
+    <string name="week_cell_description">%1$s, %2$s: %3$s%4$s</string>
+    <string name="change_place">Cambiar de lugar</string>
+    <string name="choose_place">Elige un lugar</string>
 
     <plurals name="show_all_other_locations">
         <item quantity="one">Ver la otra ubicación</item>

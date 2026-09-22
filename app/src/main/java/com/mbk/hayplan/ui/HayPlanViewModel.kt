@@ -29,12 +29,12 @@ data class DayPlan(
     val outlooks: Map<String, ActivityOutlook>,
 )
 
-/** The seven-day chart for the opened location. */
-data class WeeklyPlan(
-    val locationId: String,
+/** Up to seven scored days for every location: the week grid and each detail's chart. */
+data class WeekPlan(
     val activity: ActivityType,
     val now: LocalDateTime,
-    val outlooks: List<DatedOutlook>,
+    val dates: List<LocalDate>,
+    val outlooks: Map<String, List<DatedOutlook>>,
 )
 
 data class HayPlanUiState(
@@ -48,7 +48,9 @@ data class HayPlanUiState(
     val isLoading: Boolean = true,
     val message: String? = null,
     val plan: DayPlan? = null,
-    val weekly: WeeklyPlan? = null,
+    val week: WeekPlan? = null,
+    /** The overview shows the week grid instead of one date's ranking; kept while a detail opened from it is shown. */
+    val weekView: Boolean = false,
 ) {
     val opened: LocationForecast? get() = forecasts.find { it.location.id == openedLocationId }
     val planDate: LocalDate get() = selectedDate ?: now.toLocalDate()
@@ -58,6 +60,16 @@ data class HayPlanUiState(
 
     fun selectActivity(selected: ActivityType): HayPlanUiState =
         copy(activity = selected)
+
+    /** A date chip in the overview leaves the week grid; inside a detail it only changes the day shown. */
+    fun selectDate(date: LocalDate): HayPlanUiState =
+        if (date in dates) copy(selectedDate = date, weekView = weekView && openedLocationId != null) else this
+
+    fun showWeek(): HayPlanUiState = copy(weekView = true, openedLocationId = null)
+
+    /** A week grid cell: that location on that date, returning to the grid on Back. */
+    fun openDay(id: String, date: LocalDate): HayPlanUiState =
+        if (date in dates) openLocation(id).copy(selectedDate = date) else openLocation(id)
 
     fun atTime(instant: Instant): HayPlanUiState {
         val localNow = LocalDateTime.ofInstant(instant, LocationCatalog.zone)
@@ -72,26 +84,29 @@ data class HayPlanUiState(
             selectedDate = selectedDate?.takeIf { it in availableDates } ?: defaultDate)
     }
 
-    /** True when [plan] or [weekly] no longer describe the current selection. */
+    /** True when [plan] or [week] no longer describe the current selection. */
     val needsPlanning: Boolean get() = forecasts.isNotEmpty() && (
         plan == null || plan.date != planDate || plan.activity != activity || plan.now != now ||
-            (openedLocationId != null && (weekly == null || weekly.locationId != openedLocationId ||
-                weekly.activity != activity || weekly.now != now)))
+            week == null || week.activity != activity || week.now != now || week.dates != weekDates())
+
+    private fun weekDates(): List<LocalDate> = sevenDayDates(dates, now)
 
     /** Runs the scoring for the current selection. Pure and synchronous: call it off the main thread. */
     fun planned(): HayPlanUiState {
         if (!needsPlanning) return this
         val date = planDate
+        val weekDates = weekDates()
+        val week = week?.takeIf { it.activity == activity && it.now == now && it.dates == weekDates }
+            ?: WeekPlan(activity, now, weekDates, forecasts.associate { forecast ->
+                forecast.location.id to sevenDayOutlook(forecast.forActivity(activity).hours, weekDates, now, activity)
+            })
+        // Days inside the week reuse its outlooks, so cards, grid and details show the exact same objects.
         val plan = plan?.takeIf { it.date == date && it.activity == activity && it.now == now }
             ?: DayPlan(date, activity, now, forecasts.associate { forecast ->
-                forecast.location.id to DayPlanner.forDate(forecast.forActivity(activity).hours, date, now, activity)
+                forecast.location.id to (week.outlooks[forecast.location.id]?.find { it.date == date }?.outlook
+                    ?: DayPlanner.forDate(forecast.forActivity(activity).hours, date, now, activity))
             })
-        val weekly = opened?.let { location ->
-            weekly?.takeIf { it.locationId == location.location.id && it.activity == activity && it.now == now }
-                ?: WeeklyPlan(location.location.id, activity, now,
-                    sevenDayOutlook(location.forActivity(activity).hours, dates, now, activity))
-        }
-        return copy(plan = plan, weekly = weekly)
+        return copy(plan = plan, week = week)
     }
 }
 
@@ -108,9 +123,9 @@ class HayPlanViewModel(
 
     init { load(forceRefresh = false) }
 
-    fun selectDate(date: LocalDate) {
-        if (date in uiState.dates) update(uiState.copy(selectedDate = date))
-    }
+    fun selectDate(date: LocalDate) { update(uiState.selectDate(date)) }
+    fun showWeek() { update(uiState.showWeek()) }
+    fun openDay(id: String, date: LocalDate) { update(uiState.openDay(id, date)) }
     fun selectActivity(activity: ActivityType) { update(uiState.selectActivity(activity)) }
     fun openLocation(id: String) { update(uiState.openLocation(id)) }
     fun closeLocation() { update(uiState.copy(openedLocationId = null)) }
@@ -129,7 +144,7 @@ class HayPlanViewModel(
         planJob = viewModelScope.launch {
             val planned = withContext(planningDispatcher) { state.planned() }
             // The user may have moved on meanwhile; a stale plan is simply replaced by the next pass.
-            update(uiState.copy(plan = planned.plan, weekly = planned.weekly))
+            update(uiState.copy(plan = planned.plan, week = planned.week))
         }
     }
 
@@ -154,7 +169,7 @@ class HayPlanViewModel(
                 }
                 // Re-derive from the live state in case the selection changed while scoring ran.
                 update(uiState.copy(forecasts = forecasts, message = message,
-                    plan = planned.plan, weekly = planned.weekly).atTime(instant))
+                    plan = planned.plan, week = planned.week).atTime(instant))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

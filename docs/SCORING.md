@@ -9,7 +9,7 @@ probability that an activity will be safe or enjoyable.
 
 1. Select the date in Europe/Madrid. Keep only complete daylight hours, entirely
    inside sunrise/sunset. Today also excludes already-started hours.
-2. Score every eligible hour independently. Hiking normalizes its required factors to
+2. Score every eligible hour independently. Walk normalizes its required factors to
    100. Beach keeps optional sea points unsupported when missing and therefore uses
    earned points against the full 100-point profile. Then apply any condition limits.
 3. The **day score** is the arithmetic mean of those capped hourly scores,
@@ -50,10 +50,9 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 
 ## Inspecting the score
 
-The overview can order other locations by whole-day rating or by the best complete
-three-hour opportunity. Whole-day mode does not substitute a good window for an incomplete
-day; best-window mode can rank that complete window even when missing hours prevent a day
-rating. Periods without the selected rating go last. Beach ordering uses the same conservative
+The overview orders other locations by whole-day rating only. Each card still shows the best
+complete three-hour window as a highlight, but a good window never substitutes for an
+incomplete day: days without a rating go last. Beach ordering uses the same conservative
 score shown to the user: earned points against the full 100-point profile. Unavailable optional
 sea inputs therefore cannot become a perfect rating or silently produce a ranking different
 from the displayed score. Coverage, mean normalized known conditions and the stable identifier
@@ -64,6 +63,15 @@ The next section contains the ten highest-ranked remaining locations without dup
 those main towns; Show all reveals any remainder. Beach cards continue to label coastal
 references and inland estimates explicitly. Changing date or activity collapses the
 overview to ten other locations; activity changes within details keep the selected location open.
+
+The Week view scores today through day six for every location. Each row ranks by that
+location's best day, compared in rating bands with sea-data coverage breaking Beach ties,
+because later days show no exact scores; the main towns still come first. Its headline picks
+the single best place and day by the same band-and-coverage order, preferring the earliest
+day and then row order on a tie, and still states that day's primary warning. When nothing
+reaches Good it says so and offers the other activity. After today's daylight ends, today's
+column is omitted. Cells show exact scores for days zero to two and bands for days three to
+six, with "!" marking the same severe warnings as the detail chart.
 
 Today through day two display exact scores on cards and hourly rows. Days three through
 six show rating bands there; opening a calculation still reveals the exact heuristic score.
@@ -126,9 +134,9 @@ at most 88, and complete weather-and-sea coverage at most 100. Missing marine da
 or warm; it contributes no supported points, while the coverage label and known-input detail
 explain what was available.
 
-## Hiking (100 points)
+## Walk (100 points; `HIKING` in code)
 
-General outdoor walking/hiking weather for the town and nearby area. This intentionally
+General outdoor walking weather for the town and nearby area. This intentionally
 covers a stroll, an informal local route or an ordinary nearby hike without pretending to
 model every path. It is not an exact trail, altitude or mountain forecast.
 
@@ -143,7 +151,7 @@ model every path. It is not an exact trail, altitude or mountain forecast.
 | Relative humidity | 5 | Shared humidity bands below |
 | Visibility | 5 | Shared visibility bands below |
 
-Marine conditions do not affect Hiking. Cloudiness now affects the comfort score, and an
+Marine conditions do not affect Walk. Cloudiness now affects the comfort score, and an
 overcast WMO condition cannot be labelled Excellent even if every other input is ideal.
 
 ## Shared point bands and rating limits
@@ -175,7 +183,7 @@ applicable cap wins.
 
 Weather and marine series are joined by timestamp, never by array position.
 Coastal Beach forecasts use the named coast reference for both weather and marine
-conditions. Hiking uses the town or documented regional weather reference. If coastal
+conditions. Walk uses the town or documented regional weather reference. If coastal
 weather fails but town weather remains available, Beach mode labels that fallback.
 Open-Meteo precipitation and gusts describe the preceding hour: values timestamped
 12:00 belong to the app's 11:00–12:00 interval. Instantaneous values such as apparent
@@ -200,10 +208,10 @@ in the UI.
 ## Daily plan notification
 
 The optional notification evaluates today's remaining daylight with the same `DayPlanner`
-results shown in the app. Oviedo always considers Hiking. Gijón recommends Beach only when
+results shown in the app. Oviedo always considers Walk. Gijón recommends Beach only when
 its best complete window scores at least 60, uses the coastal weather forecast, has water and
 wave data throughout, and has no priority 2 or 3 warning in any of its hours. Otherwise Gijón
-considers Hiking. Hiking is recommended only for a complete window scoring at least 40 with
+considers Walk. Walk is recommended only for a complete window scoring at least 40 with
 no priority 2 or 3 warning in any of its hours. UV remains visible and limits the comfort score,
 but does not by itself block an Asturias notification. A lower-quality
 known window is labelled as having no strong recommendation; an absent complete window is
@@ -213,5 +221,5 @@ Delivery is scheduled for approximately the selected Europe/Madrid time, not as 
 alarm. The notification uses the normal one-hour cache and the same labelled, maximum
 12-hour saved-forecast fallback. Work waits for a network connection. If essential Gijón
 coastal, Gijón town or Oviedo weather is still unavailable, it retries three times with a
-15-minute linear-backoff base before falling back to Hiking or showing the honest unavailable
+15-minute linear-backoff base before falling back to Walk or showing the honest unavailable
 result. It never turns a missing or severe forecast into a positive recommendation.

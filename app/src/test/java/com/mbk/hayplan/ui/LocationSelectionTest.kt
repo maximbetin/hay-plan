@@ -93,7 +93,7 @@ class LocationSelectionTest {
     @Test fun `context uses consistent numeric dates and only a configured coastal reference`() {
         assertEquals("Gijón · Beach · San Lorenzo\nThu 03/09", forecastContextLabel(gijon, ActivityType.BEACH, date))
         assertEquals("Oviedo · Beach\nThu 03/09", forecastContextLabel(oviedo, ActivityType.BEACH, date))
-        assertEquals("Gijón · Hiking\nThu 03/09", forecastContextLabel(gijon, ActivityType.HIKING, date))
+        assertEquals("Gijón · Walk\nThu 03/09", forecastContextLabel(gijon, ActivityType.HIKING, date))
         assertEquals("Fri 04/09", formatDate(date.plusDays(1)))
     }
 
@@ -132,15 +132,31 @@ class LocationSelectionTest {
         val planned = state.planned()
         assertFalse(planned.needsPlanning)
         assertEquals(setOf("gijon", "oviedo"), planned.plan!!.outlooks.keys)
-        assertNull(planned.weekly)
+        assertEquals(setOf("gijon", "oviedo"), planned.week!!.outlooks.keys)
+        // The day's cards and the week grid share the same scored objects.
+        assertSame(planned.week.outlooks.getValue("gijon").single().outlook, planned.plan.outlooks["gijon"])
         assertSame(planned, planned.planned())
+        // Opening or switching places needs no new scoring.
         val opened = planned.openLocation("gijon")
-        assertTrue(opened.needsPlanning)
-        val withWeekly = opened.planned()
-        assertSame(planned.plan, withWeekly.plan)
-        assertEquals("gijon", withWeekly.weekly!!.locationId)
-        val switched = withWeekly.selectActivity(ActivityType.HIKING).planned()
+        assertFalse(opened.needsPlanning)
+        val switched = opened.selectActivity(ActivityType.HIKING).planned()
         assertEquals(ActivityType.HIKING, switched.plan!!.activity)
-        assertEquals(ActivityType.HIKING, switched.weekly!!.activity)
+        assertEquals(ActivityType.HIKING, switched.week!!.activity)
+    }
+
+    @Test fun `week view returns to the grid from a cell and a date chip leaves it`() {
+        val tomorrow = date.plusDays(1)
+        val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(oviedo, tomorrow)),
+            dates = listOf(date, tomorrow), selectedDate = date).openLocation("oviedo").showWeek()
+        assertTrue(state.weekView)
+        assertNull(state.openedLocationId)
+        val cell = state.openDay("oviedo", tomorrow)
+        assertEquals(tomorrow, cell.selectedDate)
+        assertEquals("oviedo", cell.openedLocationId)
+        // Changing the day inside a detail keeps the way back to the grid.
+        assertTrue(cell.selectDate(date).weekView)
+        assertTrue(cell.copy(openedLocationId = null).weekView)
+        assertFalse(state.selectDate(tomorrow).weekView)
+        assertEquals(state, state.selectDate(date.plusDays(9)))
     }
 }

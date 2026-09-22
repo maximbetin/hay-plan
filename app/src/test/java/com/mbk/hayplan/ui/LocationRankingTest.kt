@@ -59,8 +59,8 @@ class LocationRankingTest {
         val outlooks = outlooks(forecasts, ActivityType.HIKING)
         assertNull(outlooks.getValue("incomplete").day)
         assertNotNull(outlooks.getValue("incomplete").bestWindow)
+        // A good best window never lifts a location whose full day cannot be rated.
         assertEquals(listOf(poor, incomplete), rankLocations(forecasts, outlooks))
-        assertEquals(listOf(incomplete, poor), rankLocations(forecasts, outlooks, RankingMode.BEST_WINDOW))
     }
 
     @Test fun `Beach ranking matches the conservative score shown to the user`() {
@@ -75,26 +75,34 @@ class LocationRankingTest {
         assertEquals(listOf(known, unknown), rankLocations(listOf(unknown, known), outlooks))
     }
 
-    @Test fun `Beach best-window ranking matches the score shown to the user`() {
-        val known = forecast("known-window", 20.0)
-        val unknown = forecast("unknown-window", 20.0)
-        fun beachWindow(score: Int) = ActivityOutlook(
-            ActivityType.BEACH, null,
-            BestWindow(LocalTime.of(10, 0), LocalTime.of(13, 0), ratingFor(score), score,
-                emptyList()),
-        )
-        val outlooks = mapOf(
-            "known-window" to beachWindow(score = 82),
-            "unknown-window" to beachWindow(score = 70),
-        )
-        assertEquals(listOf(known, unknown),
-            rankLocations(listOf(unknown, known), outlooks, RankingMode.BEST_WINDOW))
+    private fun day(score: Int?) = ActivityOutlook(ActivityType.HIKING,
+        score?.let { DayRating(ratingFor(it), it, 4, 4, emptyList()) }, null)
+
+    @Test fun `a location's best day is its highest score and the earliest on a tie`() {
+        val days = listOf(DatedOutlook(date, day(50)), DatedOutlook(date.plusDays(1), day(null)),
+            DatedOutlook(date.plusDays(2), day(70)), DatedOutlook(date.plusDays(3), day(70)))
+        assertEquals(date.plusDays(2), bestDay(days)!!.date)
+        assertNull(bestDay(listOf(DatedOutlook(date, day(null)))))
     }
 
-    @Test fun `ranking preference codes are stable and unknown values preserve whole-day default`() {
-        assertEquals(RankingMode.WHOLE_DAY, RankingMode.fromCode(null))
-        assertEquals(RankingMode.WHOLE_DAY, RankingMode.fromCode("future-value"))
-        RankingMode.entries.forEach { assertEquals(it, RankingMode.fromCode(it.code)) }
+    @Test fun `week rows rank by best day in bands and the highlight prefers the sooner equally rated day`() {
+        val steady = forecast("a-steady", 20.0)
+        val peak = forecast("b-peak", 20.0)
+        val none = forecast("c-none", 20.0)
+        val week = mapOf(
+            "a-steady" to listOf(DatedOutlook(date, day(62)), DatedOutlook(date.plusDays(1), day(62))),
+            "b-peak" to listOf(DatedOutlook(date, day(10)), DatedOutlook(date.plusDays(1), day(85))),
+            "c-none" to listOf(DatedOutlook(date, day(null))),
+        )
+        // 62 and 85 share the Very Good band, so the deterministic id order decides the rows.
+        val ordered = rankLocationsForWeek(listOf(none, peak, steady), week)
+        assertEquals(listOf(steady, peak, none), ordered)
+        // Hidden points within a band never beat a sooner, equally rated day.
+        val highlight = weekHighlight(ordered, week)!!
+        assertSame(steady, highlight.location)
+        assertEquals(date, highlight.date)
+        assertSame(peak, weekHighlight(listOf(peak, none), week)!!.location)
+        assertNull(weekHighlight(listOf(none), week))
     }
 
     @Test fun `banded ranking ignores hidden point differences within a rating`() {
