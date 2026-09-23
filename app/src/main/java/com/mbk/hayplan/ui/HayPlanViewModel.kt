@@ -43,6 +43,7 @@ data class HayPlanUiState(
     val selectedDate: LocalDate? = null,
     val activity: ActivityType = ActivityType.BEACH,
     val openedLocationId: String? = null,
+    val selectedLocationId: String? = null,
     val now: LocalDateTime = LocalDateTime.now(LocationCatalog.zone),
     val nowInstant: Instant = Instant.now(),
     val isLoading: Boolean = true,
@@ -61,7 +62,11 @@ data class HayPlanUiState(
         if (forecasts.any { it.location.id == id }) copy(openedLocationId = id) else this
 
     fun selectActivity(selected: ActivityType): HayPlanUiState =
-        copy(activity = selected)
+        copy(activity = selected, selectedLocationId = null)
+
+    fun selectLocation(id: String): HayPlanUiState =
+        if (forecasts.any { it.location.id == id && it.location.coast != null })
+            copy(selectedLocationId = id, openedLocationId = null) else this
 
     /** A date chip in the overview leaves the week grid; inside a detail it only changes the day shown. */
     fun selectDate(date: LocalDate): HayPlanUiState =
@@ -71,7 +76,8 @@ data class HayPlanUiState(
 
     /** A week grid cell: that location on that date, returning to the grid on Back. */
     fun openDay(id: String, date: LocalDate): HayPlanUiState =
-        if (date in dates) openLocation(id).copy(selectedDate = date) else openLocation(id)
+        if (date in dates) openLocation(id).copy(selectedLocationId = id, selectedDate = date)
+        else openLocation(id).copy(selectedLocationId = id)
 
     fun atTime(instant: Instant): HayPlanUiState {
         val localNow = LocalDateTime.ofInstant(instant, LocationCatalog.zone)
@@ -124,7 +130,7 @@ class HayPlanViewModel(
     private val clock: Clock = Clock.systemUTC(),
     private val planningDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
-    // The week grid is the first screen: it answers "where and when" before any single day.
+    // The week is the only overview; a place can be selected directly from its header.
     var uiState by mutableStateOf(HayPlanUiState(weekView = true))
         private set
     private var loadJob: Job? = null
@@ -138,6 +144,7 @@ class HayPlanViewModel(
     fun openDay(id: String, date: LocalDate) { update(uiState.openDay(id, date)) }
     fun selectActivity(activity: ActivityType) { update(uiState.selectActivity(activity)) }
     fun openLocation(id: String) { update(uiState.openLocation(id)) }
+    fun selectLocation(id: String) { update(uiState.selectLocation(id)) }
     fun closeLocation() { update(uiState.copy(openedLocationId = null)) }
     fun refresh() { load(forceRefresh = true) }
 

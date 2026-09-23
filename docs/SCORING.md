@@ -50,26 +50,19 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 
 ## Inspecting the score
 
-The day overview orders all locations by whole-day rating, with no fixed towns. Each card still shows the best
-complete three-hour window as a highlight, but a good window never substitutes for an
-incomplete day: days without a rating go last. Beach ordering uses the same conservative
-score shown to the user: earned points against the full 100-point profile. Unavailable optional
-sea inputs therefore cannot become a perfect rating or silently produce a ranking different
-from the displayed score. Coverage, mean normalized known conditions and the stable identifier
-resolve later ties.
-The first ten ranked places appear initially; Show all reveals the remainder. In Beach mode,
-coastal places precede inland estimates regardless of numerical score. Inland cards identify
-themselves beside the rating as having no beach. Changing date or activity collapses the
-overview to ten places; activity changes within details keep the selected location open.
+The app opens on a single weekly recommendation for Beach or Walk. The place picker at the top
+lets the user choose any coastal place directly. Inland places stay in the data catalog for
+other uses but are hidden from this screen. The main view has no separate day ranking or date
+strip; tapping a weekly cell opens that place and day. The detail shows its day rating and
+best three-hour window, then hourly assessments, then the seven-day chart. Source and forecast
+explanations sit at the bottom.
 
-The Week view scores today through day six for every location. Each location's best day is
+The week scores today through day six for every location. Each location's best day is
 chosen by rating band, then sea-data coverage, then the exact score where one is shown (days
 zero to two), then the earliest date, so a hidden later-day score never beats a visible one.
-Rows rank by that best day and the headline is the best of all
-of them, so it matches the rows; it still states that day's primary warning. In Beach mode,
-inland places rank last, are faded, and never headline. The headline covers both activities: the selected
-one opens its best day, the other is a one-tap switch, and either says "Nothing Good this
-week" when no day reaches Good. After today's daylight ends, today's column is omitted.
+The default place is the best coastal location for the selected activity, and the headline
+shows its best day and primary warning. Switching activity resets to that activity's own
+recommendation. After today's daylight ends, today's column is omitted.
 Cells show exact scores for days zero to two and one to five rating dots for days three to
 six; "!" marks a severe warning only on a cell rated Good or better, where colour would hide it.
 

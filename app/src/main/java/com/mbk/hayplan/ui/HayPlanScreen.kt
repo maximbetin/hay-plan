@@ -118,6 +118,7 @@ fun HayPlanApp() {
             onDayOpened = model::openDay,
             onActivitySelected = model::selectActivity,
             onLocationSelected = model::openLocation,
+            onPlaceSelected = model::selectLocation,
             onBack = model::closeLocation,
             onRefresh = model::refresh,
             language = language,
@@ -167,6 +168,7 @@ fun HayPlanScreen(
     onDayOpened: (String, LocalDate) -> Unit = { _, _ -> },
     onActivitySelected: (ActivityType) -> Unit = {},
     onLocationSelected: (String) -> Unit = {},
+    onPlaceSelected: (String) -> Unit = {},
     onBack: () -> Unit = {},
     onRefresh: () -> Unit = {},
     language: AppLanguage = AppLanguage.ENGLISH,
@@ -198,11 +200,16 @@ fun HayPlanScreen(
     val activity = plan?.activity ?: state.activity
     val outlooks = plan?.outlooks.orEmpty()
     val precision = scorePrecision(date, state.now.toLocalDate())
-    val overviewScroll = rememberLazyListState()
     val weekScroll = rememberLazyListState()
-    LaunchedEffect(date, activity) { overviewScroll.scrollToItem(0) }
     LaunchedEffect(activity) { weekScroll.scrollToItem(0) }
     var choosingPlace by rememberSaveable { mutableStateOf(false) }
+    val weekOutlooks = state.week?.takeIf { it.activity == state.activity }?.outlooks.orEmpty()
+    val weekRanked = rankLocationsForWeek(state.forecasts.filter {
+        it.location.coast != null && it.location.id in weekOutlooks
+    }, weekOutlooks, state.activity, state.now.toLocalDate())
+    val selectedPlace = weekRanked.find { it.location.id == state.selectedLocationId }
+        ?: weekHighlight(weekRanked, weekOutlooks, state.activity, state.now.toLocalDate())?.location
+        ?: weekRanked.firstOrNull()
     BackHandler(enabled = opened != null, onBack = onBack)
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -271,8 +278,6 @@ fun HayPlanScreen(
                     else Icon(painterResource(R.drawable.ic_refresh), contentDescription = localizedString(R.string.refresh))
                 }
             }
-            DateStrip(state, onDateSelected, onWeekSelected)
-            Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ActivityType.entries.forEach { option ->
@@ -283,6 +288,14 @@ fun HayPlanScreen(
                             Modifier.size(18.dp)) },
                         colors = choiceChipColors(),
                         modifier = Modifier.weight(1f))
+                }
+            }
+            if (opened == null && selectedPlace != null) {
+                TextButton(onClick = { choosingPlace = true },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 12.dp)) {
+                    Text(selectedPlace.location.name, Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("▾", style = MaterialTheme.typography.titleMedium)
                 }
             }
             if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -306,19 +319,18 @@ fun HayPlanScreen(
                 when {
                     detail != null ->
                         DetailPane(state, detail, outlooks[detail.location.id], date, activity, precision, language)
-                    state.weekView -> WeekOverview(state, activity, weekScroll, onDayOpened, onActivitySelected) {
+                    else -> WeekOverview(state, activity, selectedPlace, weekScroll, onDayOpened) {
                         overviewFooter(state, activity)
                     }
-                    else -> OverviewList(state, plan, outlooks, date, activity, precision,
-                        overviewScroll, onDateSelected, onLocationSelected)
                 }
             }
         }
     }
-    if (choosingPlace && opened != null && plan != null) {
-        PlacePicker(state, plan, precision, opened.location.id,
+    if (choosingPlace && selectedPlace != null) {
+        PlacePicker(state, opened?.location?.id ?: selectedPlace.location.id,
             onDismiss = { choosingPlace = false },
-            onSelected = { id -> choosingPlace = false; onLocationSelected(id) })
+            onSelected = { id -> choosingPlace = false
+                if (opened != null) onLocationSelected(id) else onPlaceSelected(id) })
     }
 }
 
@@ -327,22 +339,23 @@ fun HayPlanScreen(
 @Composable
 private fun PlacePicker(
     state: HayPlanUiState,
-    plan: DayPlan,
-    precision: ScorePrecision,
     currentId: String,
     onDismiss: () -> Unit,
     onSelected: (String) -> Unit,
 ) {
-    val places = remember(plan, precision) {
-        rankLocations(state.forecasts.filter { it.location.id in plan.outlooks },
-            plan.outlooks, plan.activity, coarseScores = precision != ScorePrecision.EXACT)
+    val week = state.week
+    val places = remember(week, state.forecasts) {
+        if (week == null) emptyList() else rankLocationsForWeek(
+            state.forecasts.filter { it.location.coast != null && it.location.id in week.outlooks },
+            week.outlooks, state.activity, state.now.toLocalDate())
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(localizedString(R.string.choose_place), Modifier.padding(horizontal = 22.dp).semantics { heading() },
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         LazyColumn(contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 24.dp)) {
             items(places, key = { it.location.id }) { forecast ->
-                val day = plan.outlooks[forecast.location.id]?.day
+                val best = week?.outlooks?.get(forecast.location.id)?.let { bestDay(it, state.now.toLocalDate()) }
+                val day = best?.outlook?.day
                 val current = forecast.location.id == currentId
                 Surface(onClick = { onSelected(forecast.location.id) }, shape = RoundedCornerShape(14.dp),
                     color = if (current) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
@@ -350,14 +363,13 @@ private fun PlacePicker(
                     Row(Modifier.heightIn(min = 52.dp).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(if (noBeach(forecast, plan.activity))
-                            "${forecast.location.name} · ${LocalUiStrings.current("Inland estimate · no beach")}"
-                            else forecast.location.name,
+                        Text(forecast.location.name,
                             Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         RatingValue(day?.rating, day?.score,
-                            showExactScore = precision == ScorePrecision.EXACT, compact = true)
+                            showExactScore = best?.date?.let { scorePrecision(it, state.now.toLocalDate()) == ScorePrecision.EXACT } == true,
+                            compact = true)
                     }
                 }
             }

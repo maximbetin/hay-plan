@@ -35,6 +35,14 @@ class LocationSelectionTest {
         assertNull(oviedo.coast)
     }
 
+    @Test fun `place picker accepts coastal places and resets on activity switch`() {
+        val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(oviedo)))
+        assertNull(state.selectLocation("oviedo").selectedLocationId)
+        val selected = state.selectLocation("gijon")
+        assertEquals("gijon", selected.selectedLocationId)
+        assertNull(selected.selectActivity(ActivityType.HIKING).selectedLocationId)
+    }
+
     @Test fun `opening inland town does not change the chosen activity or date`() {
         val state = HayPlanUiState(forecasts = listOf(forecast(oviedo)), selectedDate = date).openLocation("oviedo")
         assertEquals(oviedo, state.opened!!.location)

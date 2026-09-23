@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.mbk.hayplan.data.ActivityForecastData
 import com.mbk.hayplan.data.Coordinates
+import com.mbk.hayplan.data.CoastalReference
 import com.mbk.hayplan.data.HayPlanLocation
 import com.mbk.hayplan.data.LocationForecast
 import com.mbk.hayplan.domain.ActivityType
@@ -59,7 +60,8 @@ class HayPlanScreenTest {
             )
         }
         val forecast = LocationForecast(
-            HayPlanLocation("test", "Test place", "Asturias", Coordinates(43.5, -5.5)),
+            HayPlanLocation("test", "Test place", "Asturias", Coordinates(43.5, -5.5),
+                coast = CoastalReference("Test beach", Coordinates(43.5, -5.5))),
             ActivityForecastData(hours),
         )
         show(HayPlanUiState(
@@ -69,7 +71,7 @@ class HayPlanScreenTest {
             activity = ActivityType.HIKING,
             now = date.atStartOfDay(),
             isLoading = false,
-        ))
+        ).openLocation("test"))
 
         compose.onNodeWithText("Excellent", substring = true).assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
@@ -95,7 +97,8 @@ class HayPlanScreenTest {
             }
         }
         val forecast = LocationForecast(
-            HayPlanLocation("week", "Week place", "Asturias", Coordinates(43.5, -5.5)),
+            HayPlanLocation("week", "Week place", "Asturias", Coordinates(43.5, -5.5),
+                coast = CoastalReference("Week beach", Coordinates(43.5, -5.5))),
             ActivityForecastData(hours),
         )
         show(HayPlanUiState(
@@ -107,14 +110,11 @@ class HayPlanScreenTest {
             isLoading = false,
         ))
 
-        compose.onNodeWithText("Week").performClick()
-        compose.onNodeWithText("Week").assertIsSelected()
-        compose.onNodeWithText("Best this week").assertIsDisplayed()
+        compose.onNodeWithText("Week place").assertHasClickAction()
         compose.onNodeWithContentDescription("Week place, Sat 05/09: Excellent, 100/100").performClick()
-        compose.onNodeWithText("Sat 05/09").assertIsSelected()
         compose.onNodeWithText("Hour by hour").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Best this week").assertIsDisplayed()
+        compose.onNodeWithText("Week place").assertHasClickAction()
     }
 
     @Test fun longRangeOutlookHidesExactScoresAndBestWindowTiming() {
@@ -131,7 +131,8 @@ class HayPlanScreenTest {
             )
         }
         val forecast = LocationForecast(
-            HayPlanLocation("future", "Future place", "Asturias", Coordinates(43.5, -5.5)),
+            HayPlanLocation("future", "Future place", "Asturias", Coordinates(43.5, -5.5),
+                coast = CoastalReference("Future beach", Coordinates(43.5, -5.5))),
             ActivityForecastData(hours),
         )
         show(HayPlanUiState(
@@ -140,12 +141,11 @@ class HayPlanScreenTest {
             selectedDate = date,
             now = today.atStartOfDay(),
             isLoading = false,
-        ))
+        ).openLocation("future"))
 
         compose.onNodeWithText("Long-range outlook · lower confidence").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("96/100").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("08:00–11:00").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithText("Future place").performClick()
         compose.onNodeWithText("Timing not shown for long-range outlooks").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("96/100").fetchSemanticsNodes().isEmpty())
         assertTrue(compose.onAllNodesWithText("08:00–11:00").fetchSemanticsNodes().isEmpty())
@@ -165,7 +165,8 @@ class HayPlanScreenTest {
             )
         }
         val forecast = LocationForecast(
-            HayPlanLocation("later", "Later place", "Asturias", Coordinates(43.5, -5.5)),
+            HayPlanLocation("later", "Later place", "Asturias", Coordinates(43.5, -5.5),
+                coast = CoastalReference("Later beach", Coordinates(43.5, -5.5))),
             ActivityForecastData(hours),
         )
         show(HayPlanUiState(
@@ -175,12 +176,11 @@ class HayPlanScreenTest {
             activity = ActivityType.HIKING,
             now = today.atStartOfDay(),
             isLoading = false,
-        ))
+        ).openLocation("later"))
 
         compose.onNodeWithText("Later outlook · forecast may change").assertIsDisplayed()
-        compose.onNodeWithText("08:00–11:00 · Excellent").assertIsDisplayed()
+        compose.onNodeWithText("08:00–11:00").assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("100/100").fetchSemanticsNodes().isEmpty())
-        compose.onNodeWithText("Later place").performClick()
         compose.onNodeWithText("Details ›").performClick()
         compose.onNodeWithText("100/100").assertIsDisplayed()
     }
@@ -198,7 +198,8 @@ class HayPlanScreenTest {
             )
         }
         val forecast = LocationForecast(
-            HayPlanLocation("spanish", "Lugar", "Asturias", Coordinates(43.5, -5.5)),
+            HayPlanLocation("spanish", "Lugar", "Asturias", Coordinates(43.5, -5.5),
+                coast = CoastalReference("Playa", Coordinates(43.5, -5.5))),
             ActivityForecastData(hours),
         )
         show(HayPlanUiState(
@@ -212,7 +213,7 @@ class HayPlanScreenTest {
         compose.onNodeWithContentDescription("Ajustes").assertHasClickAction()
         compose.onNodeWithText("Playita").assertIsSelected()
         compose.onNodeWithText("Paseíto").assertHasClickAction()
-        compose.onNodeWithText("Lugares, de mejor a peor").assertIsDisplayed()
+        compose.onNodeWithText("Lugar").assertHasClickAction()
         compose.onNodeWithContentDescription("Ajustes").performClick()
         compose.onNodeWithText("Notificación diaria de planes").assertHasClickAction().assertIsDisplayed()
         compose.onNodeWithText("Hora · 09:00").assertHasClickAction().assertIsDisplayed()

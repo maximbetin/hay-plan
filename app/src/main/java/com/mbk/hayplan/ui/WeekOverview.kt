@@ -44,9 +44,9 @@ import java.util.Locale
 internal fun WeekOverview(
     state: HayPlanUiState,
     activity: ActivityType,
+    selectedPlace: LocationForecast?,
     scroll: LazyListState,
     onDayOpened: (String, LocalDate) -> Unit,
-    onActivitySelected: (ActivityType) -> Unit,
     footer: LazyListScope.() -> Unit,
 ) {
     val week = state.week?.takeIf { it.activity == activity }
@@ -58,49 +58,36 @@ internal fun WeekOverview(
             days.find { it.date == date }?.outlook?.dayUnavailableReason == DayUnavailableReason.NoHoursRemaining
         }
     }
-    val ranked = remember(week, today) {
-        rankLocationsForWeek(state.forecasts.filter { it.location.id in outlooks }, outlooks,
-            activity, today)
-    }
-    val highlight = remember(ranked) { weekHighlight(ranked, outlooks, activity, today) }
-    val otherWeek = state.otherWeek?.takeIf { it.activity != activity }
-    val otherHighlight = remember(otherWeek, today) {
-        otherWeek?.let { other ->
-            val forecasts = state.forecasts.filter { it.location.id in other.outlooks }
-            weekHighlight(rankLocationsForWeek(forecasts, other.outlooks, other.activity, today),
-                other.outlooks, other.activity, today)
-        }
-    }
-    var showAll by rememberSaveable(activity) { mutableStateOf(false) }
+    val selectedDays = selectedPlace?.let { outlooks[it.location.id] }.orEmpty()
+    val best = bestDay(selectedDays, today)
+    val highlight = if (selectedPlace != null && best != null)
+        WeekHighlight(selectedPlace, best.date, best.outlook) else null
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (state.forecasts.isEmpty()) item {
+        if (selectedPlace == null) item {
             Text(localizedString(if (state.isLoading) R.string.loading_forecasts else R.string.no_forecasts))
         }
-        if (week != null && dates.isNotEmpty()) {
+        if (week != null && dates.isNotEmpty() && selectedPlace != null) {
             item(key = "highlight") {
-                WeekHighlights(highlight, otherWeek?.let { it.activity to otherHighlight }, activity, today,
-                    onDayOpened, onActivitySelected)
-            }
-            item { Text(localizedString(R.string.week_grid_key),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            stickyHeader(key = "days") { WeekHeader(dates, today) }
-            if (ranked.isNotEmpty()) item { WeekSectionHeading(localizedString(R.string.places_ranked)) }
-            items(if (showAll) ranked else ranked.take(VISIBLE_LOCATION_LIMIT), key = { it.location.id }) { forecast ->
-                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, noBeach(forecast, activity), onDayOpened)
-            }
-            if (ranked.size > VISIBLE_LOCATION_LIMIT) item {
-                TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (showAll) localizedString(R.string.show_top_ten)
-                        else localizedString(R.string.show_all_places))
+                Card(onClick = { highlight?.let { onDayOpened(it.location.location.id, it.date) } },
+                    enabled = highlight != null, modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    HighlightRow(activity, highlight, today, showWarning = true)
                 }
+            }
+            stickyHeader(key = "days") { WeekHeader(dates, today) }
+            item(key = "selected-place") {
+                WeekRow(selectedPlace, selectedDays, dates, today, false, onDayOpened)
             }
             if (dates.first() == today) item {
                 Text(localizedString(R.string.today_uses_remaining_daylight),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            item { Text(localizedString(R.string.week_grid_key),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         footer()
     }
@@ -210,11 +197,7 @@ private fun WeekRow(
     noBeach: Boolean,
     onDayOpened: (String, LocalDate) -> Unit,
 ) {
-    // An inland Beach score is only an estimate, so the row fades rather than competing with real beaches.
     Column(Modifier.alpha(if (noBeach) 0.45f else 1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(if (noBeach) "${forecast.location.name} · ${LocalUiStrings.current("Inland estimate · no beach")}"
-            else forecast.location.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CELL_GAP)) {
             dates.forEach { date ->
                 WeekCell(forecast.location.name, date, today, days.find { it.date == date },

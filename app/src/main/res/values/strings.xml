@@ -75,10 +75,10 @@
     <string name="no_forecasts">No forecasts available. Try Refresh.</string>
     <string name="daylight_overall">Daylight overall</string>
     <string name="remaining_daylight">Remaining daylight</string>
-    <string name="show_score_calculation">How is this comfort score calculated? ▾</string>
-    <string name="hide_score_calculation">Hide comfort score calculation ▴</string>
-    <string name="score_calculation_hiking">The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour uses its available factors, scales their points to 100, then applies any condition limits. Tap an hour to see its inputs and calculation.</string>
-    <string name="score_calculation_beach">The day comfort score is the average of the displayed daylight-hour scores, rounded to a whole number. Each hour earns up to 70 weather points plus available sea points, always against 100 possible points, then applies any condition limits. Tap an hour to see its inputs and calculation.</string>
+    <string name="show_score_calculation">How scores work ▾</string>
+    <string name="hide_score_calculation">Hide score guide ▴</string>
+    <string name="score_calculation_hiking">Day score: average of all daylight hours. Each hour combines weather factors, scaled to 100, with condition limits. Tap an hour for its breakdown.</string>
+    <string name="score_calculation_beach">Day score: average of all daylight hours. Each hour combines up to 70 weather points with available sea points, out of 100, with condition limits. Tap an hour for its breakdown.</string>
     <string name="window_calculation">Average of these three hourly scores, with any limits for the whole period applied.</string>
     <string name="suitability_hiking">Town and nearby-area weather, not exact trail or elevation conditions.</string>
     <string name="suitability_coastal">Only available sea data is used. Local shelter, beach flags and currents are not assessed.</string>

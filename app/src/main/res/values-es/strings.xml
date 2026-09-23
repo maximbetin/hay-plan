@@ -79,10 +79,10 @@
     <string name="no_forecasts">No hay previsiones. Pulsa Actualizar.</string>
     <string name="daylight_overall">Día completo</string>
     <string name="remaining_daylight">Luz restante</string>
-    <string name="show_score_calculation">¿Cómo se calcula esta puntuación de comodidad? ▾</string>
-    <string name="hide_score_calculation">Ocultar cálculo de la puntuación de comodidad ▴</string>
-    <string name="score_calculation_hiking">La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora se puntúa sobre 100 y se aplican los límites necesarios. Toca una hora para ver el cálculo.</string>
-    <string name="score_calculation_beach">La puntuación de comodidad del día es la media de las horas de luz que se muestran. Cada hora suma hasta 70 puntos del tiempo más los puntos disponibles del mar, siempre sobre 100 puntos posibles, y después se aplican los límites necesarios. Toca una hora para ver el cálculo.</string>
+    <string name="show_score_calculation">Cómo funciona la puntuación ▾</string>
+    <string name="hide_score_calculation">Ocultar guía ▴</string>
+    <string name="score_calculation_hiking">Puntuación del día: media de todas las horas de luz. Cada hora combina factores meteorológicos sobre 100 y aplica los límites necesarios. Toca una hora para ver el desglose.</string>
+    <string name="score_calculation_beach">Puntuación del día: media de todas las horas de luz. Cada hora combina hasta 70 puntos del tiempo con los puntos disponibles del mar, sobre 100, y aplica los límites necesarios. Toca una hora para ver el desglose.</string>
     <string name="window_calculation">Media de esas tres horas, con los límites que correspondan.</string>
     <string name="suitability_hiking">Tiempo previsto para la localidad y sus alrededores, no para una ruta o altitud concretas.</string>
     <string name="suitability_coastal">Solo se usan los datos del mar disponibles. No se tienen en cuenta las zonas resguardadas, las banderas ni las corrientes.</string>

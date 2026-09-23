@@ -73,20 +73,12 @@ internal fun DayOverview(
             }
             RatingValue(outlook.day?.rating, outlook.day?.score,
                 showExactScore = scorePrecision == ScorePrecision.EXACT)
-            Text(outlook.day?.let {
-                localizedPlural(if (remainingToday) R.plurals.remaining_daylight_average
-                    else R.plurals.daylight_average, it.assessedHours, it.assessedHours)
-            } ?: strings.dayUnavailable(outlook.dayUnavailableReason), style = MaterialTheme.typography.bodySmall,
+            if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            sourceLine?.let { Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            cardConditions(summary, outlook.activity, coastal, strings.language)?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium)
-            }
             dayWarning?.let { warning ->
                 WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
             }
-            notices()
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Row(
@@ -155,9 +147,6 @@ internal fun LazyListScope.outlookDetails(
             }
         }
     }
-    if (weeklyOutlook.size >= 2) item(key = "weekly") {
-        Box(Modifier.padding(bottom = 14.dp)) { WeeklyScoreOutlook(weeklyOutlook, selectedDate, today) }
-    }
     if (outlook.hourly.isNotEmpty()) {
         item(key = "hours-heading") {
             Text(localizedString(R.string.daylight_hours), Modifier.padding(bottom = 6.dp).semantics { heading() },
@@ -168,6 +157,18 @@ internal fun LazyListScope.outlookDetails(
             scorePrecision == ScorePrecision.EXACT) { target.value = DetailTarget.Hour(it) }
     } else if (outlook.dayUnavailableReason != DayUnavailableReason.MissingDaylightBounds) item {
         Text(localizedString(R.string.no_daylight_hours), style = MaterialTheme.typography.bodyMedium)
+    }
+    if (weeklyOutlook.size >= 2) item(key = "weekly") {
+        Box(Modifier.padding(top = 18.dp, bottom = 14.dp)) {
+            WeeklyScoreOutlook(weeklyOutlook, selectedDate, today)
+        }
+    }
+    item(key = "context") {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            sourceLine?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            notices()
+        }
     }
 }
 
