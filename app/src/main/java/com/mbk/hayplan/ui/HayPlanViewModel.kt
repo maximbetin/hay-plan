@@ -154,7 +154,7 @@ class HayPlanViewModel(
         planJob = viewModelScope.launch {
             val planned = withContext(planningDispatcher) { state.planned() }
             // The user may have moved on meanwhile; a stale plan is simply replaced by the next pass.
-            update(uiState.copy(plan = planned.plan, week = planned.week))
+            update(uiState.copy(plan = planned.plan, week = planned.week, otherWeek = planned.otherWeek))
         }
     }
 
@@ -179,7 +179,7 @@ class HayPlanViewModel(
                 }
                 // Re-derive from the live state in case the selection changed while scoring ran.
                 update(uiState.copy(forecasts = forecasts, message = message,
-                    plan = planned.plan, week = planned.week).atTime(instant))
+                    plan = planned.plan, week = planned.week, otherWeek = planned.otherWeek).atTime(instant))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

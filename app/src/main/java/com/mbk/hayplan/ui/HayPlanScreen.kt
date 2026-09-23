@@ -334,8 +334,8 @@ private fun PlacePicker(
     onSelected: (String) -> Unit,
 ) {
     val places = remember(plan, precision) {
-        locationSections(rankLocations(state.forecasts.filter { it.location.id in plan.outlooks },
-            plan.outlooks, coarseScores = precision != ScorePrecision.EXACT)).all
+        rankLocations(state.forecasts.filter { it.location.id in plan.outlooks },
+            plan.outlooks, plan.activity, coarseScores = precision != ScorePrecision.EXACT)
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(localizedString(R.string.choose_place), Modifier.padding(horizontal = 22.dp).semantics { heading() },
@@ -350,7 +350,10 @@ private fun PlacePicker(
                     Row(Modifier.heightIn(min = 52.dp).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(forecast.location.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                        Text(if (noBeach(forecast, plan.activity))
+                            "${forecast.location.name} · ${LocalUiStrings.current("Inland estimate · no beach")}"
+                            else forecast.location.name,
+                            Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         RatingValue(day?.rating, day?.score,
@@ -378,9 +381,8 @@ private fun OverviewList(
     val today = state.now.toLocalDate()
     val ranked = remember(plan, precision) {
         if (plan == null) emptyList() else rankLocations(state.forecasts.filter { it.location.id in outlooks },
-            outlooks, coarseScores = precision != ScorePrecision.EXACT)
+            outlooks, activity, coarseScores = precision != ScorePrecision.EXACT)
     }
-    val sections = remember(ranked) { locationSections(ranked) }
     val daylightFinished = daylightHasEnded(date, state.now, outlooks.values)
     val tomorrow = state.dates.firstOrNull { it.isAfter(date) }
     var showAll by rememberSaveable(date, activity) { mutableStateOf(false) }
@@ -409,26 +411,16 @@ private fun OverviewList(
                 }
             }
         } else {
-            if (sections.main.isNotEmpty()) item {
-                SectionHeading(localizedString(R.string.main_towns))
-            }
-            items(sections.main, key = { it.location.id }) { forecast ->
+            if (ranked.isNotEmpty()) item { SectionHeading(localizedString(R.string.places_ranked)) }
+            items(if (showAll) ranked else ranked.take(VISIBLE_LOCATION_LIMIT),
+                key = { it.location.id }) { forecast ->
                 TownCard(forecast, outlooks.getValue(forecast.location.id), activity,
                     state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
             }
-            if (sections.allOthers.isNotEmpty()) {
-                item { SectionHeading(localizedString(R.string.best_other_locations)) }
-                items(if (showAll) sections.allOthers else sections.topOthers,
-                    key = { it.location.id }) { forecast ->
-                    TownCard(forecast, outlooks.getValue(forecast.location.id), activity,
-                        state.nowInstant, precision) { onLocationSelected(forecast.location.id) }
-                }
-            }
-            if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
+            if (ranked.size > VISIBLE_LOCATION_LIMIT) item {
                 TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (showAll) localizedString(R.string.show_top_ten) else localizedPlural(
-                        R.plurals.show_all_other_locations, sections.allOthers.size,
-                        sections.allOthers.size))
+                    Text(if (showAll) localizedString(R.string.show_top_ten)
+                        else localizedString(R.string.show_all_places))
                 }
             }
         }
@@ -585,11 +577,9 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             }
             if (outlook.day == null) Text(strings.dayUnavailable(outlook.dayUnavailableReason),
                 style = MaterialTheme.typography.bodySmall)
-            cardConditions(summary, activity, coastal, strings.language)?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2,
-                    overflow = TextOverflow.Ellipsis)
-            }
+            if (noBeach(forecast, activity)) Text(strings("Inland estimate · no beach"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             // The best hours are a highlight: worth a line only when they are worth going for.
             val window = outlook.bestWindow
             if (window != null && window.rating >= Rating.GOOD) Row(Modifier.fillMaxWidth(),
@@ -617,8 +607,13 @@ private fun TownCard(forecast: LocationForecast, outlook: ActivityOutlook, activ
             (primaryPeriod?.warning ?: outlook.day?.warnings?.let(::primaryWarning))?.let { warning ->
                 WarningLine(primaryPeriod?.let(strings::warningPeriod) ?: strings(warning), warning)
             }
+            cardConditions(summary, activity, coastal, strings.language)?.substringBefore('\n')?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+            }
             // Only sources a reader could not assume belong on the card; the norm is stated in the detail.
-            if (activity == ActivityType.BEACH && (!coastal || outlook.marineCoverage != MarineCoverage.FULL))
+            if (activity == ActivityType.BEACH && coastal && outlook.marineCoverage != MarineCoverage.FULL)
                 sourceLabel(forecast.location, activity, outlook.marineCoverage, strings)?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,

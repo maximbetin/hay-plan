@@ -8,8 +8,9 @@
     <string name="no_daylight_remains">No daylight remains today</string>
     <string name="choose_tomorrow">Choose tomorrow to see useful rankings.</string>
     <string name="view_tomorrow">View tomorrow</string>
-    <string name="main_towns">Main towns</string>
-    <string name="best_other_locations">Best other locations</string>
+    <string name="places_ranked">Places, best first</string>
+    <string name="show_all_places">Show all places</string>
+    <string name="week_grid_key">More dots mean a better later outlook · ! means a warning</string>
     <string name="best_three_hours">Best 3 hours</string>
     <string name="window_all_remaining_daylight">All remaining daylight</string>
     <string name="unavailable">Unavailable</string>
@@ -50,10 +51,6 @@
     <string name="change_place">Change place</string>
     <string name="choose_place">Choose a place</string>
 
-    <plurals name="show_all_other_locations">
-        <item quantity="one">Show the other %1$d location</item>
-        <item quantity="other">Show all %1$d other locations</item>
-    </plurals>
     <plurals name="remaining_daylight_average">
         <item quantity="one">Average of %1$d remaining daylight hour</item>
         <item quantity="other">Average of %1$d remaining daylight hours</item>

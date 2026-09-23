@@ -30,11 +30,11 @@
   the screen renders `state.plan` and never calls `DayPlanner` itself. Tests that build a state
   directly call `.planned()`.
 - When no daylight remains today, the initial date selection is tomorrow; an explicit choice of today is kept.
-- Every activity overview shows Gijón, Oviedo and Avilés first in that fixed order,
-  followed by the ten highest-ranked remaining locations with no duplicates. The day list ranks by
-  day score only (the best window is a card highlight, never a sort key); the Week grid ranks by
+- Every activity overview shows the ten highest-ranked locations first, with Show all for the rest.
+  No town has a fixed position. The day list ranks by day score (the best window is a card
+  highlight, never a sort key); the Week grid ranks by
   each location's best day (band, sea coverage, visible exact score, earliest) and headlines the best
-  of them; inland places never headline Beach. See `docs/SCORING.md`.
+  of them. Inland Beach estimates follow coastal places and never headline Beach. See `docs/SCORING.md`.
 - `HayPlanUiState.planned()` scores the week (today to day 6) for every location in one pass, and
   day plans inside it reuse those outlooks, so the grid, cards and detail chart share objects. It also
   keeps the other activity's week (`otherWeek`), so switching activity swaps the two without rescoring.

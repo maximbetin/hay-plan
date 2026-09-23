@@ -58,11 +58,11 @@ internal fun WeekOverview(
             days.find { it.date == date }?.outlook?.dayUnavailableReason == DayUnavailableReason.NoHoursRemaining
         }
     }
-    val sections = remember(week, today) {
-        locationSections(rankLocationsForWeek(state.forecasts.filter { it.location.id in outlooks }, outlooks,
-            activity, today))
+    val ranked = remember(week, today) {
+        rankLocationsForWeek(state.forecasts.filter { it.location.id in outlooks }, outlooks,
+            activity, today)
     }
-    val highlight = remember(sections) { weekHighlight(sections.all, outlooks, activity, today) }
+    val highlight = remember(ranked) { weekHighlight(ranked, outlooks, activity, today) }
     val otherWeek = state.otherWeek?.takeIf { it.activity != activity }
     val otherHighlight = remember(otherWeek, today) {
         otherWeek?.let { other ->
@@ -82,21 +82,18 @@ internal fun WeekOverview(
                 WeekHighlights(highlight, otherWeek?.let { it.activity to otherHighlight }, activity, today,
                     onDayOpened, onActivitySelected)
             }
+            item { Text(localizedString(R.string.week_grid_key),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
             stickyHeader(key = "days") { WeekHeader(dates, today) }
-            if (sections.main.isNotEmpty()) item { WeekSectionHeading(localizedString(R.string.main_towns)) }
-            items(sections.main, key = { it.location.id }) { forecast ->
+            if (ranked.isNotEmpty()) item { WeekSectionHeading(localizedString(R.string.places_ranked)) }
+            items(if (showAll) ranked else ranked.take(VISIBLE_LOCATION_LIMIT), key = { it.location.id }) { forecast ->
                 WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, noBeach(forecast, activity), onDayOpened)
             }
-            if (sections.allOthers.isNotEmpty()) item {
-                WeekSectionHeading(localizedString(R.string.best_other_locations))
-            }
-            items(if (showAll) sections.allOthers else sections.topOthers, key = { it.location.id }) { forecast ->
-                WeekRow(forecast, outlooks[forecast.location.id].orEmpty(), dates, today, noBeach(forecast, activity), onDayOpened)
-            }
-            if (sections.allOthers.size > OTHER_LOCATION_LIMIT) item {
+            if (ranked.size > VISIBLE_LOCATION_LIMIT) item {
                 TextButton(onClick = { showAll = !showAll }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (showAll) localizedString(R.string.show_top_ten) else localizedPlural(
-                        R.plurals.show_all_other_locations, sections.allOthers.size, sections.allOthers.size))
+                    Text(if (showAll) localizedString(R.string.show_top_ten)
+                        else localizedString(R.string.show_all_places))
                 }
             }
             if (dates.first() == today) item {
@@ -161,6 +158,10 @@ private fun HighlightRow(activity: ActivityType, highlight: WeekHighlight?, toda
             }
             Text("${highlight.location.location.name} · ${formatDate(highlight.date, today, strings.language)}",
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            highlight.outlook.bestWindow?.takeIf { it.rating >= Rating.GOOD }?.let { window ->
+                Text("${localizedString(R.string.best_three_hours)} · ${timeRange(window.start, window.end)}",
+                    style = MaterialTheme.typography.bodySmall)
+            }
             if (showWarning) {
                 val primaryPeriod = primaryWarningPeriod(highlight.outlook.warningPeriods)
                 (primaryPeriod?.warning ?: day.warnings.let(::primaryWarning))?.let { warning ->

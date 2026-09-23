@@ -212,7 +212,7 @@ class HayPlanScreenTest {
         compose.onNodeWithContentDescription("Ajustes").assertHasClickAction()
         compose.onNodeWithText("Playita").assertIsSelected()
         compose.onNodeWithText("Paseíto").assertHasClickAction()
-        compose.onNodeWithText("Mejores otros lugares").assertIsDisplayed()
+        compose.onNodeWithText("Lugares, de mejor a peor").assertIsDisplayed()
         compose.onNodeWithContentDescription("Ajustes").performClick()
         compose.onNodeWithText("Notificación diaria de planes").assertHasClickAction().assertIsDisplayed()
         compose.onNodeWithText("Hora · 09:00").assertHasClickAction().assertIsDisplayed()

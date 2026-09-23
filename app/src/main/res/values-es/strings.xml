@@ -8,8 +8,9 @@
     <string name="no_daylight_remains">Ya no quedan horas de luz</string>
     <string name="choose_tomorrow">Elige mañana para ver las mejores opciones.</string>
     <string name="view_tomorrow">Ver mañana</string>
-    <string name="main_towns">Principales ciudades</string>
-    <string name="best_other_locations">Mejores otros lugares</string>
+    <string name="places_ranked">Lugares, de mejor a peor</string>
+    <string name="show_all_places">Ver todos los lugares</string>
+    <string name="week_grid_key">Más puntos indican mejor previsión lejana · ! indica un aviso</string>
     <string name="best_three_hours">Mejores 3 horas</string>
     <string name="window_all_remaining_daylight">Toda la luz restante</string>
     <string name="unavailable">No disponible</string>
@@ -49,11 +50,6 @@
     <string name="change_place">Cambiar de lugar</string>
     <string name="choose_place">Elige un lugar</string>
 
-    <plurals name="show_all_other_locations">
-        <item quantity="one">Ver la otra ubicación</item>
-        <item quantity="other">Ver las otras %1$d ubicaciones</item>
-        <item quantity="many">Ver las otras %1$d ubicaciones</item>
-    </plurals>
     <plurals name="remaining_daylight_average">
         <item quantity="one">Media de %1$d hora de luz restante</item>
         <item quantity="other">Media de %1$d horas de luz restantes</item>

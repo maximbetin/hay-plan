@@ -50,24 +50,22 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 
 ## Inspecting the score
 
-The overview orders other locations by whole-day rating only. Each card still shows the best
+The day overview orders all locations by whole-day rating, with no fixed towns. Each card still shows the best
 complete three-hour window as a highlight, but a good window never substitutes for an
 incomplete day: days without a rating go last. Beach ordering uses the same conservative
 score shown to the user: earned points against the full 100-point profile. Unavailable optional
 sea inputs therefore cannot become a perfect rating or silently produce a ranking different
 from the displayed score. Coverage, mean normalized known conditions and the stable identifier
 resolve later ties.
-The overview always
-shows Gijón, Oviedo and Avilés first, in that population-based order, for either activity.
-The next section contains the ten highest-ranked remaining locations without duplicating
-those main towns; Show all reveals any remainder. Beach cards continue to label coastal
-references and inland estimates explicitly. Changing date or activity collapses the
-overview to ten other locations; activity changes within details keep the selected location open.
+The first ten ranked places appear initially; Show all reveals the remainder. In Beach mode,
+coastal places precede inland estimates regardless of numerical score. Inland cards identify
+themselves beside the rating as having no beach. Changing date or activity collapses the
+overview to ten places; activity changes within details keep the selected location open.
 
 The Week view scores today through day six for every location. Each location's best day is
 chosen by rating band, then sea-data coverage, then the exact score where one is shown (days
 zero to two), then the earliest date, so a hidden later-day score never beats a visible one.
-Rows rank by that best day (main towns still come first) and the headline is the best of all
+Rows rank by that best day and the headline is the best of all
 of them, so it matches the rows; it still states that day's primary warning. In Beach mode,
 inland places rank last, are faded, and never headline. The headline covers both activities: the selected
 one opens its best day, the other is a one-tap switch, and either says "Nothing Good this

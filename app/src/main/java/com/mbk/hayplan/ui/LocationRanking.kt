@@ -7,33 +7,18 @@ import com.mbk.hayplan.domain.MarineCoverage
 import com.mbk.hayplan.domain.ratingFor
 import java.time.LocalDate
 
-internal val MAIN_LOCATION_IDS = listOf("gijon", "oviedo", "aviles")
-internal const val OTHER_LOCATION_LIMIT = 10
-
-internal data class LocationSections(
-    val main: List<LocationForecast>,
-    val topOthers: List<LocationForecast>,
-    val allOthers: List<LocationForecast>,
-) {
-    /** Every location in display order: the fixed main towns, then the rest by rank. */
-    val all: List<LocationForecast> get() = main + allOthers
-}
-
-internal fun locationSections(ranked: List<LocationForecast>): LocationSections {
-    val byId = ranked.associateBy { it.location.id }
-    val main = MAIN_LOCATION_IDS.mapNotNull(byId::get)
-    val allOthers = ranked.filter { it.location.id !in MAIN_LOCATION_IDS }
-    return LocationSections(main, allOthers.take(OTHER_LOCATION_LIMIT), allOthers)
-}
+internal const val VISIBLE_LOCATION_LIMIT = 10
 
 // Locations rank by the day score; the best window is shown on each card but never reorders them.
-// Main towns are placed separately after ranking.
+// Inland Beach estimates follow real beaches, regardless of their numerical score.
 internal fun rankLocations(
     forecasts: List<LocationForecast>,
     outlooks: Map<String, ActivityOutlook>,
+    activity: ActivityType = ActivityType.HIKING,
     coarseScores: Boolean = false,
 ): List<LocationForecast> = forecasts.sortedWith(
-    compareByDescending<LocationForecast> { rankingValue(outlooks[it.location.id]?.day?.score, coarseScores) }
+    compareBy<LocationForecast> { noBeach(it, activity) }
+        .thenByDescending { rankingValue(outlooks[it.location.id]?.day?.score, coarseScores) }
         .thenByDescending {
             if (!coarseScores) 0 else coverageValue(outlooks[it.location.id]?.day?.marineCoverage)
         }

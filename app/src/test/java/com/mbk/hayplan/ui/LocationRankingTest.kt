@@ -134,22 +134,31 @@ class LocationRankingTest {
             rankLocations(listOf(unknown, known), outlooks, coarseScores = true))
     }
 
-    @Test fun `main towns use fixed population order and never repeat in ranked others`() {
-        val ranked = listOf(
-            forecast("aviles", 20.0), forecast("other-1", 20.0), forecast("gijon", 20.0),
-            forecast("other-2", 20.0), forecast("oviedo", 20.0),
+    @Test fun `named towns receive no special ranking and inland Beach estimates follow beaches`() {
+        val oviedo = forecast("oviedo", 20.0)
+        val coast = forecast("coast", 20.0).let { it.copy(location = it.location.copy(
+            coast = CoastalReference("Beach", Coordinates(43.5, -5.5)))) }
+        val outlooks = mapOf(
+            "oviedo" to ActivityOutlook(ActivityType.BEACH,
+                DayRating(Rating.VERY_GOOD, 70, 4, 4, emptyList()), null),
+            "coast" to ActivityOutlook(ActivityType.BEACH,
+                DayRating(Rating.GOOD, 50, 4, 4, emptyList()), null),
         )
-        val sections = locationSections(ranked)
-        assertEquals(listOf("gijon", "oviedo", "aviles"), sections.main.map { it.location.id })
-        assertEquals(listOf("other-1", "other-2"), sections.allOthers.map { it.location.id })
-        assertTrue(sections.main.none { it in sections.allOthers })
+        assertEquals(listOf(coast, oviedo),
+            rankLocations(listOf(oviedo, coast), outlooks, ActivityType.BEACH))
+        assertEquals(listOf(oviedo, coast),
+            rankLocations(listOf(coast, oviedo), outlooks, ActivityType.HIKING))
     }
 
-    @Test fun `other locations show ten before expanding`() {
-        val ranked = (1..12).map { forecast("other-$it", 20.0) }
-        val sections = locationSections(ranked)
-        assertEquals(10, sections.topOthers.size)
-        assertEquals(12, sections.allOthers.size)
-        assertEquals((1..10).map { "other-$it" }, sections.topOthers.map { it.location.id })
+    @Test fun `week order does not promote a named town`() {
+        val gijon = forecast("gijon", 20.0)
+        val better = forecast("better", 20.0)
+        val week = mapOf(
+            "gijon" to listOf(DatedOutlook(date, day(50))),
+            "better" to listOf(DatedOutlook(date, day(70))),
+        )
+        val ranked = rankLocationsForWeek(listOf(gijon, better), week, ActivityType.HIKING, date)
+        assertEquals(listOf(better, gijon), ranked)
+        assertSame(better, weekHighlight(ranked, week, ActivityType.HIKING, date)?.location)
     }
 }
