@@ -48,7 +48,7 @@
 ## UI and localization
 
 - Preserve the compact phone-first flow: the app opens on the Week grid (Week is the first date chip),
-  activity, ranked cards or the week grid, then details. The grid's headline shows both activities. In details the place name opens a picker to switch location in place.
+  activity, ranked cards or the week grid, then details. The grid's headline shows both activities. The place switcher (Week header and detail title) is a tinted, outlined pill with a pin and chevron, never plain text; in details it switches location in place.
 - Activity names: English "Beach" and "Walk"; Spanish "Playita" and "Paseíto" (deliberately playful).
 - A score is stated once per place: `RatingValue` (compact pill on cards, headline in details). Warnings use
   `WarningLine`, never a rating colour. The date strip (its first chip is Week) and week grid cells choose the date; the detail
@@ -71,7 +71,7 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 122 JVM tests and 5 instrumented Compose tests, zero failures; Android lint reports no issues.
+- Current baseline: 123 JVM tests and 5 instrumented Compose tests, zero failures; Android lint reports no issues.
 - `compileDebugAndroidTestKotlin` only compiles the Compose tests. Run `connectedDebugAndroidTest`
   when an emulator or phone is available (the `Pixel_10` AVD on Android 16 works; Espresso is pinned
   to 3.7 because the transitive 3.5 crashes its idle check there).

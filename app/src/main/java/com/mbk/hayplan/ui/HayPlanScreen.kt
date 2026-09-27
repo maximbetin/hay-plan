@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -222,16 +223,7 @@ fun HayPlanScreen(
                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                 // The place name is the switcher, so another town is one tap away without going back.
                 else Box(Modifier.weight(1f)) {
-                    val changePlace = localizedString(R.string.change_place)
-                    TextButton(onClick = { choosingPlace = true }, contentPadding = PaddingValues(horizontal = 6.dp),
-                        modifier = Modifier.semantics { onClick(label = changePlace) { choosingPlace = true; true } }) {
-                        Text(opened.location.name, Modifier.weight(1f, fill = false).semantics { heading() },
-                            style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(" ▾", Modifier.clearAndSetSemantics { },
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    PlaceSwitcher(opened.location.name, heading = true) { choosingPlace = true }
                 }
                 Box {
                     IconButton(onClick = { showSettings = true }) {
@@ -291,11 +283,8 @@ fun HayPlanScreen(
                 }
             }
             if (opened == null && selectedPlace != null) {
-                TextButton(onClick = { choosingPlace = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 12.dp)) {
-                    Text(selectedPlace.location.name, Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("▾", style = MaterialTheme.typography.titleMedium)
+                PlaceSwitcher(selectedPlace.location.name, Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                    choosingPlace = true
                 }
             }
             if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -331,6 +320,28 @@ fun HayPlanScreen(
             onDismiss = { choosingPlace = false },
             onSelected = { id -> choosingPlace = false
                 if (opened != null) onLocationSelected(id) else onPlaceSelected(id) })
+    }
+}
+
+/**
+ * The place name as an obvious control: a tinted, outlined pill with a pin and a chevron, so it never
+ * reads as a plain title. Opens [PlacePicker].
+ */
+@Composable
+private fun PlaceSwitcher(name: String, modifier: Modifier = Modifier, heading: Boolean = false, onClick: () -> Unit) {
+    val changePlace = localizedString(R.string.change_place)
+    val colors = MaterialTheme.colorScheme
+    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = colors.secondaryContainer,
+        contentColor = colors.onSecondaryContainer, border = BorderStroke(1.dp, colors.outline),
+        modifier = modifier.semantics { onClick(label = changePlace) { onClick(); true } }) {
+        Row(Modifier.heightIn(min = 48.dp).padding(start = 14.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(painterResource(R.drawable.ic_place), contentDescription = null, Modifier.size(20.dp))
+            Text(name, Modifier.weight(1f, fill = !heading).then(if (heading) Modifier.semantics { heading() } else Modifier),
+                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(painterResource(R.drawable.ic_expand), contentDescription = null, Modifier.size(24.dp))
+        }
     }
 }
 
