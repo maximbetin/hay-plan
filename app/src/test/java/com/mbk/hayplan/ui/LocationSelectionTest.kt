@@ -143,6 +143,11 @@ class LocationSelectionTest {
                 assertTrue(it.coordinates.latitude in -90.0..90.0)
                 assertTrue(it.coordinates.longitude in -180.0..180.0)
                 assertNotEquals(location.coordinates, it.coordinates)
+                // A beach belongs to its town; a swapped sign or digit lands far away.
+                val kmNorth = (it.coordinates.latitude - location.coordinates.latitude) * 111.0
+                val kmEast = (it.coordinates.longitude - location.coordinates.longitude) * 111.0 *
+                    kotlin.math.cos(Math.toRadians(location.coordinates.latitude))
+                assertTrue("${location.id} beach", kotlin.math.hypot(kmNorth, kmEast) < 12.0)
             }
         }
     }

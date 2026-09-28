@@ -53,14 +53,6 @@
     <string name="area_asturias">Asturias</string>
     <string name="area_spain">Spain</string>
 
-    <plurals name="remaining_daylight_average">
-        <item quantity="one">Average of %1$d remaining daylight hour</item>
-        <item quantity="other">Average of %1$d remaining daylight hours</item>
-    </plurals>
-    <plurals name="daylight_average">
-        <item quantity="one">Average of %1$d daylight hour</item>
-        <item quantity="other">Average of %1$d daylight hours</item>
-    </plurals>
     <plurals name="good_daylight_hours">
         <item quantity="one">%1$d of %2$d daylight hour Good or better</item>
         <item quantity="other">%1$d of %2$d daylight hours Good or better</item>

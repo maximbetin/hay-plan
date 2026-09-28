@@ -52,7 +52,7 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 
 The app opens on a single weekly recommendation for Beach or Walk. The place picker at the top
 groups places into Asturias and the rest of Spain, each ranked by its best day. Coastal places
-are offered for both activities; inland towns (Oviedo, Madrid, Granada, Sevilla...) only for
+are offered for both activities; inland towns (Oviedo, Madrid, Bilbao, Granada, Sevilla...) only for
 Walk, since they have no beach. Every time is Europe/Madrid time, including the Canary Islands,
 whose clocks run an hour behind. The main view has no separate day ranking or date
 strip; tapping a weekly cell opens that place and day. The detail shows its day rating and

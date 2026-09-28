@@ -73,7 +73,8 @@ class HayPlanScreenTest {
             isLoading = false,
         ).openLocation("test"))
 
-        compose.onNodeWithText("Excellent", substring = true).assertIsDisplayed()
+        // The day headline; the best window below also reads "Excellent · 100/100".
+        compose.onNodeWithText("Excellent").assertIsDisplayed()
         compose.onNodeWithText("Thunderstorm · 19:00–20:00").assertIsDisplayed()
         compose.onNode(hasText("Best 3 hours") and hasText("Excellent", substring = true)).assertIsDisplayed()
         assertTrue(compose.onAllNodesWithText("Rank by").fetchSemanticsNodes().isEmpty())

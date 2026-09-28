@@ -71,7 +71,7 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 .\gradlew.bat --no-daemon --console=plain testDebugUnitTest compileDebugAndroidTestKotlin lintDebug assembleDebug assembleRelease
 ```
 
-- Current baseline: 123 JVM tests and 5 instrumented Compose tests, zero failures; Android lint reports no issues.
+- Current baseline: 125 JVM tests and 5 instrumented Compose tests, zero failures; Android lint reports no issues.
 - `compileDebugAndroidTestKotlin` only compiles the Compose tests. Run `connectedDebugAndroidTest`
   when an emulator or phone is available (the `Pixel_10` AVD on Android 16 works; Espresso is pinned
   to 3.7 because the transitive 3.5 crashes its idle check there).

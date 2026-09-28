@@ -52,16 +52,6 @@
     <string name="area_asturias">Asturias</string>
     <string name="area_spain">España</string>
 
-    <plurals name="remaining_daylight_average">
-        <item quantity="one">Media de %1$d hora de luz restante</item>
-        <item quantity="other">Media de %1$d horas de luz restantes</item>
-        <item quantity="many">Media de %1$d horas de luz restantes</item>
-    </plurals>
-    <plurals name="daylight_average">
-        <item quantity="one">Media de %1$d hora de luz</item>
-        <item quantity="other">Media de %1$d horas de luz</item>
-        <item quantity="many">Media de %1$d horas de luz</item>
-    </plurals>
     <plurals name="good_daylight_hours">
         <item quantity="one">%1$d de %2$d hora con buen tiempo</item>
         <item quantity="other">%1$d de %2$d horas con buen tiempo</item>

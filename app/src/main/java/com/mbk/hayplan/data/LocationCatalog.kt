@@ -127,8 +127,9 @@ object LocationCatalog {
             // https://www.turismoasturias.es/es/-/blogs/las-10-mejores-cosas-que-ver-y-hacer-en-el-parque-natural-de-redes
             weatherReference = "Campo de Caso",
         ),
-        // Rest of Spain. Town centres are GeoNames populated places; each beach is the city's main
-        // urban beach, and the marine client selects the nearest sea grid cell. Inland cities have no
+        // Rest of Spain. Town centres are the Open-Meteo geocoding (GeoNames) points; each beach point
+        // lies inside the city's main urban beach as mapped in OpenStreetMap, and the marine client
+        // selects the nearest sea grid cell. Inland cities have no
         // coast, so they are offered for Walk only.
         HayPlanLocation(
             id = "madrid", name = "Madrid", region = "Comunidad de Madrid",
@@ -141,13 +142,13 @@ object LocationCatalog {
         ),
         HayPlanLocation(
             id = "valencia", name = "Valencia", region = "Comunidad Valenciana",
-            coordinates = Coordinates(39.46975, -0.37739), area = PlaceArea.SPAIN,
+            coordinates = Coordinates(39.47391, -0.37966), area = PlaceArea.SPAIN,
             coast = CoastalReference("Malvarrosa", Coordinates(39.4777, -0.3235)),
         ),
         HayPlanLocation(
             id = "alicante", name = "Alicante", region = "Comunidad Valenciana",
             coordinates = Coordinates(38.34517, -0.48149), area = PlaceArea.SPAIN,
-            coast = CoastalReference("Postiguet", Coordinates(38.3457, -0.4758)),
+            coast = CoastalReference("Postiguet", Coordinates(38.3462, -0.4763)),
         ),
         HayPlanLocation(
             id = "granada", name = "Granada", region = "Andalucía",
@@ -160,31 +161,50 @@ object LocationCatalog {
         HayPlanLocation(
             id = "cadiz", name = "Cádiz", region = "Andalucía",
             coordinates = Coordinates(36.52672, -6.2891), area = PlaceArea.SPAIN,
-            coast = CoastalReference("La Victoria", Coordinates(36.5128, -6.2792)),
+            coast = CoastalReference("La Victoria", Coordinates(36.5062, -6.2793)),
+        ),
+        HayPlanLocation(
+            id = "malaga", name = "Málaga", region = "Andalucía",
+            coordinates = Coordinates(36.72016, -4.42034), area = PlaceArea.SPAIN,
+            coast = CoastalReference("La Malagueta", Coordinates(36.7164, -4.4109)),
         ),
         HayPlanLocation(
             id = "palma", name = "Palma de Mallorca", region = "Islas Baleares",
             coordinates = Coordinates(39.56939, 2.65024), area = PlaceArea.SPAIN,
-            coast = CoastalReference("Can Pere Antoni", Coordinates(39.5655, 2.6605)),
+            coast = CoastalReference("Can Pere Antoni", Coordinates(39.5625, 2.6620)),
         ),
         HayPlanLocation(
             id = "a-coruna", name = "A Coruña", region = "Galicia",
             coordinates = Coordinates(43.37135, -8.396), area = PlaceArea.SPAIN,
-            coast = CoastalReference("Riazor", Coordinates(43.3683, -8.4053)),
+            coast = CoastalReference("Riazor", Coordinates(43.3691, -8.4091)),
+        ),
+        HayPlanLocation(
+            id = "santander", name = "Santander", region = "Cantabria",
+            coordinates = Coordinates(43.46589, -3.80493), area = PlaceArea.SPAIN,
+            coast = CoastalReference("El Sardinero", Coordinates(43.4773, -3.7872)),
+        ),
+        HayPlanLocation(
+            id = "bilbao", name = "Bilbao", region = "País Vasco",
+            coordinates = Coordinates(43.26271, -2.92528), area = PlaceArea.SPAIN,
+        ),
+        HayPlanLocation(
+            id = "san-sebastian", name = "San Sebastián", region = "País Vasco",
+            coordinates = Coordinates(43.31283, -1.97499), area = PlaceArea.SPAIN,
+            coast = CoastalReference("La Concha", Coordinates(43.3176, -1.9865)),
         ),
         // Canary Islands clocks run an hour behind; like every place here, times are shown in
         // Europe/Madrid (peninsular) time.
         HayPlanLocation(
             id = "las-palmas", name = "Las Palmas de Gran Canaria", region = "Canarias",
-            coordinates = Coordinates(28.09973, -15.41343), area = PlaceArea.SPAIN,
-            coast = CoastalReference("Las Canteras", Coordinates(28.1412, -15.4345)),
+            coordinates = Coordinates(28.10178, -15.41573), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Las Canteras", Coordinates(28.1396, -15.4366)),
         ),
         HayPlanLocation(
             id = "tenerife", name = "Tenerife", region = "Canarias",
             // Santa Cruz is the reference town; the south of the island is often sunnier.
             coordinates = Coordinates(28.46824, -16.25462), area = PlaceArea.SPAIN,
             weatherReference = "Santa Cruz de Tenerife",
-            coast = CoastalReference("Las Teresitas", Coordinates(28.5082, -16.1856)),
+            coast = CoastalReference("Las Teresitas", Coordinates(28.5085, -16.1860)),
         ),
     )
 }
