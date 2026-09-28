@@ -48,7 +48,7 @@
 ## UI and localization
 
 - Preserve the compact phone-first flow: the app opens on the Week grid (Week is the first date chip),
-  activity, ranked cards or the week grid, then details. The grid's headline shows both activities. The place switcher (Week header and detail title) is a tinted, outlined pill with a pin and chevron, never plain text; in details it switches location in place.
+  activity, ranked cards or the week grid, then details. The grid's headline shows both activities. The place switcher (Week header and detail title) is an outlined teal pill with a pin, the region and a chevron, never plain text; in details it switches location in place. Its picker has Asturias / Spain tabs (`PlaceArea`); inland towns appear for Walk only (`pickable`), and the week recommends within the last picked place's area.
 - Activity names: English "Beach" and "Walk"; Spanish "Playita" and "Paseíto" (deliberately playful).
 - A score is stated once per place: `RatingValue` (compact pill on cards, headline in details). Warnings use
   `WarningLine`, never a rating colour. The date strip (its first chip is Week) and week grid cells choose the date; the detail

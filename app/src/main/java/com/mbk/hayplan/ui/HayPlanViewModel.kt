@@ -44,6 +44,8 @@ data class HayPlanUiState(
     val activity: ActivityType = ActivityType.BEACH,
     val openedLocationId: String? = null,
     val selectedLocationId: String? = null,
+    /** The picker group the week recommends from; picking a place moves it to that place's group. */
+    val area: PlaceArea = PlaceArea.ASTURIAS,
     val now: LocalDateTime = LocalDateTime.now(LocationCatalog.zone),
     val nowInstant: Instant = Instant.now(),
     val isLoading: Boolean = true,
@@ -64,9 +66,13 @@ data class HayPlanUiState(
     fun selectActivity(selected: ActivityType): HayPlanUiState =
         copy(activity = selected, selectedLocationId = null)
 
-    fun selectLocation(id: String): HayPlanUiState =
-        if (forecasts.any { it.location.id == id && it.location.coast != null })
-            copy(selectedLocationId = id, openedLocationId = null) else this
+    /** A picked place leads the week; inside a detail it replaces the opened place so Back lands on it. */
+    fun selectLocation(id: String): HayPlanUiState {
+        val location = forecasts.find { it.location.id == id }?.location
+            ?.takeIf { pickable(it, activity) } ?: return this
+        return copy(selectedLocationId = id, area = location.area,
+            openedLocationId = if (openedLocationId != null) id else null)
+    }
 
     /** A date chip in the overview leaves the week grid; inside a detail it only changes the day shown. */
     fun selectDate(date: LocalDate): HayPlanUiState =

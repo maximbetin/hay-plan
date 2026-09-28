@@ -41,6 +41,28 @@ class LocationSelectionTest {
         val selected = state.selectLocation("gijon")
         assertEquals("gijon", selected.selectedLocationId)
         assertNull(selected.selectActivity(ActivityType.HIKING).selectedLocationId)
+        // Inland towns are offered for Walk only.
+        assertEquals("oviedo", state.selectActivity(ActivityType.HIKING).selectLocation("oviedo").selectedLocationId)
+    }
+
+    @Test fun `picking a place elsewhere in Spain moves the recommendation group and keeps it across activities`() {
+        val madrid = LocationCatalog.locations.first { it.id == "madrid" }
+        val cadiz = LocationCatalog.locations.first { it.id == "cadiz" }
+        val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(madrid), forecast(cadiz)))
+        assertEquals(PlaceArea.ASTURIAS, state.area)
+        val picked = state.selectLocation("cadiz")
+        assertEquals(PlaceArea.SPAIN, picked.area)
+        assertEquals(PlaceArea.SPAIN, picked.selectActivity(ActivityType.HIKING).area)
+        assertEquals(picked, picked.selectLocation("madrid"))
+        assertEquals("madrid", picked.selectActivity(ActivityType.HIKING).selectLocation("madrid").selectedLocationId)
+    }
+
+    @Test fun `picking a place inside a detail swaps the opened place so Back lands on it`() {
+        val state = HayPlanUiState(forecasts = listOf(forecast(gijon), forecast(oviedo)),
+            activity = ActivityType.HIKING).openLocation("gijon").selectLocation("oviedo")
+        assertEquals("oviedo", state.openedLocationId)
+        assertEquals("oviedo", state.copy(openedLocationId = null).selectedLocationId)
+        assertNull(HayPlanUiState(forecasts = listOf(forecast(gijon))).selectLocation("gijon").openedLocationId)
     }
 
     @Test fun `opening inland town does not change the chosen activity or date`() {
@@ -112,6 +134,10 @@ class LocationSelectionTest {
         locations.forEach { location ->
             assertTrue(location.coordinates.latitude in -90.0..90.0)
             assertTrue(location.coordinates.longitude in -180.0..180.0)
+            // Mainland Spain and the Balearic and Canary Islands.
+            assertTrue(location.coordinates.latitude in 27.5..44.0)
+            assertTrue(location.coordinates.longitude in -18.5..4.5)
+            assertTrue(location.region.isNotBlank())
             location.coast?.let {
                 assertTrue(it.name.isNotBlank())
                 assertTrue(it.coordinates.latitude in -90.0..90.0)

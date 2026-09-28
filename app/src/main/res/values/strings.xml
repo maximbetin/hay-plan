@@ -50,6 +50,8 @@
     <string name="week_cell_description">%1$s, %2$s: %3$s%4$s</string>
     <string name="change_place">Change place</string>
     <string name="choose_place">Choose a place</string>
+    <string name="area_asturias">Asturias</string>
+    <string name="area_spain">Spain</string>
 
     <plurals name="remaining_daylight_average">
         <item quantity="one">Average of %1$d remaining daylight hour</item>

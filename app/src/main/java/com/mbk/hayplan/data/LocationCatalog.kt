@@ -8,6 +8,9 @@ import java.time.ZoneId
 data class Coordinates(val latitude: Double, val longitude: Double)
 data class CoastalReference(val name: String, val coordinates: Coordinates)
 
+/** How the place picker groups the catalog: home region first, then the rest of Spain. */
+enum class PlaceArea { ASTURIAS, SPAIN }
+
 data class HayPlanLocation(
     val id: String,
     val name: String,
@@ -15,6 +18,7 @@ data class HayPlanLocation(
     val coordinates: Coordinates,
     val coast: CoastalReference? = null,
     val weatherReference: String? = null,
+    val area: PlaceArea = PlaceArea.ASTURIAS,
 )
 
 object LocationCatalog {
@@ -122,6 +126,65 @@ object LocationCatalog {
             // Campo de Caso is the visitor-centre town for Redes, not a coastal location.
             // https://www.turismoasturias.es/es/-/blogs/las-10-mejores-cosas-que-ver-y-hacer-en-el-parque-natural-de-redes
             weatherReference = "Campo de Caso",
+        ),
+        // Rest of Spain. Town centres are GeoNames populated places; each beach is the city's main
+        // urban beach, and the marine client selects the nearest sea grid cell. Inland cities have no
+        // coast, so they are offered for Walk only.
+        HayPlanLocation(
+            id = "madrid", name = "Madrid", region = "Comunidad de Madrid",
+            coordinates = Coordinates(40.4165, -3.70256), area = PlaceArea.SPAIN,
+        ),
+        HayPlanLocation(
+            id = "barcelona", name = "Barcelona", region = "Cataluña",
+            coordinates = Coordinates(41.38879, 2.15899), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Barceloneta", Coordinates(41.3784, 2.1925)),
+        ),
+        HayPlanLocation(
+            id = "valencia", name = "Valencia", region = "Comunidad Valenciana",
+            coordinates = Coordinates(39.46975, -0.37739), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Malvarrosa", Coordinates(39.4777, -0.3235)),
+        ),
+        HayPlanLocation(
+            id = "alicante", name = "Alicante", region = "Comunidad Valenciana",
+            coordinates = Coordinates(38.34517, -0.48149), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Postiguet", Coordinates(38.3457, -0.4758)),
+        ),
+        HayPlanLocation(
+            id = "granada", name = "Granada", region = "Andalucía",
+            coordinates = Coordinates(37.18817, -3.60667), area = PlaceArea.SPAIN,
+        ),
+        HayPlanLocation(
+            id = "sevilla", name = "Sevilla", region = "Andalucía",
+            coordinates = Coordinates(37.38283, -5.97317), area = PlaceArea.SPAIN,
+        ),
+        HayPlanLocation(
+            id = "cadiz", name = "Cádiz", region = "Andalucía",
+            coordinates = Coordinates(36.52672, -6.2891), area = PlaceArea.SPAIN,
+            coast = CoastalReference("La Victoria", Coordinates(36.5128, -6.2792)),
+        ),
+        HayPlanLocation(
+            id = "palma", name = "Palma de Mallorca", region = "Islas Baleares",
+            coordinates = Coordinates(39.56939, 2.65024), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Can Pere Antoni", Coordinates(39.5655, 2.6605)),
+        ),
+        HayPlanLocation(
+            id = "a-coruna", name = "A Coruña", region = "Galicia",
+            coordinates = Coordinates(43.37135, -8.396), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Riazor", Coordinates(43.3683, -8.4053)),
+        ),
+        // Canary Islands clocks run an hour behind; like every place here, times are shown in
+        // Europe/Madrid (peninsular) time.
+        HayPlanLocation(
+            id = "las-palmas", name = "Las Palmas de Gran Canaria", region = "Canarias",
+            coordinates = Coordinates(28.09973, -15.41343), area = PlaceArea.SPAIN,
+            coast = CoastalReference("Las Canteras", Coordinates(28.1412, -15.4345)),
+        ),
+        HayPlanLocation(
+            id = "tenerife", name = "Tenerife", region = "Canarias",
+            // Santa Cruz is the reference town; the south of the island is often sunnier.
+            coordinates = Coordinates(28.46824, -16.25462), area = PlaceArea.SPAIN,
+            weatherReference = "Santa Cruz de Tenerife",
+            coast = CoastalReference("Las Teresitas", Coordinates(28.5082, -16.1856)),
         ),
     )
 }

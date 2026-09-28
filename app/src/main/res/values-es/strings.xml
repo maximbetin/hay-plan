@@ -49,6 +49,8 @@
     <string name="week_cell_description">%1$s, %2$s: %3$s%4$s</string>
     <string name="change_place">Cambiar de lugar</string>
     <string name="choose_place">Elige un lugar</string>
+    <string name="area_asturias">Asturias</string>
+    <string name="area_spain">España</string>
 
     <plurals name="remaining_daylight_average">
         <item quantity="one">Media de %1$d hora de luz restante</item>

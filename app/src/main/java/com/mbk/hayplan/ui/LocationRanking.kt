@@ -1,5 +1,6 @@
 package com.mbk.hayplan.ui
 
+import com.mbk.hayplan.data.HayPlanLocation
 import com.mbk.hayplan.data.LocationForecast
 import com.mbk.hayplan.domain.ActivityOutlook
 import com.mbk.hayplan.domain.ActivityType
@@ -42,6 +43,10 @@ internal fun bestDay(days: List<DatedOutlook>, today: LocalDate): DatedOutlook? 
 /** Beach at an inland place is only an estimate: such rows sink to the bottom and never headline the week. */
 internal fun noBeach(forecast: LocationForecast, activity: ActivityType) =
     activity == ActivityType.BEACH && forecast.location.coast == null
+
+/** The place picker offers every coastal place, and inland towns too when walking. */
+internal fun pickable(location: HayPlanLocation, activity: ActivityType) =
+    location.coast != null || activity == ActivityType.HIKING
 
 /** Week rows rank by each location's best day, so the headline is the first row that can hold it. */
 internal fun rankLocationsForWeek(

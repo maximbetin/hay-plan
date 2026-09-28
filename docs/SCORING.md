@@ -51,8 +51,10 @@ Excellent 90–100. Detail views also count hours rated Good or better (score >=
 ## Inspecting the score
 
 The app opens on a single weekly recommendation for Beach or Walk. The place picker at the top
-lets the user choose any coastal place directly. Inland places stay in the data catalog for
-other uses but are hidden from this screen. The main view has no separate day ranking or date
+groups places into Asturias and the rest of Spain, each ranked by its best day. Coastal places
+are offered for both activities; inland towns (Oviedo, Madrid, Granada, Sevilla...) only for
+Walk, since they have no beach. Every time is Europe/Madrid time, including the Canary Islands,
+whose clocks run an hour behind. The main view has no separate day ranking or date
 strip; tapping a weekly cell opens that place and day. The detail shows its day rating and
 best three-hour window, then hourly assessments, then the seven-day chart. Source and forecast
 explanations sit at the bottom.
@@ -60,9 +62,10 @@ explanations sit at the bottom.
 The week scores today through day six for every location. Each location's best day is
 chosen by rating band, then sea-data coverage, then the exact score where one is shown (days
 zero to two), then the earliest date, so a hidden later-day score never beats a visible one.
-The default place is the best coastal location for the selected activity, and the headline
-shows its best day and primary warning. Switching activity resets to that activity's own
-recommendation. After today's daylight ends, today's column is omitted.
+The default place is the best pickable location in the current group (Asturias until the user
+picks a place elsewhere) for the selected activity, and the headline shows its best day and
+primary warning. Switching activity resets to that activity's own recommendation within the
+same group. After today's daylight ends, today's column is omitted.
 Cells show exact scores for days zero to two and one to five rating dots for days three to
 six; "!" marks a severe warning only on a cell rated Good or better, where colour would hide it.
 

@@ -67,6 +67,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
@@ -205,8 +206,9 @@ fun HayPlanScreen(
     LaunchedEffect(activity) { weekScroll.scrollToItem(0) }
     var choosingPlace by rememberSaveable { mutableStateOf(false) }
     val weekOutlooks = state.week?.takeIf { it.activity == state.activity }?.outlooks.orEmpty()
+    // The week recommends from the picker group of the last chosen place (Asturias until then).
     val weekRanked = rankLocationsForWeek(state.forecasts.filter {
-        it.location.coast != null && it.location.id in weekOutlooks
+        pickable(it.location, state.activity) && it.location.area == state.area && it.location.id in weekOutlooks
     }, weekOutlooks, state.activity, state.now.toLocalDate())
     val selectedPlace = weekRanked.find { it.location.id == state.selectedLocationId }
         ?: weekHighlight(weekRanked, weekOutlooks, state.activity, state.now.toLocalDate())?.location
@@ -223,7 +225,7 @@ fun HayPlanScreen(
                     style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 1)
                 // The place name is the switcher, so another town is one tap away without going back.
                 else Box(Modifier.weight(1f)) {
-                    PlaceSwitcher(opened.location.name, heading = true) { choosingPlace = true }
+                    PlaceSwitcher(opened.location, heading = true) { choosingPlace = true }
                 }
                 Box {
                     IconButton(onClick = { showSettings = true }) {
@@ -283,7 +285,7 @@ fun HayPlanScreen(
                 }
             }
             if (opened == null && selectedPlace != null) {
-                PlaceSwitcher(selectedPlace.location.name, Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                PlaceSwitcher(selectedPlace.location, Modifier.fillMaxWidth().padding(start = 18.dp, top = 10.dp, end = 18.dp)) {
                     choosingPlace = true
                 }
             }
@@ -316,70 +318,114 @@ fun HayPlanScreen(
         }
     }
     if (choosingPlace && selectedPlace != null) {
-        PlacePicker(state, opened?.location?.id ?: selectedPlace.location.id,
+        PlacePicker(state, opened?.location ?: selectedPlace.location,
             onDismiss = { choosingPlace = false },
-            onSelected = { id -> choosingPlace = false
-                if (opened != null) onLocationSelected(id) else onPlaceSelected(id) })
+            onSelected = { id -> choosingPlace = false; onPlaceSelected(id) })
     }
 }
 
 /**
- * The place name as an obvious control: a tinted, outlined pill with a pin and a chevron, so it never
- * reads as a plain title. Opens [PlacePicker].
+ * The place name as an obvious control in the app's own teal: an outlined pill with a pin, the region
+ * underneath and a chevron, so it never reads as a plain title. Opens [PlacePicker].
  */
 @Composable
-private fun PlaceSwitcher(name: String, modifier: Modifier = Modifier, heading: Boolean = false, onClick: () -> Unit) {
+private fun PlaceSwitcher(place: HayPlanLocation, modifier: Modifier = Modifier, heading: Boolean = false,
+    onClick: () -> Unit) {
     val changePlace = localizedString(R.string.change_place)
     val colors = MaterialTheme.colorScheme
-    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = colors.secondaryContainer,
-        contentColor = colors.onSecondaryContainer, border = BorderStroke(1.dp, colors.outline),
+    Surface(onClick = onClick, shape = RoundedCornerShape(50), color = colors.surface,
+        contentColor = colors.onSurface, border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.55f)),
         modifier = modifier.semantics { onClick(label = changePlace) { onClick(); true } }) {
-        Row(Modifier.heightIn(min = 48.dp).padding(start = 14.dp, end = 10.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(painterResource(R.drawable.ic_place), contentDescription = null, Modifier.size(20.dp))
-            Text(name, Modifier.weight(1f, fill = !heading).then(if (heading) Modifier.semantics { heading() } else Modifier),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Icon(painterResource(R.drawable.ic_expand), contentDescription = null, Modifier.size(24.dp))
+        Row(Modifier.heightIn(min = 48.dp).padding(start = 12.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(painterResource(R.drawable.ic_place), contentDescription = null, Modifier.size(22.dp),
+                tint = colors.primary)
+            Column(Modifier.weight(1f, fill = !heading)) {
+                Text(place.name, if (heading) Modifier.semantics { heading() } else Modifier,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(place.region, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Icon(painterResource(R.drawable.ic_expand), contentDescription = null, Modifier.size(24.dp),
+                tint = colors.onSurfaceVariant)
         }
     }
 }
 
-/** Every place in overview order with its score for the shown day; picking one swaps the detail in place. */
+/**
+ * Places split into Asturias and the rest of Spain, each ranked by its best day this week. The list opens
+ * on the current place's group; picking a place swaps the week or the detail in place.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlacePicker(
     state: HayPlanUiState,
-    currentId: String,
+    current: HayPlanLocation,
     onDismiss: () -> Unit,
     onSelected: (String) -> Unit,
 ) {
     val week = state.week
-    val places = remember(week, state.forecasts) {
-        if (week == null) emptyList() else rankLocationsForWeek(
-            state.forecasts.filter { it.location.coast != null && it.location.id in week.outlooks },
-            week.outlooks, state.activity, state.now.toLocalDate())
+    val today = state.now.toLocalDate()
+    var area by rememberSaveable { mutableStateOf(current.area) }
+    val places = remember(week, state.forecasts, area) {
+        if (week == null) emptyList() else rankLocationsForWeek(state.forecasts.filter {
+            it.location.area == area && pickable(it.location, week.activity) && it.location.id in week.outlooks
+        }, week.outlooks, week.activity, today)
     }
+    val locale = if (LocalUiStrings.current.language == AppLanguage.SPANISH) Locale.forLanguageTag("es-ES")
+        else Locale.ENGLISH
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Text(localizedString(R.string.choose_place), Modifier.padding(horizontal = 22.dp).semantics { heading() },
             style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 18.dp, top = 12.dp, end = 18.dp)) {
+            PlaceArea.entries.forEachIndexed { index, option ->
+                SegmentedButton(selected = area == option, onClick = { area = option },
+                    shape = SegmentedButtonDefaults.itemShape(index, PlaceArea.entries.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
+                    Text(localizedString(when (option) {
+                        PlaceArea.ASTURIAS -> R.string.area_asturias
+                        PlaceArea.SPAIN -> R.string.area_spain
+                    }), fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
+            }
+        }
         LazyColumn(contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 24.dp)) {
             items(places, key = { it.location.id }) { forecast ->
-                val best = week?.outlooks?.get(forecast.location.id)?.let { bestDay(it, state.now.toLocalDate()) }
+                val location = forecast.location
+                val best = week?.outlooks?.get(location.id)?.let { bestDay(it, today) }
                 val day = best?.outlook?.day
-                val current = forecast.location.id == currentId
-                Surface(onClick = { onSelected(forecast.location.id) }, shape = RoundedCornerShape(14.dp),
-                    color = if (current) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { selected = current }) {
-                    Row(Modifier.heightIn(min = 52.dp).padding(horizontal = 12.dp),
+                val isCurrent = location.id == current.id
+                // Which beach or town the forecast is for; inland towns only appear when walking.
+                val detail = if (week?.activity == ActivityType.BEACH) location.coast?.name
+                    else location.weatherReference ?: location.region.takeIf { location.area != PlaceArea.ASTURIAS }
+                Surface(onClick = { onSelected(location.id) }, shape = RoundedCornerShape(14.dp),
+                    color = if (isCurrent) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                    modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { selected = isCurrent }) {
+                    Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(forecast.location.name,
-                            Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(painterResource(R.drawable.ic_place), contentDescription = null, Modifier.size(20.dp),
+                            tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                        Column(Modifier.weight(1f)) {
+                            Text(location.name, style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            detail?.let {
+                                Text(it, style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        best?.takeIf { day != null }?.let {
+                            Text(it.date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).removeSuffix("."),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
                         RatingValue(day?.rating, day?.score,
-                            showExactScore = best?.date?.let { scorePrecision(it, state.now.toLocalDate()) == ScorePrecision.EXACT } == true,
+                            showExactScore = best?.date?.let { scorePrecision(it, today) == ScorePrecision.EXACT } == true,
                             compact = true)
                     }
                 }
