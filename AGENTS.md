@@ -81,6 +81,6 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 
 ## Previous released state
 
-- Released commit: `86669fb` (`Hay Plan 0.9.0.30`, tag `auto-30`).
-- The release workflow completed successfully on 2026-09-22.
+- Released commit: `65b8d0b` (`Hay Plan 0.9.4.35`, tag `auto-35`).
+- The release workflow completed successfully on 2026-09-28.
 - Manual phone checks still useful: narrow width, large font, TalkBack, Spanish, and dark mode.
