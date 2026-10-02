@@ -1,4 +1,4 @@
-# Hay Plan maintenance guide
+# HayPlan maintenance guide
 
 ## Scope and architecture
 
@@ -81,6 +81,6 @@ $env:GRADLE_USER_HOME='C:\Users\MBK\hay-plan\.gradle'
 
 ## Previous released state
 
-- Released commit: `65b8d0b` (`Hay Plan 0.9.4.35`, tag `auto-35`).
+- Released commit: `65b8d0b` (`HayPlan 0.9.4.35`, tag `auto-35`).
 - The release workflow completed successfully on 2026-09-28.
 - Manual phone checks still useful: narrow width, large font, TalkBack, Spanish, and dark mode.

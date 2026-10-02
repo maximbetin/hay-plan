@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hay Plan</string>
+    <string name="app_name">HayPlan</string>
     <string name="back">Atrás</string>
     <string name="settings">Ajustes</string>
     <string name="refresh">Actualizar</string>

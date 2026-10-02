@@ -17,5 +17,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "hay-plan"
+rootProject.name = "hayplan"
 include(":app")

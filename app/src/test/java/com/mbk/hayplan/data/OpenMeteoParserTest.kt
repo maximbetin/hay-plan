@@ -34,7 +34,7 @@ class OpenMeteoParserTest {
     }
 
     @Test
-    fun `preceding hour rain is aligned to the hay-plan interval`() {
+    fun `preceding hour rain is aligned to the HayPlan interval`() {
         val hours = OpenMeteoParser.weather(weather)
         assertEquals(30, hours[1].precipitationProbabilityPercent)
         assertEquals(0.7, hours[1].precipitationMm!!, 0.001)
